@@ -1,0 +1,192 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+.driver-location-marker {
+  width: 22px;
+  height: 30px;
+  margin-top: -30px;
+  margin-left: -11px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='30' viewBox='0 0 22 30' fill='none'%3E%3Cpath d='M11 0C4.925 0 0 4.81 0 10.85C0 19 11 30 11 30s11-11 11-19.15C22 4.81 17.075 0 11 0z' fill='%2310b981'/%3E%3Ccircle cx='11' cy='10' r='5' fill='white'/%3E%3Ccircle cx='11' cy='10' r='3' fill='%2310b981'/%3E%3C/svg%3E") center / contain no-repeat;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+}
+
+.passenger-location-marker {
+  width: 22px;
+  height: 30px;
+  margin-top: -30px;
+  margin-left: -11px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='30' viewBox='0 0 22 30' fill='none'%3E%3Cpath d='M11 0C4.925 0 0 4.81 0 10.85C0 19 11 30 11 30s11-11 11-19.15C22 4.81 17.075 0 11 0z' fill='%23f59e0b'/%3E%3Ccircle cx='11' cy='10' r='5' fill='white'/%3E%3Ccircle cx='11' cy='10' r='3' fill='%23f59e0b'/%3E%3C/svg%3E") center / contain no-repeat;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+  animation: passenger-pulse 2s ease-in-out infinite;
+}
+
+@keyframes passenger-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+}
+
+/*
+ * RideShare Malawi — design system
+ * Palette: matte ink black, deep emerald, bone ivory + warm gold accent.
+ * No gradients. Solid surfaces, sharp typography, generous tracking.
+ */
+
+@theme inline {
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-strong: var(--primary-strong);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-ring-offset-background: var(--background);
+}
+
+:root {
+  /* Dark-first. The app is a single sophisticated dark theme. */
+  --radius: 6px;
+
+  --background: oklch(0.16 0.005 240);          /* ink black */
+  --foreground: oklch(0.96 0.005 90);            /* bone */
+
+  --surface:   oklch(0.19 0.006 240);            /* panel */
+  --surface-2: oklch(0.22 0.007 240);            /* raised */
+  --surface-3: oklch(0.26 0.008 240);            /* hover/active */
+
+  --card: oklch(0.19 0.006 240);
+  --card-foreground: oklch(0.96 0.005 90);
+
+  --popover: oklch(0.20 0.006 240);
+  --popover-foreground: oklch(0.96 0.005 90);
+
+  /* Emerald green — confident, not neon */
+  --primary: oklch(0.66 0.16 152);
+  --primary-foreground: oklch(0.12 0.02 152);
+  --primary-strong: oklch(0.58 0.17 152);
+
+  --secondary: oklch(0.24 0.008 240);
+  --secondary-foreground: oklch(0.96 0.005 90);
+
+  --muted: oklch(0.22 0.006 240);
+  --muted-foreground: oklch(0.66 0.012 240);
+
+  --accent: oklch(0.28 0.02 152);
+  --accent-foreground: oklch(0.96 0.005 90);
+
+  /* Warm gold — third color for highlights, currency, status */
+  --gold: oklch(0.80 0.12 80);
+  --gold-foreground: oklch(0.18 0.03 80);
+
+  --destructive: oklch(0.62 0.20 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --success: oklch(0.70 0.16 152);
+  --warning: oklch(0.78 0.14 75);
+
+  --border: oklch(0.27 0.007 240);
+  --border-strong: oklch(0.34 0.008 240);
+  --input: oklch(0.24 0.006 240);
+  --ring: oklch(0.66 0.16 152);
+
+  --sidebar: oklch(0.14 0.005 240);
+  --sidebar-foreground: oklch(0.92 0.005 90);
+  --sidebar-primary: oklch(0.66 0.16 152);
+  --sidebar-primary-foreground: oklch(0.12 0.02 152);
+  --sidebar-accent: oklch(0.22 0.007 240);
+  --sidebar-accent-foreground: oklch(0.96 0.005 90);
+  --sidebar-border: oklch(0.24 0.006 240);
+  --sidebar-ring: oklch(0.66 0.16 152);
+
+  --chart-1: oklch(0.66 0.16 152);
+  --chart-2: oklch(0.80 0.12 80);
+  --chart-3: oklch(0.55 0.10 240);
+  --chart-4: oklch(0.70 0.14 200);
+  --chart-5: oklch(0.62 0.20 25);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body { background-color: var(--color-background); color: var(--color-foreground); }
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.015em; }
+  .font-mono { font-family: var(--font-mono); }
+
+  /* Subtle hairline divider used across the app */
+  .hairline { border-color: var(--color-border); }
+
+  /* Tabular numbers for money & data */
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* Custom scrollbar — minimal, dark */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-muted-foreground); }
+}
+
+@layer utilities {
+  .label-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-muted-foreground);
+  }
+  .ring-focus {
+    outline: none;
+  }
+  .ring-focus:focus-visible {
+    box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px var(--color-primary);
+  }
+}
