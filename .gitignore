@@ -38,3 +38,4 @@ dist/
 *.env.local
 firebase-service-account.json
 prisma/migrations/
+rideshare-fr/dist-static/
