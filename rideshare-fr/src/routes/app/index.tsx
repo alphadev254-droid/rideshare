@@ -32,7 +32,7 @@ import {
   type User,
   locationService,
 } from "@/lib/api";
-import { formatMwk, formatDateTime } from "@/lib/format";
+import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
 import { StatusPill } from "@/components/status-pill";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -400,7 +400,7 @@ function PassengerHome() {
                       </span>
                       <span className="flex items-center gap-1.5">
                         <MapPin className="h-3 w-3" />
-                        {trip.distanceKm} km
+                        {formatDistanceKm(trip.distanceKm)}
                       </span>
                       {trip.vehicle && (
                         <span className="flex items-center gap-1.5">
@@ -527,7 +527,7 @@ function RideDetailsDialog({
           <div className="grid grid-cols-2 gap-3 rounded-md border border-border bg-card p-4 text-sm">
             <Detail label="Fare" value={formatMwk(trip.farePerSeatMwk)} />
             <Detail label="Seats left" value={`${trip.availableSeats}/${trip.totalSeats}`} />
-            <Detail label="Distance" value={`${trip.distanceKm} km`} />
+            <Detail label="Distance" value={formatDistanceKm(trip.distanceKm)} />
             <Detail
               label="Duration"
               value={

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
 import { EmptyState } from "@/components/empty-state";
 import { StatusPill } from "@/components/status-pill";
-import { formatDateTime, formatMwk } from "@/lib/format";
+import { formatDateTime, formatMwk, formatDistanceKm } from "@/lib/format";
 import { Eye, MapPin, Plus, Route as RouteIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -66,7 +66,7 @@ function TripsList() {
                     {t.originName} → {t.destinationName}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {t.distanceKm} km · {t.comfortClass}
+                    {formatDistanceKm(t.distanceKm)} · {t.comfortClass}
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">

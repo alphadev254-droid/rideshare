@@ -33,3 +33,10 @@ export function initials(name?: string | null): string {
     .map((s) => s[0]?.toUpperCase() ?? "")
     .join("");
 }
+
+export function formatDistanceKm(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(Number(value)) || Number(value) <= 0) {
+    return "Not provided";
+  }
+  return `${Number(value).toLocaleString("en-MW", { maximumFractionDigits: 1 })} km`;
+}

@@ -7,7 +7,7 @@ import { useAuthModal } from "@/lib/auth-modal-context";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { tripService, type Trip } from "@/lib/api";
-import { formatMwk, formatDateTime } from "@/lib/format";
+import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
 
 export const Route = createFileRoute("/_public/")({
   head: () => ({
@@ -196,7 +196,7 @@ function Landing() {
                         </span>
                         <span className="flex items-center gap-1.5">
                           <MapPin className="h-3 w-3" />
-                          {trip.distanceKm} km
+                          {formatDistanceKm(trip.distanceKm)}
                         </span>
                         {trip.vehicle && (
                           <span className="flex items-center gap-1.5">

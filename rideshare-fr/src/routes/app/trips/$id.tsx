@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatMwk, formatDateTime } from "@/lib/format";
+import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
 import { ArrowLeft, Car, MapPin, Star, User } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
@@ -162,7 +162,7 @@ function TripDetail() {
             <dl className="mt-3 grid grid-cols-2 gap-4 text-sm">
               <div>
                 <dt className="text-xs text-muted-foreground">Distance</dt>
-                <dd className="mt-0.5 tabular font-medium">{trip.distanceKm} km</dd>
+                <dd className="mt-0.5 tabular font-medium">{formatDistanceKm(trip.distanceKm)}</dd>
               </div>
               {trip.estimatedDurationMinutes && (
                 <div>

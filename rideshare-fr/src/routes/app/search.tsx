@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
 import { EmptyState } from "@/components/empty-state";
 import { StatusPill } from "@/components/status-pill";
-import { formatMwk, formatTime, formatDate } from "@/lib/format";
+import { formatMwk, formatTime, formatDate, formatDistanceKm } from "@/lib/format";
 import { ArrowRight, Car, Clock, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -116,7 +116,7 @@ function SearchPage() {
                     </span>
                     <span className="flex items-center gap-1.5">
                       <MapPin className="h-3 w-3" />
-                      {trip.distanceKm} km
+                      {formatDistanceKm(trip.distanceKm)}
                     </span>
                     {trip.estimatedDurationMinutes && (
                       <span className="flex items-center gap-1.5">

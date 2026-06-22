@@ -54,13 +54,10 @@ export async function createTrip(userId: string, input: CreateTripInput) {
   if (hasAnyCoords && !hasAllCoords) {
     throw new AppError(400, "Provide both origin and destination coordinates, or use distance only");
   }
-  if (!hasAllCoords && (!input.distanceKm || input.distanceKm <= 0)) {
-    throw new AppError(400, "Distance must be greater than zero when coordinates are not provided");
-  }
 
   const distanceKm = hasAllCoords
     ? (await getDistance(input.originLat, input.originLng, input.destinationLat, input.destinationLng)).distanceKm
-    : input.distanceKm!;
+    : input.distanceKm ?? 0;
 
   const comfortClass = vehicle.comfortClass as ComfortClass;
   const baseFareMwk = input.farePerSeatMwk;
@@ -163,13 +160,10 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
   if (hasAnyCoords && !hasAllCoords) {
     throw new AppError(400, "Provide both origin and destination coordinates, or use distance only");
   }
-  if (!hasAllCoords && (!input.distanceKm || input.distanceKm <= 0)) {
-    throw new AppError(400, "Distance must be greater than zero when coordinates are not provided");
-  }
 
   const distanceKm = hasAllCoords
     ? (await getDistance(input.originLat, input.originLng, input.destinationLat, input.destinationLng)).distanceKm
-    : input.distanceKm!;
+    : input.distanceKm ?? 0;
   const availableSeats = input.totalSeats - bookedSeats;
 
   type TripRow = {
@@ -239,12 +233,9 @@ export async function createTripAdmin(input: AdminTripInput) {
   if (hasAnyCoords && !hasAllCoords) {
     throw new AppError(400, "Provide all coordinates or leave all coordinates blank");
   }
-  if (!hasAllCoords && (!input.distanceKm || input.distanceKm <= 0)) {
-    throw new AppError(400, "Distance is required when coordinates are not provided");
-  }
   const distanceKm = hasAllCoords
     ? (await getDistance(input.originLat, input.originLng, input.destinationLat, input.destinationLng)).distanceKm
-    : input.distanceKm!;
+    : input.distanceKm ?? 0;
 
   type TripRow = {
     id: string; origin_name: string; destination_name: string;
@@ -321,12 +312,9 @@ export async function updateTripAdmin(tripId: string, input: AdminTripInput) {
   if (hasAnyCoords && !hasAllCoords) {
     throw new AppError(400, "Provide all coordinates or leave all coordinates blank");
   }
-  if (!hasAllCoords && (!input.distanceKm || input.distanceKm <= 0)) {
-    throw new AppError(400, "Distance is required when coordinates are not provided");
-  }
   const distanceKm = hasAllCoords
     ? (await getDistance(input.originLat, input.originLng, input.destinationLat, input.destinationLng)).distanceKm
-    : input.distanceKm!;
+    : input.distanceKm ?? 0;
   const availableSeats = input.totalSeats - bookedSeats;
 
   type TripRow = {

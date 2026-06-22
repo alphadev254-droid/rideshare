@@ -7,7 +7,7 @@ import { LoadingState } from "@/components/loading-state";
 import { StatusPill } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatDateTime, formatMwk } from "@/lib/format";
+import { formatDateTime, formatMwk, formatDistanceKm } from "@/lib/format";
 import { API_CONFIG } from "@/lib/api/config";
 import { createAuthedSocket } from "@/lib/socket";
 import { ArrowLeft, CheckCircle2, KeyRound, MapPin, Maximize2, Navigation, Pencil, Play, XCircle } from "lucide-react";
@@ -402,7 +402,7 @@ function DriverTripDetail() {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Distance</dt>
-              <dd className="tabular">{trip.distanceKm} km</dd>
+              <dd className="tabular">{formatDistanceKm(trip.distanceKm)}</dd>
             </div>
             {trip.estimatedDurationMinutes && (
               <div className="flex justify-between">

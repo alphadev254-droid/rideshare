@@ -83,16 +83,12 @@ type TripFormState = {
 
 function validateTripForm(form: TripFormState, seatCapacity: number) {
   const nextErrors: Record<string, string> = {};
-  const distanceKm = Number(form.distanceKm);
   const farePerSeatMwk = Number(form.farePerSeatMwk);
   const totalSeats = Number(form.totalSeats);
   const durationMinutes = Number(form.durationHours || 0) * 60 + Number(form.durationMinutes || 0);
 
   if (!form.originName.trim()) nextErrors.originName = "Enter the trip origin.";
   if (!form.destinationName.trim()) nextErrors.destinationName = "Enter the trip destination.";
-  if (!form.distanceKm || !Number.isFinite(distanceKm) || distanceKm <= 0) {
-    nextErrors.distanceKm = "Enter a valid distance greater than 0.";
-  }
   if (!form.farePerSeatMwk || !Number.isFinite(farePerSeatMwk) || farePerSeatMwk <= 0) {
     nextErrors.farePerSeatMwk = "Enter the amount each passenger will pay.";
   }
@@ -200,7 +196,7 @@ function NewTrip() {
         departureTime,
         totalSeats: Number(form.totalSeats),
         comfortClass: selectedVehicle?.comfortClass ?? "economy",
-        distanceKm: Number(form.distanceKm),
+        distanceKm: form.distanceKm ? Number(form.distanceKm) : undefined,
         estimatedDurationMinutes:
           Number(form.durationHours || 0) * 60 + Number(form.durationMinutes || 0),
         farePerSeatMwk: Number(form.farePerSeatMwk),
@@ -239,7 +235,7 @@ function NewTrip() {
       <PageHeader
         eyebrow="My trips"
         title="Publish a trip"
-        description="Create a scheduled route with the vehicle, seats, departure time and distance passengers need to book."
+        description="Create a scheduled route with the vehicle, seats, departure time and fare passengers need to book."
       />
 
       {!hasVehicles && (
@@ -280,20 +276,19 @@ function NewTrip() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="label-eyebrow">Distance (km)</Label>
+            <Label className="label-eyebrow">Distance (km, optional)</Label>
             <Input
               type="number"
-              required
-              min={1}
+              min={0}
               step="0.1"
               aria-invalid={!!errors.distanceKm}
               value={form.distanceKm}
               onChange={(e) => up("distanceKm", e.target.value)}
-              placeholder="312"
+              placeholder="Optional"
             />
             <FieldError message={errors.distanceKm} />
             <p className="text-xs text-muted-foreground">
-              Used for passenger route information and search matching.
+              Optional route information shown to passengers when provided.
             </p>
           </div>
           <div className="grid gap-3">

@@ -50,7 +50,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDateTime, formatMwk } from "@/lib/format";
+import { formatDateTime, formatMwk, formatDistanceKm } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Edit3, Eye, MapPin, Plus, Search, Trash2, XCircle, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -214,8 +214,8 @@ function AdminTrips() {
       toast.error("Route and departure time are required");
       return;
     }
-    if (!Number(form.totalSeats) || !Number(form.farePerSeatMwk) || !Number(form.distanceKm)) {
-      toast.error("Seats, fare and distance must be valid numbers");
+    if (!Number(form.totalSeats) || !Number(form.farePerSeatMwk)) {
+      toast.error("Seats and fare must be valid numbers");
       return;
     }
     if (selectedVehicle && Number(form.totalSeats) > selectedVehicle.seatCapacity) {
@@ -358,7 +358,7 @@ function AdminTrips() {
                   </TableCell>
                   <TableCell className="tabular">{trip._count?.bookings ?? trip.bookingCount ?? 0}</TableCell>
                   <TableCell className="tabular">{formatMwk(trip.farePerSeatMwk)}</TableCell>
-                  <TableCell className="tabular">{trip.distanceKm ?? 0} km</TableCell>
+                  <TableCell className="tabular">{formatDistanceKm(trip.distanceKm)}</TableCell>
                   <TableCell className="tabular">
                     {trip.estimatedDurationMinutes ? formatDuration(trip.estimatedDurationMinutes) : "-"}
                   </TableCell>
@@ -530,11 +530,10 @@ function AdminTrips() {
                   }
                 />
               </Field>
-              <Field label="Distance (km)">
+              <Field label="Distance (km, optional)">
                 <Input
-                  required
                   type="number"
-                  min={1}
+                  min={0}
                   step="0.1"
                   value={form.distanceKm}
                   onChange={(event) => setForm((current) => ({ ...current, distanceKm: event.target.value }))}
@@ -578,7 +577,7 @@ function toPayload(form: TripForm, comfortClass: ComfortClass = "economy") {
     departureTime: new Date(form.departureTime).toISOString(),
     totalSeats: Number(form.totalSeats),
     comfortClass,
-    distanceKm: Number(form.distanceKm),
+    distanceKm: form.distanceKm ? Number(form.distanceKm) : undefined,
     estimatedDurationMinutes: Number(form.estimatedDurationMinutes),
     farePerSeatMwk: Number(form.farePerSeatMwk),
   };

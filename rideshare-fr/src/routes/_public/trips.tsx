@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ApiError, paymentService, tripService, userService, locationService, type ComfortClass, type PaymentMethod, type PendingPayment, type Trip, type User } from "@/lib/api";
-import { formatMwk, formatDateTime } from "@/lib/format";
+import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
 import { StatusPill } from "@/components/status-pill";
 import { useAuth } from "@/lib/auth-context";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -172,7 +172,7 @@ function PublicTripsPage() {
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mb-4">
                   <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDateTime(trip.departureTime)}</span>
-                  <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{trip.distanceKm} km</span>
+                  <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{formatDistanceKm(trip.distanceKm)}</span>
                   {trip.vehicle && <span className="flex items-center gap-1"><Car className="h-3 w-3" />{trip.vehicle.make} {trip.vehicle.model}</span>}
                 </div>
                 <div className="mt-auto flex items-end justify-between pt-3 border-t border-border">
@@ -233,7 +233,7 @@ function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentMet
           <div className="grid grid-cols-3 gap-3">
             <InfoTile icon={<Zap className="h-4 w-4" />} label="Fare" value={formatMwk(trip.farePerSeatMwk)} />
             <InfoTile icon={<Users className="h-4 w-4" />} label="Seats" value={`${trip.availableSeats}/${trip.totalSeats}`} />
-            <InfoTile icon={<MapPin className="h-4 w-4" />} label="Distance" value={`${trip.distanceKm} km`} />
+            <InfoTile icon={<MapPin className="h-4 w-4" />} label="Distance" value={formatDistanceKm(trip.distanceKm)} />
             <InfoTile icon={<Clock className="h-4 w-4" />} label="Duration" value={trip.estimatedDurationMinutes ? `${Math.floor(trip.estimatedDurationMinutes / 60)}h ${trip.estimatedDurationMinutes % 60}m` : "Not set"} />
             <InfoTile icon={<ShieldCheck className="h-4 w-4" />} label="Class" value={trip.comfortClass} />
             <InfoTile icon={<Car className="h-4 w-4" />} label="Vehicle" value={trip.vehicle ? `${trip.vehicle.make} ${trip.vehicle.model}` : "Pending"} />

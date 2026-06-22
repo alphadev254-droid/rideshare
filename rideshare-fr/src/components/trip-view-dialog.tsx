@@ -1,5 +1,5 @@
 import { useIsMobile } from "@/hooks/use-mobile";
-import { formatDateTime, formatMwk, formatDate, formatTime } from "@/lib/format";
+import { formatDateTime, formatMwk, formatDate, formatTime, formatDistanceKm } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Trip } from "@/lib/api";
 import { StatusPill } from "@/components/status-pill";
@@ -153,7 +153,7 @@ function TripDetailContent({ trip, onClose }: { trip: Trip; onClose: () => void 
     },
     {
       label: "Distance",
-      value: <span className="tabular-nums">{trip.distanceKm ?? 0} km</span>,
+      value: <span className="tabular-nums">{formatDistanceKm(trip.distanceKm)}</span>,
       icon: <Gauge className="h-4 w-4 text-muted-foreground" />,
     },
     {

@@ -124,7 +124,7 @@ function EditTrip() {
         departureTime: new Date(`${departureDate}T${hour}:${form.departureMinute}`).toISOString(),
         totalSeats: Number(form.totalSeats),
         comfortClass: selectedVehicle?.comfortClass ?? trip?.comfortClass ?? "economy",
-        distanceKm: Number(form.distanceKm),
+        distanceKm: form.distanceKm ? Number(form.distanceKm) : undefined,
         estimatedDurationMinutes:
           Number(form.durationHours || 0) * 60 + Number(form.durationMinutes || 0),
         farePerSeatMwk: Number(form.farePerSeatMwk),
@@ -215,11 +215,10 @@ function EditTrip() {
               />
             </Field>
           </div>
-          <Field label="Distance (km)" error={errors.distanceKm}>
+          <Field label="Distance (km, optional)" error={errors.distanceKm}>
             <Input
               type="number"
-              required
-              min={1}
+              min={0}
               step="0.1"
               aria-invalid={!!errors.distanceKm}
               value={form.distanceKm}
@@ -406,7 +405,6 @@ function formFromTrip(trip: Trip): TripFormState {
 
 function validateTripForm(form: TripFormState, seatCapacity: number, bookedSeats: number) {
   const nextErrors: Record<string, string> = {};
-  const distanceKm = Number(form.distanceKm);
   const farePerSeatMwk = Number(form.farePerSeatMwk);
   const totalSeats = Number(form.totalSeats);
   const durationMinutes = Number(form.durationHours || 0) * 60 + Number(form.durationMinutes || 0);
@@ -414,9 +412,6 @@ function validateTripForm(form: TripFormState, seatCapacity: number, bookedSeats
   if (!form.originName.trim()) nextErrors.originName = "Enter the trip origin.";
   if (!form.destinationName.trim()) nextErrors.destinationName = "Enter the trip destination.";
   if (!form.vehicleId) nextErrors.vehicleId = "Choose the vehicle for this trip.";
-  if (!form.distanceKm || !Number.isFinite(distanceKm) || distanceKm <= 0) {
-    nextErrors.distanceKm = "Enter a valid distance greater than 0.";
-  }
   if (!form.farePerSeatMwk || !Number.isFinite(farePerSeatMwk) || farePerSeatMwk <= 0) {
     nextErrors.farePerSeatMwk = "Enter the amount each passenger will pay.";
   }

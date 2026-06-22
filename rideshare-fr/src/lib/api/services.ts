@@ -165,7 +165,7 @@ export interface TripCreateBody {
   departureTime: string;
   totalSeats: number;
   comfortClass: ComfortClass;
-  distanceKm: number;
+  distanceKm?: number;
   estimatedDurationMinutes: number;
   farePerSeatMwk: number;
 }
