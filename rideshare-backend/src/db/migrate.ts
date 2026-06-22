@@ -1,14 +1,13 @@
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { pool } from "../config/db.js";
+import { prisma } from "../config/prisma.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 async function migrate() {
-  const client = await pool.connect();
   try {
-    await client.query(`
+    await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS _migrations (
         id         SERIAL PRIMARY KEY,
         name       TEXT        NOT NULL UNIQUE,
@@ -26,29 +25,27 @@ async function migrate() {
     ];
 
     for (const file of migrations) {
-      const exists = await client.query(
-        "SELECT id FROM _migrations WHERE name = $1",
-        [file],
-      );
-      if (exists.rowCount && exists.rowCount > 0) {
-        console.log(`  ✓ ${file} already applied`);
+      const exists = await prisma.$queryRaw<Array<{ id: number }>>`
+        SELECT id FROM _migrations WHERE name = ${file}
+      `;
+      if (exists.length > 0) {
+        console.log(`  - ${file} already applied`);
         continue;
       }
 
       const sql = readFileSync(join(__dirname, "migrations", file), "utf-8");
-      console.log(`  ↳ Applying ${file}…`);
-      await client.query(sql);
-      await client.query("INSERT INTO _migrations (name) VALUES ($1)", [file]);
-      console.log(`  ✓ ${file} applied`);
+      console.log(`  Applying ${file}...`);
+      await prisma.$executeRawUnsafe(sql);
+      await prisma.$executeRaw`INSERT INTO _migrations (name) VALUES (${file})`;
+      console.log(`  - ${file} applied`);
     }
 
-    console.log("✅ All migrations complete");
+    console.log("All migrations complete");
   } catch (err) {
-    console.error("❌ Migration failed:", err);
+    console.error("Migration failed:", err);
     process.exit(1);
   } finally {
-    client.release();
-    await pool.end();
+    await prisma.$disconnect();
   }
 }
 

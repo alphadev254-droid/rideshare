@@ -14,7 +14,7 @@ export function validate(schema: ZodSchema, target: Target = "body") {
       });
       return;
     }
-    (req as Record<string, unknown>)[target] = result.data;
+    (req as unknown as Record<string, unknown>)[target] = result.data;
     next();
   };
 }

@@ -17,6 +17,8 @@ import type {
 } from "./trips.schemas.js";
 import type { ComfortClass } from "../../types/index.js";
 
+const TRIP_STATUSES = ["scheduled", "boarding", "in_transit", "completed", "cancelled"] as const;
+
 export async function createTrip(userId: string, input: CreateTripInput) {
   const driver = await prisma.driverProfile.findFirst({
     where: { userId, isApproved: true },
@@ -882,7 +884,9 @@ export async function listTripsAdmin(
 
   if (options?.search?.trim()) {
     const q = options.search.trim();
-    where.OR = [
+    const normalizedQ = q.toLowerCase();
+    const matchingStatuses = TRIP_STATUSES.filter((status) => status.includes(normalizedQ));
+    const searchFilters: Prisma.TripWhereInput[] = [
       { originName: { contains: q, mode: "insensitive" } },
       { destinationName: { contains: q, mode: "insensitive" } },
       { driver: { user: { fullName: { contains: q, mode: "insensitive" } } } },
@@ -890,8 +894,9 @@ export async function listTripsAdmin(
       { vehicle: { plateNumber: { contains: q, mode: "insensitive" } } },
       { vehicle: { make: { contains: q, mode: "insensitive" } } },
       { vehicle: { model: { contains: q, mode: "insensitive" } } },
-      { status: { contains: q, mode: "insensitive" } },
+      ...matchingStatuses.map((status) => ({ status })),
     ];
+    where.OR = searchFilters;
   }
 
   // Date range filter on departureTime
