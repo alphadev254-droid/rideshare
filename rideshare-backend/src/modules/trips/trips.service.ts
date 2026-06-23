@@ -28,7 +28,7 @@ export async function createTrip(userId: string, input: CreateTripInput) {
   }
 
   const vehicle = await prisma.vehicle.findFirst({
-    where: { id: input.vehicleId, driverId: driver.id, isActive: true, reviewStatus: "approved" },
+    where: { id: input.vehicleId, driverId: driver.id, reviewStatus: "approved" },
   });
   if (!vehicle) throw new AppError(400, "Selected vehicle is not approved by admin yet");
 
@@ -129,7 +129,7 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
   }
 
   const vehicle = await prisma.vehicle.findFirst({
-    where: { id: input.vehicleId, driverId: driver.id, isActive: true, reviewStatus: "approved" },
+    where: { id: input.vehicleId, driverId: driver.id, reviewStatus: "approved" },
   });
   if (!vehicle) throw new AppError(400, "Selected vehicle is not approved by admin yet");
 
@@ -216,7 +216,7 @@ export async function createTripAdmin(input: AdminTripInput) {
   if (!driver) throw new AppError(404, "Approved driver profile not found");
 
   const vehicle = await prisma.vehicle.findFirst({
-    where: { id: input.vehicleId, driverId: driver.id, isActive: true, reviewStatus: "approved" },
+    where: { id: input.vehicleId, driverId: driver.id, reviewStatus: "approved" },
   });
   if (!vehicle) throw new AppError(400, "Selected vehicle is not approved by admin yet");
 
@@ -291,7 +291,7 @@ export async function updateTripAdmin(tripId: string, input: AdminTripInput) {
   if (!driver) throw new AppError(404, "Approved driver profile not found");
 
   const vehicle = await prisma.vehicle.findFirst({
-    where: { id: input.vehicleId, driverId: driver.id, isActive: true, reviewStatus: "approved" },
+    where: { id: input.vehicleId, driverId: driver.id, reviewStatus: "approved" },
   });
   if (!vehicle) throw new AppError(400, "Selected vehicle is not approved by admin yet");
 

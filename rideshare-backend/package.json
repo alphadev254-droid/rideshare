@@ -15,7 +15,8 @@
     "locations:import": "tsx src/scripts/import-malawi-locations.ts",
     "admin:create": "tsx src/scripts/create-admin.ts",
     "media:upload-landing": "tsx src/scripts/upload-landing-media.ts",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "vehicles:migrate-status": "tsx src/scripts/migrate-vehicle-is-active-to-review-status.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.16.0",
@@ -55,5 +56,3 @@
     "typescript": "^5.5.3"
   }
 }
-
-

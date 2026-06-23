@@ -32,7 +32,6 @@ import {
   uploadDriverDocumentAdminController,
   uploadDriverProfilePhotoAdminController,
   updateDriverProfileAdminController,
-  toggleVehicleActiveAdminController,
   reviewVehicleAdminController,
 } from "./drivers.controller.js";
 import {
@@ -74,6 +73,5 @@ router.post("/:id/document", authenticate, requireRole("admin"), upload.single("
 router.patch("/:id/file", authenticate, requireRole("admin"), removeDriverProfileFileAdminController);
 router.patch("/:id/approve", authenticate, requireRole("admin"), approveDriverController);
 router.patch("/:id/vehicles/:vehicleId/review", authenticate, requireRole("admin"), reviewVehicleAdminController);
-router.patch("/:id/vehicles/:vehicleId/active", authenticate, requireRole("admin"), toggleVehicleActiveAdminController);
 
 export default router;

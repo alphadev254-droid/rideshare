@@ -488,13 +488,10 @@ export async function removeDriverProfileFileAdminController(
 }
 
 function parseVehicleReviewStatus(body: unknown): "pending" | "approved" | "rejected" {
-  const payload = body as { reviewStatus?: unknown; isActive?: unknown } | null;
+  const payload = body as { reviewStatus?: unknown } | null;
   if (payload?.reviewStatus === "pending" || payload?.reviewStatus === "approved" || payload?.reviewStatus === "rejected") {
     return payload.reviewStatus;
   }
-
-  if (typeof payload?.isActive === "boolean") return payload.isActive ? "approved" : "rejected";
-  if (typeof payload?.isActive === "string") return payload.isActive.toLowerCase() === "true" ? "approved" : "rejected";
 
   throw new AppError(400, "Vehicle review status is required");
 }
@@ -515,10 +512,3 @@ export async function reviewVehicleAdminController(
   }
 }
 
-export async function toggleVehicleActiveAdminController(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  return reviewVehicleAdminController(req, res, next);
-}

@@ -28,7 +28,7 @@ import type {
   WalletWithdrawal,
 } from "./types";
 
-function vehiclePayloadFormData(body: Omit<Vehicle, "id" | "driverId" | "isActive" | "reviewStatus" | "createdAt">, file?: File) {
+function vehiclePayloadFormData(body: Omit<Vehicle, "id" | "driverId" | "reviewStatus" | "createdAt">, file?: File) {
   const form = new FormData();
   for (const [key, value] of Object.entries(body)) {
     if (value === undefined || value === null) continue;
@@ -98,13 +98,13 @@ export const driverService = {
     api.post<DriverProfile>("/drivers/profile", body),
   dashboard: () => api.get<DriverDashboardStats>("/drivers/dashboard"),
   vehicles: () => api.get<Vehicle[]>("/drivers/vehicles"),
-  addVehicle: (body: Omit<Vehicle, "id" | "driverId" | "isActive" | "reviewStatus" | "createdAt">, insuranceDocument?: File) =>
+  addVehicle: (body: Omit<Vehicle, "id" | "driverId" | "reviewStatus" | "createdAt">, insuranceDocument?: File) =>
     insuranceDocument
       ? api.upload<Vehicle>("/drivers/vehicles", vehiclePayloadFormData(body, insuranceDocument), { auth: true })
       : api.post<Vehicle>("/drivers/vehicles", body),
   updateVehicle: (
     id: string,
-    body: Omit<Vehicle, "id" | "driverId" | "isActive" | "reviewStatus" | "createdAt">,
+    body: Omit<Vehicle, "id" | "driverId" | "reviewStatus" | "createdAt">,
     insuranceDocument?: File,
   ) =>
     insuranceDocument
@@ -397,7 +397,7 @@ export const adminService = {
   ) => api.patch<DriverProfile & { vehicles?: Vehicle[] }>(`/drivers/${id}/file`, { field }),
   addDriverVehicle: (
     driverProfileId: string,
-    body: Omit<Vehicle, "id" | "driverId" | "isActive" | "reviewStatus" | "createdAt" | "imageUrls" | "photoUrl">,
+    body: Omit<Vehicle, "id" | "driverId" | "reviewStatus" | "createdAt" | "imageUrls" | "photoUrl">,
     insuranceDocument?: File,
   ) =>
     insuranceDocument
@@ -409,7 +409,7 @@ export const adminService = {
   updateDriverVehicle: (
     driverProfileId: string,
     vehicleId: string,
-    body: Omit<Vehicle, "id" | "driverId" | "isActive" | "reviewStatus" | "createdAt" | "imageUrls" | "photoUrl">,
+    body: Omit<Vehicle, "id" | "driverId" | "reviewStatus" | "createdAt" | "imageUrls" | "photoUrl">,
     insuranceDocument?: File,
   ) =>
     insuranceDocument
@@ -445,8 +445,6 @@ export const adminService = {
     vehicleId: string,
     reviewStatus: "approved" | "rejected" | "pending",
   ) => api.patch<Vehicle>(`/drivers/${driverProfileId}/vehicles/${vehicleId}/review`, { reviewStatus }),
-  toggleDriverVehicleActive: (driverProfileId: string, vehicleId: string, isActive: boolean) =>
-    api.patch<Vehicle>(`/drivers/${driverProfileId}/vehicles/${vehicleId}/active`, { isActive }),
   approveDriver: (id: string) =>
     api.patch<{ id: string; isApproved: boolean }>(`/drivers/${id}/approve`),
 

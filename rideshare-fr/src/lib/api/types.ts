@@ -44,7 +44,7 @@ export interface AuthTokens {
 }
 
 export type ReviewStatus = "pending" | "approved" | "rejected";
-export type VehicleReviewStatus = "pending" | "approved" | "rejected";
+export type VehicleReviewStatus = "pending" | "approved" | "rejected" | "deleted";
 
 export interface DriverProfile {
   id: string;
@@ -101,7 +101,6 @@ export interface Vehicle {
   color?: string | null;
   comfortClass: ComfortClass;
   seatCapacity: number;
-  isActive: boolean;
   reviewStatus: VehicleReviewStatus;
   photoUrl?: string | null;
   imageUrls?: string[];
