@@ -97,6 +97,8 @@ export function AdminVehiclesManager({
     await onUploadImage(vehicle.id, file);
   }
 
+  const visibleVehicles = (vehicles ?? []).filter((vehicle) => vehicle.reviewStatus !== "deleted");
+
   return (
     <div className="space-y-4 rounded-md border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
@@ -139,11 +141,11 @@ export function AdminVehiclesManager({
         </div>
       )}
 
-      {(vehicles ?? []).length === 0 ? (
+      {visibleVehicles.length === 0 ? (
         <p className="text-sm text-muted-foreground">No active vehicles.</p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {vehicles.map((vehicle) => (
+          {visibleVehicles.map((vehicle) => (
             <div key={vehicle.id} className="rounded-md border border-border bg-surface p-3">
               <div className="flex items-start justify-between gap-2">
                 <div>

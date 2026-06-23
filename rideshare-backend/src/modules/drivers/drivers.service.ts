@@ -32,6 +32,10 @@ function normalizePlateNumber(plateNumber: string) {
   return plateNumber.trim().replace(/\s+/g, " ").toUpperCase();
 }
 
+function deletedPlateNumber(vehicleId: string) {
+  return `DELETED_${vehicleId.replace(/-/g, "").slice(0, 12)}`;
+}
+
 function vehicleData(input: AddVehicleInput) {
   return {
     make: input.make,
@@ -121,14 +125,6 @@ export async function addVehicle(userId: string, input: AddVehicleInput) {
 
   const existing = await findVehicleByPlate(input.plateNumber);
   if (existing) {
-    if (existing.driverId === driver.id && existing.reviewStatus === "deleted") {
-      const reactivated = await prisma.vehicle.update({
-        where: { id: existing.id },
-        data: { ...vehicleData(input), reviewStatus: "pending" },
-      });
-      const [withImages] = await attachVehicleImages([reactivated]);
-      return withImages;
-    }
     throw new AppError(409, "A vehicle with this plate number already exists", "VEHICLE_PLATE_EXISTS");
   }
 
@@ -170,7 +166,10 @@ export async function deleteVehicle(userId: string, vehicleId: string) {
   });
   if (!vehicle) throw new AppError(404, "Vehicle not found");
   if (vehicle.reviewStatus !== "deleted") {
-    await prisma.vehicle.update({ where: { id: vehicleId }, data: { reviewStatus: "deleted" } });
+    await prisma.vehicle.update({
+      where: { id: vehicleId },
+      data: { reviewStatus: "deleted", plateNumber: deletedPlateNumber(vehicleId) },
+    });
   }
   return { id: vehicleId, deleted: true };
 }
@@ -244,14 +243,6 @@ export async function addVehicleAdmin(driverId: string, input: AddVehicleInput) 
 
   const existing = await findVehicleByPlate(input.plateNumber);
   if (existing) {
-    if (existing.driverId === driverId && existing.reviewStatus === "deleted") {
-      const reactivated = await prisma.vehicle.update({
-        where: { id: existing.id },
-        data: { ...vehicleData(input), reviewStatus: "approved" },
-      });
-      const [withImages] = await attachVehicleImages([reactivated]);
-      return withImages;
-    }
     throw new AppError(409, "A vehicle with this plate number already exists", "VEHICLE_PLATE_EXISTS");
   }
 
@@ -287,7 +278,10 @@ export async function deleteVehicleAdmin(driverId: string, vehicleId: string) {
   });
   if (!vehicle) throw new AppError(404, "Vehicle not found");
   if (vehicle.reviewStatus !== "deleted") {
-    await prisma.vehicle.update({ where: { id: vehicleId }, data: { reviewStatus: "deleted" } });
+    await prisma.vehicle.update({
+      where: { id: vehicleId },
+      data: { reviewStatus: "deleted", plateNumber: deletedPlateNumber(vehicleId) },
+    });
   }
   return { id: vehicleId, deleted: true };
 }

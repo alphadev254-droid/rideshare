@@ -20,7 +20,8 @@ async function main() {
 
   const updated = await prisma.$executeRawUnsafe(
     `UPDATE vehicles
-     SET review_status = 'deleted'::"VehicleReviewStatus"
+     SET review_status = 'deleted'::"VehicleReviewStatus",
+         plate_number = 'DELETED_' || substr(replace(id::text, '-', ''), 1, 12)
      WHERE is_active = false
        AND review_status <> 'deleted'::"VehicleReviewStatus"`,
   );
