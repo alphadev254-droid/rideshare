@@ -440,6 +440,11 @@ export const adminService = {
   },
   removeDriverVehicleInsuranceDocument: (driverProfileId: string, vehicleId: string) =>
     api.delete<Vehicle>(`/drivers/${driverProfileId}/vehicles/${vehicleId}/insurance-document`),
+  reviewDriverVehicle: (
+    driverProfileId: string,
+    vehicleId: string,
+    reviewStatus: "approved" | "rejected" | "pending",
+  ) => api.patch<Vehicle>(`/drivers/${driverProfileId}/vehicles/${vehicleId}/review`, { reviewStatus }),
   toggleDriverVehicleActive: (driverProfileId: string, vehicleId: string, isActive: boolean) =>
     api.patch<Vehicle>(`/drivers/${driverProfileId}/vehicles/${vehicleId}/active`, { isActive }),
   approveDriver: (id: string) =>

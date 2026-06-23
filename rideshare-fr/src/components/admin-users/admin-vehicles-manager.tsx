@@ -64,7 +64,7 @@ export function AdminVehiclesManager({
   onDelete,
   onUploadImage,
   onRemoveImage,
-  onToggleActive,
+  onReview,
 }: {
   vehicles: Vehicle[];
   onAdd: (payload: VehiclePayload) => Promise<void>;
@@ -72,7 +72,7 @@ export function AdminVehiclesManager({
   onDelete: (vehicleId: string) => Promise<void>;
   onUploadImage: (vehicleId: string, file: File) => Promise<void>;
   onRemoveImage: (vehicleId: string, url: string) => Promise<void>;
-  onToggleActive: (vehicleId: string, isActive: boolean) => Promise<void>;
+  onReview: (vehicleId: string, approved: boolean) => Promise<void>;
 }) {
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [form, setForm] = useState<VehicleForm>(formFromVehicle());
@@ -102,7 +102,7 @@ export function AdminVehiclesManager({
         <div>
           <h2 className="font-display text-base font-semibold">Manage vehicles</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Add, edit, delete vehicles and manage up to four images per vehicle.
+            Add, edit, delete vehicles, approve them for trips, and manage up to four images per vehicle.
           </p>
         </div>
         <Button onClick={() => start()}>Add</Button>
@@ -155,7 +155,7 @@ export function AdminVehiclesManager({
                   <div className="mt-2 flex items-center gap-2">
                     <Switch
                       checked={vehicle.reviewStatus === "approved"}
-                      onCheckedChange={(checked) => onToggleActive(vehicle.id, checked)}
+                      onCheckedChange={(checked) => onReview(vehicle.id, checked)}
                     />
                     <span className={`text-xs font-medium ${vehicle.reviewStatus === "approved" ? "text-primary" : vehicle.reviewStatus === "rejected" ? "text-destructive" : "text-muted-foreground"}`}>
                       {vehicleStatusLabel(vehicle)}

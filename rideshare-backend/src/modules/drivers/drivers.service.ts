@@ -516,7 +516,11 @@ export async function updateDriverProfileAdmin(
   }
 }
 
-export async function toggleVehicleActiveAdmin(driverId: string, vehicleId: string, isActive: boolean) {
+export async function reviewVehicleAdmin(
+  driverId: string,
+  vehicleId: string,
+  reviewStatus: "pending" | "approved" | "rejected",
+) {
   const vehicle = await prisma.vehicle.findFirst({
     where: { id: vehicleId, driverId, isActive: true },
   });
@@ -524,11 +528,15 @@ export async function toggleVehicleActiveAdmin(driverId: string, vehicleId: stri
 
   const updated = await prisma.vehicle.update({
     where: { id: vehicleId },
-    data: { reviewStatus: isActive ? "approved" : "rejected" },
+    data: { reviewStatus },
   });
 
   const [withImages] = await attachVehicleImages([updated]);
   return withImages;
+}
+
+export async function toggleVehicleActiveAdmin(driverId: string, vehicleId: string, isActive: boolean) {
+  return reviewVehicleAdmin(driverId, vehicleId, isActive ? "approved" : "rejected");
 }
 
 export async function updateDriverProfileFileAdmin(

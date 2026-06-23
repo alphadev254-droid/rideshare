@@ -487,7 +487,19 @@ export async function removeDriverProfileFileAdminController(
   }
 }
 
-export async function toggleVehicleActiveAdminController(
+function parseVehicleReviewStatus(body: unknown): "pending" | "approved" | "rejected" {
+  const payload = body as { reviewStatus?: unknown; isActive?: unknown } | null;
+  if (payload?.reviewStatus === "pending" || payload?.reviewStatus === "approved" || payload?.reviewStatus === "rejected") {
+    return payload.reviewStatus;
+  }
+
+  if (typeof payload?.isActive === "boolean") return payload.isActive ? "approved" : "rejected";
+  if (typeof payload?.isActive === "string") return payload.isActive.toLowerCase() === "true" ? "approved" : "rejected";
+
+  throw new AppError(400, "Vehicle review status is required");
+}
+
+export async function reviewVehicleAdminController(
   req: Request,
   res: Response,
   next: NextFunction,
@@ -495,10 +507,18 @@ export async function toggleVehicleActiveAdminController(
   try {
     const driverId = req.params.id;
     const vehicleId = req.params.vehicleId;
-    const isActive = String(req.body?.isActive).toLowerCase() === "true";
-    const data = await driversService.toggleVehicleActiveAdmin(driverId, vehicleId, isActive);
+    const reviewStatus = parseVehicleReviewStatus(req.body);
+    const data = await driversService.reviewVehicleAdmin(driverId, vehicleId, reviewStatus);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
+}
+
+export async function toggleVehicleActiveAdminController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  return reviewVehicleAdminController(req, res, next);
 }

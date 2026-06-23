@@ -184,6 +184,16 @@ function AdminUserDriverProfile() {
     onError: (error: unknown) => toast.error(extractApiError(error, "Could not remove image")),
   });
 
+  const reviewVehicle = useMutation({
+    mutationFn: ({ vehicleId, approved }: { vehicleId: string; approved: boolean }) =>
+      adminService.reviewDriverVehicle(profile!.id, vehicleId, approved ? "approved" : "rejected"),
+    onSuccess: (_vehicle, vars) => {
+      toast.success(vars.approved ? "Vehicle approved" : "Vehicle marked not allowed yet");
+      invalidateProfile();
+    },
+    onError: (error: unknown) => toast.error(extractApiError(error, "Could not update vehicle approval")),
+  });
+
   const user = userQuery.data;
   const profile = user?.driverProfile;
 
@@ -285,10 +295,8 @@ function AdminUserDriverProfile() {
             onRemoveImage={(vehicleId, url) =>
               removeVehicleImage.mutateAsync({ vehicleId, url }).then(() => undefined)
             }
-            onToggleActive={(vehicleId, isActive) =>
-              adminService
-                .toggleDriverVehicleActive(profile.id, vehicleId, isActive)
-                .then(() => invalidateProfile())
+            onReview={(vehicleId, approved) =>
+              reviewVehicle.mutateAsync({ vehicleId, approved }).then(() => undefined)
             }
           />
 
