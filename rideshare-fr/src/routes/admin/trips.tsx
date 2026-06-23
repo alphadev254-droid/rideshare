@@ -316,7 +316,7 @@ function AdminTrips() {
                 <TableHead>Driver</TableHead>
                 <TableHead>Vehicle</TableHead>
                 <TableHead>Departure</TableHead>
-                <TableHead>Seats</TableHead>
+                <TableHead>Available seats</TableHead>
                 <TableHead>Bookings</TableHead>
                 <TableHead>Fare</TableHead>
                 <TableHead>Distance</TableHead>
@@ -354,7 +354,7 @@ function AdminTrips() {
                   </TableCell>
                   <TableCell className="min-w-44 text-xs">{formatDateTime(trip.departureTime)}</TableCell>
                   <TableCell className="tabular">
-                    {trip.availableSeats}/{trip.totalSeats}
+                    {trip.availableSeats}
                   </TableCell>
                   <TableCell className="tabular">{trip._count?.bookings ?? trip.bookingCount ?? 0}</TableCell>
                   <TableCell className="tabular">{formatMwk(trip.farePerSeatMwk)}</TableCell>

@@ -398,7 +398,7 @@ function DriverTripDetail() {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Seats</dt>
-              <dd className="tabular">{trip.availableSeats} / {trip.totalSeats}</dd>
+              <dd className="tabular">{trip.availableSeats}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Distance</dt>

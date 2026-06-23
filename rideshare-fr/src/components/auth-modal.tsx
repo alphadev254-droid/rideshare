@@ -15,6 +15,8 @@ import { useAuth } from "@/lib/auth-context";
 import { authService, extractApiError } from "@/lib/api";
 import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { homeForRole } from "@/lib/role-home";
+import { getPendingTripId } from "@/lib/pending-trip";
 
 export function AuthModal() {
   const { open, mode, intentRole, pendingPhone, closeModal, setMode } = useAuthModal();
@@ -26,11 +28,15 @@ export function AuthModal() {
             {mode === "login" && "Welcome back"}
             {mode === "register" && "Create your account"}
             {mode === "verify" && "Verify your number"}
+            {mode === "forgot" && "Reset your password"}
+            {mode === "reset" && "Enter reset code"}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
             {mode === "login" && "Sign in with your phone or email and password."}
             {mode === "register" && "We'll send a one-time code to your email."}
             {mode === "verify" && `Enter the 6-digit code sent to your email.`}
+            {mode === "forgot" && "Enter your phone or email and we will send a reset code."}
+            {mode === "reset" && "Enter the code sent to your email and choose a new password."}
           </DialogDescription>
         </DialogHeader>
 
@@ -39,23 +45,47 @@ export function AuthModal() {
             onSwitch={() => setMode("register")}
             onDone={closeModal}
             onNeedsVerify={(phone) => setMode("verify", phone)}
+            onForgot={() => setMode("forgot")}
           />
         )}
         {mode === "register" && (
           <RegisterForm
             defaultRole={intentRole}
             onSwitch={() => setMode("login")}
+            onForgot={() => setMode("forgot")}
             onSent={(phone) => setMode("verify", phone)}
           />
         )}
         {mode === "verify" && pendingPhone && (
           <VerifyForm phone={pendingPhone} onDone={closeModal} />
         )}
+        {mode === "forgot" && (
+          <ForgotPasswordForm
+            onSwitch={() => setMode("login")}
+            onSent={(identifier) => setMode("reset", identifier)}
+          />
+        )}
+        {mode === "reset" && pendingPhone && (
+          <ResetPasswordForm
+            identifier={pendingPhone}
+            onDone={() => setMode("login")}
+            onBack={() => setMode("forgot")}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
+
+function navigateAfterAuth(navigate: ReturnType<typeof useNavigate>, user: Parameters<typeof homeForRole>[0]) {
+  const pendingTripId = getPendingTripId();
+  if (user.role === "passenger" && pendingTripId) {
+    navigate({ to: "/app", search: {} });
+    return;
+  }
+  navigate({ to: homeForRole(user) });
+}
 function useSubmit() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,10 +96,12 @@ function LoginForm({
   onSwitch,
   onDone,
   onNeedsVerify,
+  onForgot,
 }: {
   onSwitch: () => void;
   onDone: () => void;
   onNeedsVerify: (phone: string) => void;
+  onForgot: () => void;
 }) {
   const { setSession } = useAuth();
   const navigate = useNavigate();
@@ -84,20 +116,14 @@ function LoginForm({
     try {
       const result = await authService.login({ identifier, password });
       if ("needsVerification" in result) {
-        toast.info("Account not verified — OTP sent to your email");
+        toast.info("Account not verified Ã¢â‚¬â€ OTP sent to your email");
         onNeedsVerify(result.phone);
         return;
       }
       setSession(result);
       toast.success(`Welcome back, ${result.user.fullName.split(" ")[0]}`);
       onDone();
-      const to =
-        result.user.role === "admin"
-          ? "/admin"
-          : result.user.role === "driver"
-            ? "/driver"
-            : "/app";
-      navigate({ to });
+      navigateAfterAuth(navigate, result.user);
     } catch (e) {
       setError(extractApiError(e, "Unable to sign in"));
     } finally {
@@ -117,6 +143,15 @@ function LoginForm({
         />
       </Field>
       <PasswordField id="login-password" label="Password" value={password} onChange={setPassword} />
+      <div className="text-right">
+        <button
+          type="button"
+          className="text-xs text-primary underline-offset-4 hover:underline"
+          onClick={onForgot}
+        >
+          Forgot password?
+        </button>
+      </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" className="w-full" disabled={loading}>
         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Sign in
@@ -135,13 +170,129 @@ function LoginForm({
   );
 }
 
+function ForgotPasswordForm({
+  onSwitch,
+  onSent,
+}: {
+  onSwitch: () => void;
+  onSent: (identifier: string) => void;
+}) {
+  const { loading, setLoading, error, setError } = useSubmit();
+  const [identifier, setIdentifier] = useState("");
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await authService.forgotPassword({ identifier });
+      toast.success(result.message);
+      onSent(identifier);
+    } catch (e) {
+      setError(extractApiError(e, "Unable to request password reset"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={submit}>
+      <Field id="reset-identifier" label="Phone or email">
+        <Input
+          id="reset-identifier"
+          required
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
+          placeholder="+265 99 123 4567 or you@example.com"
+        />
+      </Field>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Send reset code
+      </Button>
+      <button
+        type="button"
+        className="w-full text-center text-sm text-primary underline-offset-4 hover:underline"
+        onClick={onSwitch}
+      >
+        Back to sign in
+      </button>
+    </form>
+  );
+}
+
+function ResetPasswordForm({
+  identifier,
+  onDone,
+  onBack,
+}: {
+  identifier: string;
+  onDone: () => void;
+  onBack: () => void;
+}) {
+  const { loading, setLoading, error, setError } = useSubmit();
+  const [otp, setOtp] = useState("");
+  const [password, setPassword] = useState("");
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await authService.resetPassword({ identifier, otp, password });
+      toast.success(result.message);
+      onDone();
+    } catch (e) {
+      setError(extractApiError(e, "Unable to reset password"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={submit}>
+      <Field id="reset-otp" label="6-digit code">
+        <Input
+          id="reset-otp"
+          inputMode="numeric"
+          maxLength={6}
+          required
+          value={otp}
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+          className="text-center font-mono text-2xl tracking-[0.5em]"
+        />
+      </Field>
+      <PasswordField
+        id="new-password"
+        label="New password"
+        value={password}
+        onChange={setPassword}
+        placeholder="At least 8 characters"
+      />
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Reset password
+      </Button>
+      <button
+        type="button"
+        className="w-full text-center text-sm text-primary underline-offset-4 hover:underline"
+        onClick={onBack}
+      >
+        Send a new code
+      </button>
+    </form>
+  );
+}
+
 function RegisterForm({
   defaultRole,
   onSwitch,
+  onForgot,
   onSent,
 }: {
   defaultRole: "passenger" | "driver";
   onSwitch: () => void;
+  onForgot: () => void;
   onSent: (phone: string) => void;
 }) {
   const { loading, setLoading, error, setError } = useSubmit();
@@ -223,22 +374,32 @@ function RegisterForm({
       <Button type="submit" className="w-full" disabled={loading}>
         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Send OTP
       </Button>
-      <p className="text-center text-sm text-muted-foreground">
-        Already registered?{" "}
+      <div className="space-y-2 text-center text-sm text-muted-foreground">
+        <p>
+          Already registered?{" "}
+          <button
+            type="button"
+            className="text-primary underline-offset-4 hover:underline"
+            onClick={onSwitch}
+          >
+            Sign in
+          </button>
+        </p>
         <button
           type="button"
           className="text-primary underline-offset-4 hover:underline"
-          onClick={onSwitch}
+          onClick={onForgot}
         >
-          Sign in
+          Forgot password?
         </button>
-      </p>
+      </div>
     </form>
   );
 }
 
 function VerifyForm({ phone, onDone }: { phone: string; onDone: () => void }) {
   const { setSession } = useAuth();
+  const navigate = useNavigate();
   const { loading, setLoading, error, setError } = useSubmit();
   const [otp, setOtp] = useState("");
 
@@ -251,6 +412,7 @@ function VerifyForm({ phone, onDone }: { phone: string; onDone: () => void }) {
       setSession(tokens);
       toast.success("You're verified");
       onDone();
+      navigateAfterAuth(navigate, tokens.user);
     } catch (e) {
       setError(extractApiError(e, "Invalid OTP"));
     } finally {
@@ -262,7 +424,7 @@ function VerifyForm({ phone, onDone }: { phone: string; onDone: () => void }) {
     <form className="space-y-4" onSubmit={submit}>
       <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs text-primary">
         <ShieldCheck className="h-4 w-4" />
-        Secure verification via email — never share your code.
+        Secure verification via email Ã¢â‚¬â€ never share your code.
       </div>
       <Field id="otp" label="6-digit code">
         <Input
@@ -273,7 +435,7 @@ function VerifyForm({ phone, onDone }: { phone: string; onDone: () => void }) {
           value={otp}
           onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
           className="text-center font-mono text-2xl tracking-[0.5em]"
-          placeholder="• • • • • •"
+          placeholder="Ã¢â‚¬Â¢ Ã¢â‚¬Â¢ Ã¢â‚¬Â¢ Ã¢â‚¬Â¢ Ã¢â‚¬Â¢ Ã¢â‚¬Â¢"
         />
       </Field>
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -333,3 +495,9 @@ function PasswordField({
     </Field>
   );
 }
+
+
+
+
+
+

@@ -49,7 +49,7 @@ function baseTemplate(bodyContent: string): string {
             <td style="padding:20px 32px;border-top:1px solid ${BORDER_COLOR};text-align:center;">
               <p style="margin:0;color:${MUTED_COLOR};font-size:12px;line-height:1.6;">
                 This is an automated message from RideShare.<br>
-                If you did not expect this email, please contact our support team.
+                If you did not expect this email, please contact info@chepetsaride.com.
               </p>
               <p style="margin:8px 0 0;color:${MUTED_COLOR};font-size:12px;">
                 &copy; ${new Date().getFullYear()} RideShare. All rights reserved.
@@ -238,4 +238,17 @@ export function verificationCodeText(params: Parameters<typeof verificationCodeE
 
 export function adminCustomText(params: Parameters<typeof adminCustomEmail>[0]): string {
   return params.message;
+}
+export function passwordResetCodeEmail(params: { name: string; code: string; ttlMinutes: number }) {
+  const body = `
+    ${greeting(params.name)}
+    <p style="margin:0 0 8px;color:${TEXT_COLOR};font-size:16px;line-height:1.6;">Use this code to reset your RideShare password.</p>
+    ${highlightBox(`<div style="color:${BRAND_COLOR_DARK};font-size:32px;font-weight:800;letter-spacing:6px;font-family:monospace;">${escapeHtml(params.code)}</div>`)}
+    <p style="margin:16px 0 0;color:${MUTED_COLOR};font-size:14px;">This code expires in ${params.ttlMinutes} minutes. If you did not request a password reset, ignore this email.</p>
+  `;
+  return baseTemplate(body);
+}
+
+export function passwordResetCodeText(params: { code: string; ttlMinutes: number }) {
+  return `Your RideShare password reset code is ${params.code}. It expires in ${params.ttlMinutes} minutes.`;
 }

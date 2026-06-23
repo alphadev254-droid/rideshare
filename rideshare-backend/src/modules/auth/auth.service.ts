@@ -4,9 +4,17 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../lib
 import { sendOtp } from "../../lib/sms.js";
 import { createOtpCode, verifyAndConsumeOtpCode } from "../../lib/otp.js";
 import { enqueueNotification } from "../../jobs/queue.js";
-import { verificationCodeEmail, verificationCodeText } from "../../lib/email-templates.js";
+import { passwordResetCodeEmail, passwordResetCodeText, verificationCodeEmail, verificationCodeText } from "../../lib/email-templates.js";
 import { AppError } from "../../middleware/error-handler.js";
-import type { RegisterInput, LoginInput, VerifyOtpInput, RefreshInput } from "./auth.schemas.js";
+import type { RegisterInput, LoginInput, VerifyOtpInput, RefreshInput, ForgotPasswordInput, ResetPasswordInput } from "./auth.schemas.js";
+
+
+function findUserByIdentifier(identifier: string) {
+  const value = identifier.trim();
+  return value.includes("@")
+    ? prisma.user.findUnique({ where: { email: value } })
+    : prisma.user.findUnique({ where: { phone: value } });
+}
 
 export async function register(input: RegisterInput) {
   const { phone, email, fullName, password, role } = input;
@@ -106,6 +114,47 @@ export async function login(input: LoginInput) {
     createdAt: user.createdAt.toISOString(),
   };
   return { accessToken, refreshToken, user: userPayload };
+}
+
+
+export async function forgotPassword(input: ForgotPasswordInput) {
+  const user = await findUserByIdentifier(input.identifier);
+  const message = "If the account exists, a reset code has been sent to its email.";
+
+  if (!user) return { message };
+  if (user.role === "admin") throw new AppError(403, "Admin password reset is not allowed here");
+  if (!user.isActive) throw new AppError(403, "Account is deactivated");
+  if (!user.email) return { message };
+
+  const { code } = await createOtpCode(user.id, "password_reset");
+  const ttlMinutes = Math.round(300 / 60);
+  await enqueueNotification({
+    type: "email",
+    to: user.email,
+    subject: "Reset your RideShare password",
+    text: passwordResetCodeText({ code, ttlMinutes }),
+    html: passwordResetCodeEmail({ name: user.fullName, code, ttlMinutes }),
+  });
+
+  return { message };
+}
+
+export async function resetPassword(input: ResetPasswordInput) {
+  const user = await findUserByIdentifier(input.identifier);
+  if (!user) throw new AppError(400, "Invalid or expired reset code");
+  if (user.role === "admin") throw new AppError(403, "Admin password reset is not allowed here");
+  if (!user.isActive) throw new AppError(403, "Account is deactivated");
+
+  const passwordHash = await bcrypt.hash(input.password, 12);
+  await prisma.$transaction(async (tx) => {
+    await verifyAndConsumeOtpCode(user.id, "password_reset", input.otp, tx);
+    await tx.user.update({
+      where: { id: user.id },
+      data: { passwordHash, refreshToken: null, refreshTokenExpiresAt: null },
+    });
+  });
+
+  return { message: "Password reset successfully. You can now sign in." };
 }
 
 export async function refresh(input: RefreshInput) {

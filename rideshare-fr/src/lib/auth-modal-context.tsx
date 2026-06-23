@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
-type Mode = "login" | "register" | "verify";
+type Mode = "login" | "register" | "verify" | "forgot" | "reset";
 interface AuthModalState {
   open: boolean;
   mode: Mode;

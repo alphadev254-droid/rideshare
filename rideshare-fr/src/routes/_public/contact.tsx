@@ -34,7 +34,7 @@ function Contact() {
       <div className="mt-10 grid gap-10 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-1">
           {[
-            { icon: Mail, label: "Email", value: "hello@rideshare.mw" },
+            { icon: Mail, label: "Email", value: "info@chepetsaride.com" },
             { icon: Phone, label: "Phone", value: "+265 99 000 0000" },
             { icon: MapPin, label: "Address", value: "Area 13, Lilongwe" },
           ].map((c) => (

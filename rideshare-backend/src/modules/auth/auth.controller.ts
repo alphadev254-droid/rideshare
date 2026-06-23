@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import type { AuthRequest } from "../../types/index.js";
 import * as authService from "./auth.service.js";
-import type { RegisterInput, VerifyOtpInput, LoginInput, RefreshInput } from "./auth.schemas.js";
+import type { RegisterInput, VerifyOtpInput, LoginInput, RefreshInput, ForgotPasswordInput, ResetPasswordInput } from "./auth.schemas.js";
 
 export async function registerController(
   req: Request,
@@ -63,6 +63,32 @@ export async function logoutController(
   try {
     await authService.logout(req.user!.sub);
     res.json({ success: true, message: "Logged out" });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function forgotPasswordController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const result = await authService.forgotPassword(req.body as ForgotPasswordInput);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resetPasswordController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const result = await authService.resetPassword(req.body as ResetPasswordInput);
+    res.json({ success: true, data: result });
   } catch (err) {
     next(err);
   }

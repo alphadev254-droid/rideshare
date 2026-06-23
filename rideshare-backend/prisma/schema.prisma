@@ -95,6 +95,7 @@ enum WalletWithdrawalStatus {
 enum OtpPurpose {
   account_verification
   withdrawal
+  password_reset
 }
 
 enum OtpStatus {

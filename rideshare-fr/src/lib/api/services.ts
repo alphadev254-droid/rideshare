@@ -62,6 +62,12 @@ export const authService = {
       auth: false,
     }),
 
+  forgotPassword: (body: { identifier: string }) =>
+    api.post<{ message: string }>("/auth/forgot-password", body, { auth: false }),
+
+  resetPassword: (body: { identifier: string; otp: string; password: string }) =>
+    api.post<{ message: string }>("/auth/reset-password", body, { auth: false }),
+
   refresh: (refreshToken: string) =>
     api.post<{ accessToken: string }>("/auth/refresh", { refreshToken }, { auth: false }),
 

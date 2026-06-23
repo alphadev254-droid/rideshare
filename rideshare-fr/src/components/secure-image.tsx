@@ -12,12 +12,11 @@ function normalizeUploadPath(path: string): string {
 
 async function fetchProtectedUpload(path: string): Promise<string | null> {
   const token = tokenStorage.getAccess();
-  if (!token) return null;
-
   const uploadPath = normalizeUploadPath(path);
+  const endpoint = token ? "/uploads/file" : "/uploads/public-file";
   const res = await fetch(
-    `${API_CONFIG.baseUrl}/uploads/file?path=${encodeURIComponent(uploadPath)}`,
-    { headers: { Authorization: `Bearer ${token}` } },
+    `${API_CONFIG.baseUrl}${endpoint}?path=${encodeURIComponent(uploadPath)}`,
+    token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
   );
   if (!res.ok) return null;
 

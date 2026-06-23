@@ -73,7 +73,7 @@ function TripsList() {
                   <div className="text-right text-xs">
                     <div className="tabular font-medium">{formatMwk(t.farePerSeatMwk)}</div>
                     <div className="text-muted-foreground">
-                      {t.availableSeats}/{t.totalSeats} seats
+                      {t.availableSeats} available
                     </div>
                   </div>
                   {t.status === "in_transit" && (

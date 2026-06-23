@@ -7,10 +7,12 @@ import {
   uploadProfilePhotoController,
   uploadUserAvatarController,
   serveUploadController,
+  servePublicUploadController,
 } from "./uploads.controller.js";
 
 const router = Router();
 
+router.get("/public-file", servePublicUploadController);
 router.get("/file", authenticate, serveUploadController);
 
 router.post(

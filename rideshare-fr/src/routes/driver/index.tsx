@@ -154,7 +154,7 @@ function DriverDashboard() {
                     <div className="text-right text-xs">
                       <div className="tabular font-medium">{formatMwk(t.farePerSeatMwk)}</div>
                       <div className="text-muted-foreground">
-                        {t.availableSeats}/{t.totalSeats} seats
+                        {t.availableSeats} available
                       </div>
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground" />

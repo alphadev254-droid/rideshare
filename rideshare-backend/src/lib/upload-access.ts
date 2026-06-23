@@ -85,6 +85,27 @@ export async function canAccessUpload(
   return vehicleImage.vehicle.driver.userId === userId || vehicleImage.vehicle._count.trips > 0;
 }
 
+
+export async function canPublicAccessUpload(uploadPath: string): Promise<boolean> {
+  if (!uploadPath.startsWith("/uploads/documents/")) return false;
+
+  const vehicleImage = await prisma.vehicleImage.findFirst({
+    where: { url: uploadPath },
+    select: {
+      vehicle: {
+        select: {
+          _count: {
+            select: {
+              trips: { where: { status: { in: ["scheduled", "boarding", "in_transit"] } } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return (vehicleImage?.vehicle._count.trips ?? 0) > 0;
+}
 export async function assertDriverProfileEditable(userId: string): Promise<void> {
   const profile = await prisma.driverProfile.findUnique({
     where: { userId },

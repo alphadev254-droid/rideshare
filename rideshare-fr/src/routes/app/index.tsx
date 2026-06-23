@@ -45,6 +45,7 @@ import {
 import { toast } from "sonner";
 import { SecureImage } from "@/components/secure-image";
 import { useDebounce } from "@/hooks/use-debounce";
+import { clearPendingTripId, getPendingTripId } from "@/lib/pending-trip";
 
 export const Route = createFileRoute("/app/")({
   component: PassengerHome,
@@ -73,6 +74,7 @@ function availableDays(year: string, month: string) {
 }
 
 function PassengerHome() {
+  const activeTripId = typeof window === "undefined" ? undefined : (getPendingTripId() ?? undefined);
   const { user, setUser } = useAuth();
   const [page, setPage] = useState(1);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
@@ -117,6 +119,12 @@ function PassengerHome() {
   const years = Array.from({ length: 3 }, (_, index) => String(new Date().getFullYear() + index));
   const dayOptions = availableDays(dateYear, dateMonth);
 
+  const { data: pendingTrip } = useQuery({
+    queryKey: ["trip", activeTripId],
+    queryFn: () => tripService.byId(activeTripId!),
+    enabled: !!activeTripId,
+  });
+
   const { data: publicTrips, isLoading: isLoadingTrips } = useQuery({
     queryKey: ["trips", "public", { page, origin, destination, date, seats, comfortClass }],
     queryFn: () =>
@@ -129,8 +137,27 @@ function PassengerHome() {
         seats: seats === "any" ? undefined : Number(seats),
         comfortClass: comfortClass === "any" ? undefined : (comfortClass as ComfortClass),
       }),
+    staleTime: 15_000,
+    gcTime: 5 * 60_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    placeholderData: (previousData) => previousData,
   });
   const trips = publicTrips?.items ?? [];
+
+  useEffect(() => {
+    if (!activeTripId || selectedTrip?.id === activeTripId) return;
+    const listedTrip = trips.find((trip) => trip.id === activeTripId);
+    if (listedTrip) {
+      setSelectedTrip(listedTrip);
+      clearPendingTripId();
+      return;
+    }
+    if (pendingTrip) {
+      setSelectedTrip(pendingTrip);
+      clearPendingTripId();
+    }
+  }, [activeTripId, pendingTrip, selectedTrip?.id, trips]);
   const totalPages = publicTrips ? Math.max(1, Math.ceil(publicTrips.total / publicTrips.limit)) : 1;
   const fullyBooked = (selectedTrip?.availableSeats ?? 0) <= 0;
   const needsEmergencyContact = !user?.emergencyContactPhone;
@@ -280,7 +307,7 @@ function PassengerHome() {
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-[1.15fr_1.25fr_0.9fr] gap-2">
               <Select value={dateYear} onValueChange={updateDateYear}>
                 <SelectTrigger>
                   <SelectValue placeholder="Year" />
@@ -359,7 +386,7 @@ function PassengerHome() {
           </div>
           {publicTrips && (
             <div className="text-xs text-muted-foreground">
-              Page {publicTrips.page} of {totalPages} · {publicTrips.total} trips
+              Page {publicTrips.page} of {totalPages} - {publicTrips.total} trips
             </div>
           )}
         </div>
@@ -416,7 +443,7 @@ function PassengerHome() {
                         {formatMwk(trip.farePerSeatMwk)}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {trip.availableSeats}/{trip.totalSeats} seats left
+                        {trip.availableSeats} available
                       </div>
                     </div>
                     <Button asChild size="sm" className="gap-1.5">
@@ -526,7 +553,7 @@ function RideDetailsDialog({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 rounded-md border border-border bg-card p-4 text-sm">
             <Detail label="Fare" value={formatMwk(trip.farePerSeatMwk)} />
-            <Detail label="Seats left" value={`${trip.availableSeats}/${trip.totalSeats}`} />
+            <Detail label="Available seats" value={String(trip.availableSeats)} />
             <Detail label="Distance" value={formatDistanceKm(trip.distanceKm)} />
             <Detail
               label="Duration"
@@ -724,3 +751,7 @@ function DistrictSearch({
     </div>
   );
 }
+
+
+
+

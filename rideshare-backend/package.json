@@ -14,6 +14,7 @@
     "wallets:create-missing": "tsx src/scripts/create-missing-driver-wallets.ts",
     "locations:import": "tsx src/scripts/import-malawi-locations.ts",
     "admin:create": "tsx src/scripts/create-admin.ts",
+    "media:upload-landing": "tsx src/scripts/upload-landing-media.ts",
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {

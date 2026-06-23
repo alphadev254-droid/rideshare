@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/page-header";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,8 @@ import { ApiError, paymentService, tripService, userService, locationService, ty
 import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
 import { StatusPill } from "@/components/status-pill";
 import { useAuth } from "@/lib/auth-context";
+import { useAuthModal } from "@/lib/auth-modal-context";
+import { setPendingTripId } from "@/lib/pending-trip";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
 import { SecureImage } from "@/components/secure-image";
@@ -29,6 +31,8 @@ function availDays(y: string, m: string) { return y && m ? Array.from({ length: 
 
 function PublicTripsPage() {
   const { user, setUser } = useAuth();
+  const { openModal } = useAuthModal();
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
@@ -76,6 +80,11 @@ function PublicTripsPage() {
       date: date || undefined, seats: seats === "any" ? undefined : Number(seats),
       comfortClass: comfortClass === "any" ? undefined : (comfortClass as ComfortClass),
     }),
+    staleTime: 15_000,
+    gcTime: 5 * 60_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    placeholderData: (previousData) => previousData,
   });
 
   const trips = publicTrips?.items ?? [];
@@ -108,20 +117,34 @@ function PublicTripsPage() {
   });
 
   async function reserve() {
-    if (!viewTrip || !user) return;
+    if (!viewTrip) return;
+    if (!user) {
+      setPendingTripId(viewTrip.id);
+      setViewTrip(null);
+      openModal({ mode: "login", role: "passenger" });
+      return;
+    }
     if (!paymentPhone.trim()) { toast.error("Payment phone number is required"); return; }
     if (needsEmergency && !emergencyPhone.trim()) { toast.error("Emergency phone number is required"); return; }
     if (needsEmergency) { try { await saveEmergency.mutateAsync(); } catch { return; } }
     book.mutate(viewTrip);
   }
 
-  function handleClick(trip: Trip) {
-    if (!user) { window.location.href = "/login"; return; }
+  function handleView(trip: Trip) {
     setViewTrip(trip);
   }
 
+  function beginBooking(trip: Trip) {
+    setPendingTripId(trip.id);
+    if (!user) {
+      openModal({ mode: "login", role: "passenger" });
+      return;
+    }
+    navigate({ to: "/app", search: {} });
+  }
+
   return (
-    <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:p-8">
       <PageHeader title="Find trips" description="Search verified intercity trips. Pay securely with mobile money." />
 
       <div className="rounded-md border border-border bg-card p-5">
@@ -133,7 +156,7 @@ function PublicTripsPage() {
               <Label className="label-eyebrow">Date</Label>
               {(dateYear || dateMonth || dateDay) && <button type="button" onClick={() => { setDateYear(""); setDateMonth(""); setDateDay(""); setPage(1); }} className="text-xs text-primary hover:underline">Clear</button>}
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-[1.15fr_1.25fr_0.9fr] gap-2">
               <Select value={dateYear} onValueChange={(v) => { setDateYear(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger><SelectContent>{years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent></Select>
               <Select value={dateMonth} onValueChange={(v) => { setDateMonth(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger><SelectContent>{monthOptions.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select>
               <Select value={dateDay} onValueChange={(v) => { setDateDay(v); setPage(1); }}><SelectTrigger disabled={!dateYear || !dateMonth}><SelectValue placeholder="Day" /></SelectTrigger><SelectContent>{availDays(dateYear, dateMonth).map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select>
@@ -147,7 +170,7 @@ function PublicTripsPage() {
       <section className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <h2 className="font-display text-lg font-semibold">Available trips</h2>
-          {publicTrips && <div className="text-xs text-muted-foreground">Page {publicTrips.page} of {totalPages} · {publicTrips.total} trips</div>}
+          {publicTrips && <div className="text-xs text-muted-foreground">Page {publicTrips.page} of {totalPages} - {publicTrips.total} trips</div>}
         </div>
         {loading ? (
           <div className="rounded-md border border-border bg-card p-6 text-sm text-muted-foreground">Loading trips...</div>
@@ -178,11 +201,16 @@ function PublicTripsPage() {
                 <div className="mt-auto flex items-end justify-between pt-3 border-t border-border">
                   <div>
                     <div className="font-display text-xl font-semibold tabular text-primary">{formatMwk(trip.farePerSeatMwk)}</div>
-                    <div className="text-[11px] text-muted-foreground flex items-center gap-1"><Users className="h-3 w-3" />{trip.availableSeats}/{trip.totalSeats} seats</div>
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-1"><Users className="h-3 w-3" />{trip.availableSeats} available</div>
                   </div>
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleClick(trip)}>
-                    View details <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleView(trip)}>
+                      View details
+                    </Button>
+                    <Button size="sm" className="gap-1.5" onClick={() => beginBooking(trip)}>
+                      Book <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -201,6 +229,7 @@ function PublicTripsPage() {
         emergencyName={emergencyName} emergencyPhone={emergencyPhone}
         paymentMethod={paymentMethod} paymentPhone={paymentPhone}
         needsEmergency={needsEmergency}
+        isAuthenticated={!!user}
         isBooking={book.isPending} isSavingEmergency={saveEmergency.isPending}
         onEmergencyNameChange={setEmergencyName} onEmergencyPhoneChange={setEmergencyPhone}
         onPaymentMethodChange={setPaymentMethod} onPaymentPhoneChange={setPaymentPhone}
@@ -211,9 +240,9 @@ function PublicTripsPage() {
   );
 }
 
-function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentMethod, paymentPhone, needsEmergency, isBooking, isSavingEmergency, onEmergencyNameChange, onEmergencyPhoneChange, onPaymentMethodChange, onPaymentPhoneChange, onClose, onReserve }: {
+function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentMethod, paymentPhone, needsEmergency, isAuthenticated, isBooking, isSavingEmergency, onEmergencyNameChange, onEmergencyPhoneChange, onPaymentMethodChange, onPaymentPhoneChange, onClose, onReserve }: {
   trip: Trip | null; open: boolean; emergencyName: string; emergencyPhone: string; paymentMethod: PaymentMethod; paymentPhone: string;
-  needsEmergency: boolean; isBooking: boolean; isSavingEmergency: boolean;
+  needsEmergency: boolean; isAuthenticated: boolean; isBooking: boolean; isSavingEmergency: boolean;
   onEmergencyNameChange: (v: string) => void; onEmergencyPhoneChange: (v: string) => void;
   onPaymentMethodChange: (v: PaymentMethod) => void; onPaymentPhoneChange: (v: string) => void;
   onClose: () => void; onReserve: () => void;
@@ -225,14 +254,14 @@ function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentMet
       <DialogContent className="max-h-[92svh] overflow-y-auto p-0 sm:max-w-lg">
         <div className="bg-card p-6 border-b border-border">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl">{trip.originName} → {trip.destinationName}</DialogTitle>
+            <DialogTitle className="font-display text-xl">{trip.originName} to {trip.destinationName}</DialogTitle>
             <DialogDescription className="flex items-center gap-1.5 mt-1"><Calendar className="h-3.5 w-3.5" />{formatDateTime(trip.departureTime)}</DialogDescription>
           </DialogHeader>
         </div>
         <div className="p-6 space-y-5">
           <div className="grid grid-cols-3 gap-3">
             <InfoTile icon={<Zap className="h-4 w-4" />} label="Fare" value={formatMwk(trip.farePerSeatMwk)} />
-            <InfoTile icon={<Users className="h-4 w-4" />} label="Seats" value={`${trip.availableSeats}/${trip.totalSeats}`} />
+            <InfoTile icon={<Users className="h-4 w-4" />} label="Available seats" value={String(trip.availableSeats)} />
             <InfoTile icon={<MapPin className="h-4 w-4" />} label="Distance" value={formatDistanceKm(trip.distanceKm)} />
             <InfoTile icon={<Clock className="h-4 w-4" />} label="Duration" value={trip.estimatedDurationMinutes ? `${Math.floor(trip.estimatedDurationMinutes / 60)}h ${trip.estimatedDurationMinutes % 60}m` : "Not set"} />
             <InfoTile icon={<ShieldCheck className="h-4 w-4" />} label="Class" value={trip.comfortClass} />
@@ -262,17 +291,25 @@ function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentMet
               </div>
             </div>
           )}
-          <div className="rounded-md border border-border bg-card p-4">
-            <div className="label-eyebrow">Payment</div>
-            <p className="mt-1 text-xs text-muted-foreground">Your booking is created only after payment is confirmed.</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5"><Label className="label-eyebrow">Method</Label><Select value={paymentMethod} onValueChange={(v) => onPaymentMethodChange(v as PaymentMethod)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="airtel_money">Airtel Money</SelectItem><SelectItem value="tnm_mpamba">TNM Mpamba</SelectItem></SelectContent></Select></div>
-              <div className="space-y-1.5"><Label className="label-eyebrow">Payment phone</Label><Input value={paymentPhone} onChange={(e) => onPaymentPhoneChange(e.target.value)} /></div>
-            </div>
-          </div>
-          <Button className="h-11 w-full" disabled={fullyBooked || isBooking || isSavingEmergency || !paymentPhone.trim()} onClick={onReserve}>
-            {fullyBooked ? "Fully booked" : isBooking || isSavingEmergency ? "Processing payment..." : `Pay ${formatMwk(trip.farePerSeatMwk)} — Book now`}
-          </Button>
+          {isAuthenticated ? (
+            <>
+              <div className="rounded-md border border-border bg-card p-4">
+                <div className="label-eyebrow">Payment</div>
+                <p className="mt-1 text-xs text-muted-foreground">Your booking is created only after payment is confirmed.</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5"><Label className="label-eyebrow">Method</Label><Select value={paymentMethod} onValueChange={(v) => onPaymentMethodChange(v as PaymentMethod)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="airtel_money">Airtel Money</SelectItem><SelectItem value="tnm_mpamba">TNM Mpamba</SelectItem></SelectContent></Select></div>
+                  <div className="space-y-1.5"><Label className="label-eyebrow">Payment phone</Label><Input value={paymentPhone} onChange={(e) => onPaymentPhoneChange(e.target.value)} /></div>
+                </div>
+              </div>
+              <Button className="h-11 w-full" disabled={fullyBooked || isBooking || isSavingEmergency || !paymentPhone.trim()} onClick={onReserve}>
+                {fullyBooked ? "Fully booked" : isBooking || isSavingEmergency ? "Processing payment..." : `Pay ${formatMwk(trip.farePerSeatMwk)} - Book now`}
+              </Button>
+            </>
+          ) : (
+            <Button className="h-11 w-full" disabled={fullyBooked} onClick={onReserve}>
+              {fullyBooked ? "Fully booked" : "Sign in to book"}
+            </Button>
+          )}
           {(trip.vehicle?.imageUrls?.length ?? 0) > 0 && (
             <div className="space-y-2">
               <div className="label-eyebrow">Vehicle photos</div>
@@ -329,3 +366,10 @@ function SearchField({ val, search, onSearch, onPick, onClear, open, setOpen, di
     </div>
   );
 }
+
+
+
+
+
+
+

@@ -173,9 +173,9 @@ function TripDetail() {
                 </div>
               )}
               <div>
-                <dt className="text-xs text-muted-foreground">Seats left</dt>
+                <dt className="text-xs text-muted-foreground">Available seats</dt>
                 <dd className="mt-0.5 tabular font-medium">
-                  {trip.availableSeats} / {trip.totalSeats}
+                  {trip.availableSeats}
                 </dd>
               </div>
               <div>

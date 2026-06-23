@@ -50,6 +50,11 @@ function SearchPage() {
         seats: search.seats,
         comfortClass: search.comfortClass,
       }),
+    staleTime: 15_000,
+    gcTime: 5 * 60_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    placeholderData: (previousData) => previousData,
   });
 
   return (
@@ -138,7 +143,7 @@ function SearchPage() {
                       {formatMwk(trip.farePerSeatMwk)}
                     </div>
                     <div className="label-eyebrow mt-0.5">
-                      {trip.availableSeats} of {trip.totalSeats} seats left
+                      {trip.availableSeats} available
                     </div>
                   </div>
                   <Button size="sm" className="gap-1.5">
@@ -161,3 +166,4 @@ function formatDuration(minutes: number) {
   if (!mins) return `${hours} hr`;
   return `${hours} hr ${mins} min`;
 }
+
