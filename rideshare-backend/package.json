@@ -13,6 +13,7 @@
     "db:studio": "prisma studio",
     "wallets:create-missing": "tsx src/scripts/create-missing-driver-wallets.ts",
     "locations:import": "tsx src/scripts/import-malawi-locations.ts",
+    "admin:create": "tsx src/scripts/create-admin.ts",
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
@@ -53,3 +54,5 @@
     "typescript": "^5.5.3"
   }
 }
+
+

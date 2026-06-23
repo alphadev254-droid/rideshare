@@ -139,7 +139,7 @@ function AdminTrips() {
 
   const drivers = driversQuery.data ?? [];
   const selectedDriver = drivers.find((driver) => driver.id === form.driverId);
-  const vehicles = selectedDriver?.vehicles ?? [];
+  const vehicles = (selectedDriver?.vehicles ?? []).filter((vehicle) => vehicle.reviewStatus === "approved");
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === form.vehicleId);
 
   const trips = tripsQuery.data ?? [];
@@ -647,3 +647,4 @@ function SelectField({
     </div>
   );
 }
+
