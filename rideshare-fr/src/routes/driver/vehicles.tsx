@@ -61,7 +61,15 @@ function formFromVehicle(vehicle?: Vehicle): VehicleForm {
     seatCapacity: vehicle?.seatCapacity ? String(vehicle.seatCapacity) : "4",
   };
 }
-
+function vehicleStatusCopy(vehicle: Vehicle) {
+  if (vehicle.reviewStatus === "approved") {
+    return { label: "Approved by admin", className: "border-primary/30 bg-primary/10 text-primary" };
+  }
+  if (vehicle.reviewStatus === "pending") {
+    return { label: "Waiting for admin review", className: "border-gold/40 bg-gold/10 text-gold" };
+  }
+  return { label: "Not allowed yet", className: "border-destructive/30 bg-destructive/10 text-destructive" };
+}
 function VehiclesPage() {
   const queryClient = useQueryClient();
   const { data: vehicles, isLoading } = useQuery({
@@ -105,6 +113,7 @@ function VehiclesPage() {
 
 function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
   const queryClient = useQueryClient();
+  const status = vehicleStatusCopy(vehicle);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const deleteVehicle = useMutation({
@@ -123,6 +132,7 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
           <div className="font-display text-sm font-semibold">
             {vehicle.make} {vehicle.model}
           </div>
+          <div className={`mb-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${status.className}`}>{status.label}</div>
           <div className="mt-0.5 text-[11px] text-muted-foreground space-y-0.5">
             <div>
               {vehicle.plateNumber} · {vehicle.year} · {vehicle.seatCapacity}s ·{" "}
@@ -716,3 +726,4 @@ function Field({
 function Required() {
   return <span className="text-destructive ml-0.5">*</span>;
 }
+

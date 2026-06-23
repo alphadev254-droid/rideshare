@@ -34,6 +34,12 @@ enum ReviewStatus {
   rejected
 }
 
+enum VehicleReviewStatus {
+  pending
+  approved
+  rejected
+}
+
 enum TripStatus {
   scheduled
   boarding
@@ -199,7 +205,8 @@ model Vehicle {
   comfortClass  ComfortClass @default(economy) @map("comfort_class")
   seatCapacity  Int          @map("seat_capacity") @db.SmallInt
   color         String?      @db.VarChar(50)
-  isActive      Boolean      @default(false) @map("is_active")
+  isActive      Boolean      @default(true) @map("is_active")
+  reviewStatus  VehicleReviewStatus @default(pending) @map("review_status")
   photoUrl      String?      @map("photo_url")
   createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz()
 
@@ -515,3 +522,5 @@ model Review {
 
   @@map("reviews")
 }
+
+

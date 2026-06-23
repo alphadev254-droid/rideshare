@@ -105,6 +105,7 @@ export async function addVehicle(userId: string, input: AddVehicleInput) {
     data: {
       driverId: driver.id,
       ...vehicleData(input),
+      reviewStatus: "pending",
     },
   });
   return { ...vehicle, imageUrls: [] };
@@ -121,7 +122,7 @@ export async function updateVehicle(userId: string, vehicleId: string, input: Ad
 
   const vehicle = await prisma.vehicle.update({
     where: { id: vehicleId },
-    data: vehicleData(input),
+    data: { ...vehicleData(input), reviewStatus: "pending" },
   });
   const [withImages] = await attachVehicleImages([vehicle]);
   return withImages;
@@ -141,7 +142,7 @@ export async function deleteVehicle(userId: string, vehicleId: string) {
 export async function getMyVehicles(userId: string) {
   const driver = await prisma.driverProfile.findUnique({
     where: { userId },
-    select: { id: true, vehicles: { where: { isActive: true } } },
+    select: { id: true, vehicles: { where: { isActive: true }, orderBy: { createdAt: "desc" } } },
   });
   if (!driver) throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
   return attachVehicleImages(driver.vehicles);
@@ -161,7 +162,11 @@ export async function addVehicleImage(userId: string, vehicleId: string, url: st
   }
 
   await prisma.vehicleImage.create({ data: { vehicleId, url } });
-  const [withImages] = await attachVehicleImages([vehicle]);
+  const updated = await prisma.vehicle.update({
+    where: { id: vehicleId },
+    data: { reviewStatus: "pending" },
+  });
+  const [withImages] = await attachVehicleImages([updated]);
   return withImages;
 }
 
@@ -173,7 +178,11 @@ export async function removeVehicleImage(userId: string, vehicleId: string, url:
   });
   if (!vehicle) throw new AppError(404, "Vehicle not found");
   await prisma.vehicleImage.deleteMany({ where: { vehicleId, url } });
-  const [withImages] = await attachVehicleImages([vehicle]);
+  const updated = await prisma.vehicle.update({
+    where: { id: vehicleId },
+    data: { reviewStatus: "pending" },
+  });
+  const [withImages] = await attachVehicleImages([updated]);
   return withImages;
 }
 
@@ -187,7 +196,7 @@ export async function updateVehicleInsuranceDocument(userId: string, vehicleId: 
 
   const updated = await prisma.vehicle.update({
     where: { id: vehicleId },
-    data: { insuranceDocUrl: url },
+    data: { insuranceDocUrl: url, reviewStatus: "pending" },
   });
   const [withImages] = await attachVehicleImages([updated]);
   return withImages;
@@ -200,6 +209,7 @@ export async function addVehicleAdmin(driverId: string, input: AddVehicleInput) 
     data: {
       driverId,
       ...vehicleData(input),
+      reviewStatus: "approved",
     },
   });
   return { ...vehicle, imageUrls: [] };
@@ -508,22 +518,13 @@ export async function updateDriverProfileAdmin(
 
 export async function toggleVehicleActiveAdmin(driverId: string, vehicleId: string, isActive: boolean) {
   const vehicle = await prisma.vehicle.findFirst({
-    where: { id: vehicleId, driverId, isActive: !isActive },
+    where: { id: vehicleId, driverId, isActive: true },
   });
-  if (!vehicle) {
-    // If not found with the opposite status, it may already be in that state or not exist
-    const exists = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, driverId },
-      select: { id: true, isActive: true },
-    });
-    if (!exists) throw new AppError(404, "Vehicle not found");
-    return { id: vehicleId, isActive: exists.isActive, message: "Vehicle already in that state" };
-  }
+  if (!vehicle) throw new AppError(404, "Vehicle not found");
 
   const updated = await prisma.vehicle.update({
     where: { id: vehicleId },
-    data: { isActive },
-    select: { id: true, isActive: true, make: true, model: true, plateNumber: true },
+    data: { reviewStatus: isActive ? "approved" : "rejected" },
   });
 
   const [withImages] = await attachVehicleImages([updated]);
@@ -550,3 +551,10 @@ export async function updateDriverProfileFileAdmin(
     throw new AppError(404, "Driver not found");
   }
 }
+
+
+
+
+
+
+

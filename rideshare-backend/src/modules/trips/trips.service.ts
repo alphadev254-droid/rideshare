@@ -28,9 +28,9 @@ export async function createTrip(userId: string, input: CreateTripInput) {
   }
 
   const vehicle = await prisma.vehicle.findFirst({
-    where: { id: input.vehicleId, driverId: driver.id, isActive: true },
+    where: { id: input.vehicleId, driverId: driver.id, isActive: true, reviewStatus: "approved" },
   });
-  if (!vehicle) throw new AppError(404, "Vehicle not found");
+  if (!vehicle) throw new AppError(400, "Selected vehicle is not approved by admin yet");
 
   const departureTime = new Date(input.departureTime);
   if (Number.isNaN(departureTime.getTime())) {
@@ -129,9 +129,9 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
   }
 
   const vehicle = await prisma.vehicle.findFirst({
-    where: { id: input.vehicleId, driverId: driver.id, isActive: true },
+    where: { id: input.vehicleId, driverId: driver.id, isActive: true, reviewStatus: "approved" },
   });
-  if (!vehicle) throw new AppError(404, "Vehicle not found");
+  if (!vehicle) throw new AppError(400, "Selected vehicle is not approved by admin yet");
 
   const bookedSeats = trip.totalSeats - trip.availableSeats;
   if (input.totalSeats < bookedSeats) {
@@ -216,9 +216,9 @@ export async function createTripAdmin(input: AdminTripInput) {
   if (!driver) throw new AppError(404, "Approved driver profile not found");
 
   const vehicle = await prisma.vehicle.findFirst({
-    where: { id: input.vehicleId, driverId: driver.id, isActive: true },
+    where: { id: input.vehicleId, driverId: driver.id, isActive: true, reviewStatus: "approved" },
   });
-  if (!vehicle) throw new AppError(404, "Vehicle not found for selected driver");
+  if (!vehicle) throw new AppError(400, "Selected vehicle is not approved by admin yet");
 
   const departureTime = new Date(input.departureTime);
   if (Number.isNaN(departureTime.getTime())) throw new AppError(400, "Departure time is invalid");
@@ -291,9 +291,9 @@ export async function updateTripAdmin(tripId: string, input: AdminTripInput) {
   if (!driver) throw new AppError(404, "Approved driver profile not found");
 
   const vehicle = await prisma.vehicle.findFirst({
-    where: { id: input.vehicleId, driverId: driver.id, isActive: true },
+    where: { id: input.vehicleId, driverId: driver.id, isActive: true, reviewStatus: "approved" },
   });
-  if (!vehicle) throw new AppError(404, "Vehicle not found for selected driver");
+  if (!vehicle) throw new AppError(400, "Selected vehicle is not approved by admin yet");
 
   const bookedSeats = trip.totalSeats - trip.availableSeats;
   if (input.totalSeats < bookedSeats) {
@@ -951,3 +951,4 @@ export async function listTripsAdmin(
     distanceKm: distanceKm ? Number(distanceKm) : 0,
   }));
 }
+

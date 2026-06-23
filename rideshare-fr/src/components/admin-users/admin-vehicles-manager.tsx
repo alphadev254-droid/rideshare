@@ -16,7 +16,7 @@ import type { ComfortClass, Vehicle } from "@/lib/api";
 
 type VehiclePayload = Omit<
   Vehicle,
-  "id" | "driverId" | "isActive" | "createdAt" | "imageUrls" | "photoUrl"
+  "id" | "driverId" | "isActive" | "reviewStatus" | "createdAt" | "imageUrls" | "photoUrl"
 >;
 
 type VehicleForm = {
@@ -52,7 +52,11 @@ function toPayload(form: VehicleForm): VehiclePayload {
     seatCapacity: Number(form.seatCapacity),
   };
 }
-
+function vehicleStatusLabel(vehicle: Vehicle) {
+  if (vehicle.reviewStatus === "approved") return "Approved by admin";
+  if (vehicle.reviewStatus === "pending") return "Waiting for admin review";
+  return "Not allowed yet";
+}
 export function AdminVehiclesManager({
   vehicles,
   onAdd,
@@ -150,11 +154,11 @@ export function AdminVehiclesManager({
                   </div>
                   <div className="mt-2 flex items-center gap-2">
                     <Switch
-                      checked={vehicle.isActive}
+                      checked={vehicle.reviewStatus === "approved"}
                       onCheckedChange={(checked) => onToggleActive(vehicle.id, checked)}
                     />
-                    <span className={`text-xs font-medium ${vehicle.isActive ? "text-primary" : "text-muted-foreground"}`}>
-                      {vehicle.isActive ? "Active" : "Inactive"}
+                    <span className={`text-xs font-medium ${vehicle.reviewStatus === "approved" ? "text-primary" : vehicle.reviewStatus === "rejected" ? "text-destructive" : "text-muted-foreground"}`}>
+                      {vehicleStatusLabel(vehicle)}
                     </span>
                   </div>
                 </div>
@@ -214,3 +218,5 @@ function Field({
     </div>
   );
 }
+
+

@@ -135,9 +135,14 @@ function NewTrip() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const approvedVehicles = useMemo(
+    () => (vehicles ?? []).filter((vehicle) => vehicle.reviewStatus === "approved"),
+    [vehicles],
+  );
+
   const selectedVehicle = useMemo(
-    () => (vehicles ?? []).find((vehicle) => vehicle.id === form.vehicleId),
-    [vehicles, form.vehicleId],
+    () => approvedVehicles.find((vehicle) => vehicle.id === form.vehicleId),
+    [approvedVehicles, form.vehicleId],
   );
 
   function up<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
@@ -223,7 +228,7 @@ function NewTrip() {
     create.mutate();
   }
 
-  const hasVehicles = (vehicles?.length ?? 0) > 0;
+  const hasVehicles = approvedVehicles.length > 0;
   const seatCapacity = selectedVehicle?.seatCapacity ?? 50;
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 3 }, (_, index) => String(currentYear + index));
@@ -338,10 +343,10 @@ function NewTrip() {
             <Label className="label-eyebrow">Vehicle</Label>
             <Select value={form.vehicleId} onValueChange={(v) => up("vehicleId", v)}>
               <SelectTrigger aria-invalid={!!errors.vehicleId}>
-                <SelectValue placeholder={hasVehicles ? "Choose vehicle" : "No vehicles yet"} />
+                <SelectValue placeholder={hasVehicles ? "Choose approved vehicle" : "No approved vehicles yet"} />
               </SelectTrigger>
               <SelectContent>
-                {(vehicles ?? []).map((v) => (
+                {approvedVehicles.map((v) => (
                   <SelectItem key={v.id} value={v.id}>
                     {v.make} {v.model} - {v.plateNumber}
                   </SelectItem>
@@ -517,3 +522,5 @@ function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return <p className="text-xs font-medium text-destructive">{message}</p>;
 }
+
+

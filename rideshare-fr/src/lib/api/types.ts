@@ -44,6 +44,7 @@ export interface AuthTokens {
 }
 
 export type ReviewStatus = "pending" | "approved" | "rejected";
+export type VehicleReviewStatus = "pending" | "approved" | "rejected";
 
 export interface DriverProfile {
   id: string;
@@ -101,6 +102,7 @@ export interface Vehicle {
   comfortClass: ComfortClass;
   seatCapacity: number;
   isActive: boolean;
+  reviewStatus: VehicleReviewStatus;
   photoUrl?: string | null;
   imageUrls?: string[];
   createdAt: string;
@@ -327,3 +329,5 @@ export interface Review {
   comment?: string;
   createdAt: string;
 }
+
+

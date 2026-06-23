@@ -66,9 +66,14 @@ function EditTrip() {
     setInitializedTripId(trip.id);
   }, [initializedTripId, trip]);
 
-  const selectedVehicle = useMemo(
-    () => (vehicles ?? []).find((vehicle) => vehicle.id === form.vehicleId),
+  const approvedVehicles = useMemo(
+    () => (vehicles ?? []).filter((vehicle) => vehicle.reviewStatus === "approved" || vehicle.id === form.vehicleId),
     [vehicles, form.vehicleId],
+  );
+
+  const selectedVehicle = useMemo(
+    () => approvedVehicles.find((vehicle) => vehicle.id === form.vehicleId),
+    [approvedVehicles, form.vehicleId],
   );
   const seatCapacity = selectedVehicle?.seatCapacity ?? 50;
   const bookedSeats = trip ? Math.max(0, trip.totalSeats - trip.availableSeats) : 0;
@@ -268,7 +273,7 @@ function EditTrip() {
                 <SelectValue placeholder="Choose vehicle" />
               </SelectTrigger>
               <SelectContent>
-                {(vehicles ?? []).map((vehicle) => (
+                {approvedVehicles.map((vehicle) => (
                   <SelectItem key={vehicle.id} value={vehicle.id}>
                     {vehicle.make} {vehicle.model} - {vehicle.plateNumber}
                   </SelectItem>
@@ -583,3 +588,5 @@ function nearestQuarterMinute(minutes: number) {
   );
   return String(closest).padStart(2, "0");
 }
+
+
