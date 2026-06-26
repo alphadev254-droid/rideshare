@@ -273,7 +273,7 @@ function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentMet
             <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">A</div>
-                <div><div className="text-sm font-medium">Boarding point</div><div className="text-xs text-muted-foreground">{trip.originName}</div></div>
+                <div><div className="text-sm font-medium">Boarding point</div><div className="text-xs text-muted-foreground">{trip.pickupPoint || trip.originName}</div></div>
               </div>
               <div className="ml-2.5 border-l-2 border-dashed border-border pl-3.5 h-6" />
               <div className="flex items-start gap-3">

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { userService, extractApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { SecureImage } from "@/components/secure-image";
-import { Camera, Loader2, Upload } from "lucide-react";
+import { Camera, Loader2, Upload, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/driver/profile")({
@@ -86,6 +86,12 @@ function DriverProfile() {
         title="Driver profile"
         description="Personal details, profile photo and emergency contact."
       />
+
+      {/* Edit hint */}
+      <div className="flex items-center gap-2 rounded-md border border-border bg-surface-2 px-4 py-2.5 text-sm text-muted-foreground">
+        <Pencil className="h-3.5 w-3.5 shrink-0" />
+        <span>You can edit your details below. When done, press <strong className="text-foreground">Save changes</strong>.</span>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Profile Photo Column */}

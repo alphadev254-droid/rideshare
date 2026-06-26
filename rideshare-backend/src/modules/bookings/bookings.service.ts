@@ -20,6 +20,7 @@ const bookingDetailSelect = {
   status: true,
   paymentStatus: true,
   fareMwk: true,
+  ratedDriver: true,
   createdAt: true,
   passenger: { select: { id: true, fullName: true, phone: true, email: true, rating: true } },
   trip: {

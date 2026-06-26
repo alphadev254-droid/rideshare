@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatMwk, formatDateTime } from "@/lib/format";
-import { ArrowLeft, KeyRound, RefreshCw, RotateCcw, Star } from "lucide-react";
+import { ArrowLeft, Car, KeyRound, RefreshCw, RotateCcw, Star, User, Navigation, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 
@@ -57,6 +57,7 @@ function BookingDetail() {
   const [emergencyPhone, setEmergencyPhone] = useState(user?.emergencyContactPhone ?? "");
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+  const [reviewed, setReviewed] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundReason, setRefundReason] = useState("");
   const needsEmergencyContact = !user?.emergencyContactPhone;
@@ -114,6 +115,7 @@ function BookingDetail() {
       reviewService.create({ bookingId: id, rating, comment: comment || undefined }),
     onSuccess: () => {
       toast.success("Thanks for the review!");
+      setReviewed(true);
       setComment("");
     },
     onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : "Could not submit"),
@@ -142,7 +144,7 @@ function BookingDetail() {
 
   const needsPayment = booking.paymentStatus === "unpaid";
   const canResendCode = !!booking.codeAvailable && booking.status !== "cancelled";
-  const canReview = booking.status === "completed";
+  const canReview = booking.status === "completed" && !booking.ratedDriver && !reviewed;
   const canRequestRefund =
     booking.paymentStatus === "held_in_escrow" &&
     booking.payment?.status === "escrow_held" &&
@@ -199,6 +201,92 @@ function BookingDetail() {
             </dl>
           </div>
 
+          {/* Trip info */}
+          {booking.trip && (
+            <div className="rounded-md border border-border bg-card p-5">
+              <h3 className="label-eyebrow mb-3 flex items-center gap-2">
+                <Navigation className="h-3.5 w-3.5 text-muted-foreground" />
+                Trip details
+              </h3>
+              <dl className="grid grid-cols-2 gap-4 text-sm">
+                <div className="col-span-2">
+                  <dt className="text-xs text-muted-foreground">Route</dt>
+                  <dd className="mt-0.5 font-medium">
+                    {booking.trip.originName} → {booking.trip.destinationName}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> Departure
+                  </dt>
+                  <dd className="mt-0.5">{formatDateTime(booking.trip.departureTime)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Trip status</dt>
+                  <dd className="mt-0.5">
+                    <StatusPill status={booking.trip.status} />
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
+          {/* Driver info */}
+          {booking.trip?.driver && (
+            <div className="rounded-md border border-border bg-card p-5">
+              <h3 className="label-eyebrow mb-3 flex items-center gap-2">
+                <User className="h-3.5 w-3.5 text-muted-foreground" />
+                Driver
+              </h3>
+              <dl className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Name</dt>
+                  <dd className="mt-0.5 font-medium">{booking.trip.driver.user.fullName}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Phone</dt>
+                  <dd className="mt-0.5">
+                    <a href={`tel:${booking.trip.driver.user.phone}`} className="text-primary hover:underline">
+                      {booking.trip.driver.user.phone}
+                    </a>
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
+          {/* Vehicle info */}
+          {booking.trip?.vehicle && (
+            <div className="rounded-md border border-border bg-card p-5">
+              <h3 className="label-eyebrow mb-3 flex items-center gap-2">
+                <Car className="h-3.5 w-3.5 text-muted-foreground" />
+                Vehicle
+              </h3>
+              <dl className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Make & model</dt>
+                  <dd className="mt-0.5 font-medium">
+                    {booking.trip.vehicle.make} {booking.trip.vehicle.model}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Plate number</dt>
+                  <dd className="mt-0.5 font-mono">{booking.trip.vehicle.plateNumber}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Class</dt>
+                  <dd className="mt-0.5 capitalize">{booking.trip.vehicle.comfortClass}</dd>
+                </div>
+                {booking.trip.vehicle.color && (
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Color</dt>
+                    <dd className="mt-0.5 capitalize">{booking.trip.vehicle.color}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
           {canResendCode && (
             <div className="rounded-md border border-primary/40 bg-primary/5 p-6">
               <div className="flex items-center gap-2 text-primary">
@@ -225,32 +313,42 @@ function BookingDetail() {
             </div>
           )}
 
-          {canReview && (
+          {(canReview || booking.ratedDriver) && (
             <div className="rounded-md border border-border bg-card p-5">
               <h3 className="label-eyebrow">Rate your trip</h3>
-              <div className="mt-3 flex gap-1">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setRating(n)}
-                    className="ring-focus rounded"
-                  >
-                    <Star
-                      className={`h-6 w-6 ${n <= rating ? "fill-gold text-gold" : "text-muted-foreground"}`}
-                    />
-                  </button>
-                ))}
-              </div>
-              <Input
-                className="mt-3"
-                placeholder="Optional comment"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              />
-              <Button className="mt-3" onClick={() => review.mutate()} disabled={review.isPending}>
-                Submit review
-              </Button>
+              {booking.ratedDriver || reviewed ? (
+                <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Star className="h-4 w-4 fill-gold text-gold" />
+                  Thank you for your review!
+                </div>
+              ) : (
+                <>
+                  <p className="mt-1 text-xs text-muted-foreground">How was your ride?</p>
+                  <div className="mt-3 flex gap-1">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setRating(n)}
+                        className="ring-focus rounded"
+                      >
+                        <Star
+                          className={`h-6 w-6 ${n <= rating ? "fill-gold text-gold" : "text-muted-foreground"}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <Input
+                    className="mt-3"
+                    placeholder="Optional comment"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                  />
+                  <Button className="mt-3" onClick={() => review.mutate()} disabled={review.isPending}>
+                    {review.isPending ? "Submitting..." : "Submit review"}
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </div>

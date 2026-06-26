@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, useRef, useEffect, useMemo, type FormEvent, type ReactNode } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   adminService,
+  locationService,
   type ComfortClass,
   type DriverProfile,
   type Trip,
@@ -52,7 +53,7 @@ import {
 } from "@/components/ui/table";
 import { formatDateTime, formatMwk, formatDistanceKm } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { Edit3, Eye, MapPin, Plus, Search, Trash2, XCircle, Calendar as CalendarIcon } from "lucide-react";
+import { Edit3, Eye, MapPin, Plus, Search, Trash2, X, XCircle, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { TripViewDialog } from "@/components/trip-view-dialog";
 
@@ -137,6 +138,31 @@ function AdminTrips() {
     queryFn: () => adminService.listDrivers({ limit: 200, approved: true }),
   });
 
+  const [originSearch, setOriginSearch] = useState("");
+  const [destSearch, setDestSearch] = useState("");
+  const debouncedOriginSearch = useDebounce(originSearch, 150);
+  const debouncedDestSearch = useDebounce(destSearch, 150);
+  const [originOpen, setOriginOpen] = useState(false);
+  const [destOpen, setDestOpen] = useState(false);
+
+  const { data: districts } = useQuery({
+    queryKey: ["locations", "districts"],
+    queryFn: () => locationService.districts(),
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const filteredOrigin = useMemo(() => {
+    if (!districts) return [];
+    const q = debouncedOriginSearch.toLowerCase().trim();
+    return q ? districts.filter((d) => d.toLowerCase().includes(q)) : districts;
+  }, [districts, debouncedOriginSearch]);
+
+  const filteredDest = useMemo(() => {
+    if (!districts) return [];
+    const q = debouncedDestSearch.toLowerCase().trim();
+    return q ? districts.filter((d) => d.toLowerCase().includes(q)) : districts;
+  }, [districts, debouncedDestSearch]);
+
   const drivers = driversQuery.data ?? [];
   const selectedDriver = drivers.find((driver) => driver.id === form.driverId);
   const vehicles = (selectedDriver?.vehicles ?? []).filter((vehicle) => vehicle.reviewStatus === "approved");
@@ -185,6 +211,8 @@ function AdminTrips() {
 
   function openCreate() {
     setForm(emptyForm);
+    setOriginSearch("");
+    setDestSearch("");
     setFormOpen(true);
   }
 
@@ -201,6 +229,8 @@ function AdminTrips() {
       estimatedDurationMinutes: String(trip.estimatedDurationMinutes ?? ""),
       farePerSeatMwk: String(Math.round(Number(trip.farePerSeatMwk))),
     });
+    setOriginSearch("");
+    setDestSearch("");
     setFormOpen(true);
   }
 
@@ -480,19 +510,29 @@ function AdminTrips() {
             )}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Origin">
-                <Input
-                  required
+                <DistrictSearch
                   value={form.originName}
-                  onChange={(event) => setForm((current) => ({ ...current, originName: event.target.value }))}
+                  search={originSearch}
+                  onSearch={(v) => { setOriginSearch(v); setOriginOpen(true); }}
+                  onPick={(d) => { setForm((c) => ({ ...c, originName: d })); setOriginSearch(""); setOriginOpen(false); }}
+                  onClear={() => { setForm((c) => ({ ...c, originName: "" })); setOriginSearch(""); }}
+                  open={originOpen}
+                  setOpen={setOriginOpen}
+                  districts={filteredOrigin}
+                  placeholder="Search districts…"
                 />
               </Field>
               <Field label="Destination">
-                <Input
-                  required
+                <DistrictSearch
                   value={form.destinationName}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, destinationName: event.target.value }))
-                  }
+                  search={destSearch}
+                  onSearch={(v) => { setDestSearch(v); setDestOpen(true); }}
+                  onPick={(d) => { setForm((c) => ({ ...c, destinationName: d })); setDestSearch(""); setDestOpen(false); }}
+                  onClear={() => { setForm((c) => ({ ...c, destinationName: "" })); setDestSearch(""); }}
+                  open={destOpen}
+                  setOpen={setDestOpen}
+                  districts={filteredDest}
+                  placeholder="Search districts…"
                 />
               </Field>
             </div>
@@ -599,6 +639,82 @@ function formatDuration(minutes: number) {
 
 function showError(error: Error) {
   toast.error(error instanceof Error ? error.message : "Request failed");
+}
+
+function DistrictSearch({
+  value,
+  search,
+  onSearch,
+  onPick,
+  onClear,
+  open,
+  setOpen,
+  districts,
+  placeholder,
+}: {
+  value: string;
+  search: string;
+  onSearch: (v: string) => void;
+  onPick: (d: string) => void;
+  onClear: () => void;
+  open: boolean;
+  setOpen: (o: boolean) => void;
+  districts: string[];
+  placeholder: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open, setOpen]);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      {value ? (
+        <div className="flex items-center gap-1 rounded-md border border-border bg-surface-2 px-3 py-2">
+          <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="flex-1 text-sm">{value}</span>
+          <button type="button" onClick={onClear} className="text-muted-foreground hover:text-foreground" aria-label="Clear">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            onFocus={() => setOpen(true)}
+            placeholder={placeholder}
+            className="pl-9"
+          />
+          {open && districts.length > 0 && (
+            // z-[200] so it clears the Dialog overlay (z-50)
+            <div className="absolute z-[200] mt-1 max-h-52 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg">
+              {districts.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-2"
+                  onMouseDown={(e) => { e.preventDefault(); onPick(d); }}
+                >
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  {d}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

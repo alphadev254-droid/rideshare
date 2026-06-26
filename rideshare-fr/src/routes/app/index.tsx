@@ -579,7 +579,7 @@ function RideDetailsDialog({
                 <MapPin className="mt-0.5 h-4 w-4 text-primary" />
                 <div>
                   <div className="font-medium">Boarding point</div>
-                  <div className="text-muted-foreground">{trip.originName}</div>
+                  <div className="text-muted-foreground">{trip.pickupPoint || trip.originName}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">

@@ -104,9 +104,13 @@ function DriverDashboard() {
             <StatCard
               label="Rating"
               value={
-                <span className="flex items-center gap-2">
-                  {stats.rating} <Star className="h-5 w-5 fill-gold text-gold" />
-                </span>
+                stats.rating ? (
+                  <span className="flex items-center gap-2">
+                    {Number(stats.rating).toFixed(1)} <Star className="h-5 w-5 fill-gold text-gold" />
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">No ratings yet</span>
+                )
               }
               hint={`${stats.pendingTrips} pending`}
             />

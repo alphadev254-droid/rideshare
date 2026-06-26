@@ -163,6 +163,7 @@ export const driverService = {
 export interface TripCreateBody {
   vehicleId: string;
   originName: string;
+  pickupPoint?: string;
   originLat?: number;
   originLng?: number;
   destinationName: string;
@@ -201,6 +202,7 @@ export const tripService = {
     date?: string;
     seats?: number;
     comfortClass?: ComfortClass;
+    driverId?: string;
   }) =>
     api.get<PaginatedResponse<Trip>>("/trips/public", {
       query: query as Record<string, string | number | boolean | undefined>,
@@ -208,7 +210,7 @@ export const tripService = {
     }),
   search: (query: TripSearchQuery) => api.get<Trip[]>("/trips/search", { query: { ...query } }),
   mine: () => api.get<Trip[]>("/trips/mine"),
-  byId: (id: string) => api.get<Trip>(`/trips/${id}`),
+  byId: (id: string) => api.get<Trip>(`/trips/${id}`, { auth: false }),
   location: (id: string) => api.get<TripLocation>(`/trips/${id}/location`),
   setStatus: (id: string, status: Trip["status"]) =>
     api.patch<Trip>(`/trips/${id}/status`, { status }),
@@ -314,6 +316,16 @@ export const reviewService = {
 // ─── Admin ────────────────────────────────────────────────────────
 // All admin endpoints require role=admin on the server.
 export const adminService = {
+  stats: () =>
+    api.get<{
+      totalUsers: number;
+      totalDrivers: number;
+      approvedDrivers: number;
+      pendingReview: number;
+      totalTrips: number;
+      activeTrips: number;
+      totalPayments: number;
+    }>("/users/admin-stats"),
   // Users
   listUsers: (query?: {
     page?: number;

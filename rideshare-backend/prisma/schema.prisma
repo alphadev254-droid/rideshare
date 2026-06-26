@@ -207,7 +207,7 @@ model Vehicle {
   comfortClass  ComfortClass @default(economy) @map("comfort_class")
   seatCapacity  Int          @map("seat_capacity") @db.SmallInt
   color         String?      @db.VarChar(50)
-  reviewStatus  VehicleReviewStatus @default(pending) @map("review_status")
+  reviewStatus  VehicleReviewStatus @default(approved) @map("review_status")
   photoUrl      String?      @map("photo_url")
   createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz()
 
@@ -248,6 +248,7 @@ model Trip {
   driverId            String       @map("driver_id") @db.Uuid
   vehicleId           String       @map("vehicle_id") @db.Uuid
   originName          String       @map("origin_name") @db.VarChar(255)
+  pickupPoint         String?      @map("pickup_point") @db.VarChar(255)
   originPoint         Unsupported("geometry(Point, 4326)")? @map("origin_point")
   destinationName     String       @map("destination_name") @db.VarChar(255)
   destinationPoint    Unsupported("geometry(Point, 4326)")? @map("destination_point")

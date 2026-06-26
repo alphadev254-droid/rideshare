@@ -11,6 +11,7 @@ import {
   setUserStatusController,
   sendUserEmailController,
   deleteUserController,
+  getAdminStatsController,
 } from "./users.controller.js";
 import { sendUserEmailSchema, updateMeSchema, updateUserSchema } from "./users.schemas.js";
 
@@ -18,6 +19,7 @@ const router = Router();
 
 router.get("/me", authenticate, getMeController);
 router.patch("/me", authenticate, validate(updateMeSchema), updateMeController);
+router.get("/admin-stats", authenticate, requireRole("admin"), getAdminStatsController);
 router.get("/", authenticate, requireRole("admin"), listUsersController);
 router.get("/:id", authenticate, requireRole("admin"), getUserByIdController);
 router.patch("/:id", authenticate, requireRole("admin"), validate(updateUserSchema), updateUserController);

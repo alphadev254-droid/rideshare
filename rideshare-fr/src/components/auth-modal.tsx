@@ -16,7 +16,7 @@ import { authService, extractApiError } from "@/lib/api";
 import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { homeForRole } from "@/lib/role-home";
-import { getPendingTripId } from "@/lib/pending-trip";
+import { getPendingTripId, getPendingTripReturn } from "@/lib/pending-trip";
 
 export function AuthModal() {
   const { open, mode, intentRole, pendingPhone, closeModal, setMode } = useAuthModal();
@@ -79,6 +79,13 @@ export function AuthModal() {
 
 
 function navigateAfterAuth(navigate: ReturnType<typeof useNavigate>, user: Parameters<typeof homeForRole>[0]) {
+  const returnPath = getPendingTripReturn();
+  if (user.role === "passenger" && returnPath) {
+    // Return to the share page (e.g. /t/:tripId) where booking can be completed.
+    // Use window.location for arbitrary paths since TanStack Router requires typed routes.
+    window.location.replace(returnPath);
+    return;
+  }
   const pendingTripId = getPendingTripId();
   if (user.role === "passenger" && pendingTripId) {
     navigate({ to: "/app", search: {} });

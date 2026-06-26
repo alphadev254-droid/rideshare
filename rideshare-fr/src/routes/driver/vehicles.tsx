@@ -63,12 +63,12 @@ function formFromVehicle(vehicle?: Vehicle): VehicleForm {
 }
 function vehicleStatusCopy(vehicle: Vehicle) {
   if (vehicle.reviewStatus === "approved") {
-    return { label: "Approved by admin", className: "border-primary/30 bg-primary/10 text-primary" };
+    return { label: "Active — ready for trips", className: "border-primary/30 bg-primary/10 text-primary" };
   }
   if (vehicle.reviewStatus === "pending") {
-    return { label: "Waiting for admin review", className: "border-gold/40 bg-gold/10 text-gold" };
+    return { label: "Under review — contact support", className: "border-gold/40 bg-gold/10 text-gold" };
   }
-  return { label: "Not allowed yet", className: "border-destructive/30 bg-destructive/10 text-destructive" };
+  return { label: "Suspended — contact support", className: "border-destructive/30 bg-destructive/10 text-destructive" };
 }
 function VehiclesPage() {
   const queryClient = useQueryClient();

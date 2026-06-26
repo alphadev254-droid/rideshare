@@ -4,29 +4,19 @@ import { adminService } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { LoadingState } from "@/components/loading-state";
-import { Users, Car, Route as RouteIcon, ShieldCheck, ArrowRight } from "lucide-react";
+import { Users, Car, Route as RouteIcon, ShieldCheck, ArrowRight, CreditCard, UserCheck } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminOverview,
 });
 
 function AdminOverview() {
-  const drivers = useQuery({
-    queryKey: ["admin", "drivers", { limit: 100 }],
-    queryFn: () => adminService.listDrivers({ limit: 100 }),
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["admin", "stats"],
+    queryFn: () => adminService.stats(),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
-  const trips = useQuery({
-    queryKey: ["admin", "trips", { limit: 100 }],
-    queryFn: () => adminService.listTrips({ limit: 100 }),
-  });
-
-  const driverList = drivers.data ?? [];
-  const tripList = trips.data ?? [];
-  const approved = driverList.filter((d) => d.isApproved).length;
-  const pendingApproval = driverList.filter((d) => !d.isApproved && d.reviewRequestedAt).length;
-  const activeTrips = tripList.filter(
-    (t) => t.status === "in_transit" || t.status === "boarding",
-  ).length;
 
   return (
     <div className="space-y-8">
@@ -36,37 +26,53 @@ function AdminOverview() {
         description="Operational health of RideShare Malawi at a glance."
       />
 
-      {drivers.isLoading || trips.isLoading ? (
+      {isLoading ? (
         <LoadingState />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            label="Drivers"
-            value={driverList.length}
-            hint={`${approved} approved`}
-            icon={<Car className="h-4 w-4" />}
-            accent="primary"
-          />
-          <StatCard
-            label="Pending approval"
-            value={pendingApproval}
-            hint="Awaiting review"
-            icon={<ShieldCheck className="h-4 w-4" />}
-            accent="gold"
-          />
-          <StatCard
-            label="Trips"
-            value={tripList.length}
-            icon={<RouteIcon className="h-4 w-4" />}
-          />
-          <StatCard
-            label="Active now"
-            value={activeTrips}
-            hint="Boarding or in transit"
-            icon={<Users className="h-4 w-4" />}
-          />
-        </div>
-      )}
+      ) : stats ? (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Total users"
+              value={stats.totalUsers}
+              icon={<Users className="h-4 w-4" />}
+              accent="primary"
+            />
+            <StatCard
+              label="Drivers"
+              value={stats.totalDrivers}
+              hint={`${stats.approvedDrivers} approved`}
+              icon={<Car className="h-4 w-4" />}
+            />
+            <StatCard
+              label="Pending review"
+              value={stats.pendingReview}
+              hint="Awaiting approval"
+              icon={<ShieldCheck className="h-4 w-4" />}
+              accent="gold"
+            />
+            <StatCard
+              label="Active now"
+              value={stats.activeTrips}
+              hint="Boarding or in transit"
+              icon={<UserCheck className="h-4 w-4" />}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
+            <StatCard
+              label="Total trips"
+              value={stats.totalTrips}
+              icon={<RouteIcon className="h-4 w-4" />}
+            />
+            <StatCard
+              label="Completed payments"
+              value={stats.totalPayments}
+              hint="Released to drivers"
+              icon={<CreditCard className="h-4 w-4" />}
+              accent="primary"
+            />
+          </div>
+        </>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <QuickLink

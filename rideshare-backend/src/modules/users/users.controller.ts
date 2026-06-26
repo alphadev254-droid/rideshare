@@ -1,7 +1,51 @@
 import type { Response, NextFunction } from "express";
 import type { AuthRequest } from "../../types/index.js";
 import * as usersService from "./users.service.js";
+import { prisma } from "../../config/prisma.js";
 import type { SendUserEmailInput, UpdateMeInput, UpdateUserInput } from "./users.schemas.js";
+
+export async function getAdminStatsController(
+  _req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const [
+      totalUsers,
+      totalDrivers,
+      approvedDrivers,
+      pendingReview,
+      totalTrips,
+      activeTrips,
+      totalPayments,
+    ] = await prisma.$transaction([
+      prisma.user.count(),
+      prisma.driverProfile.count(),
+      prisma.driverProfile.count({ where: { isApproved: true } }),
+      prisma.driverProfile.count({
+        where: { isApproved: false, reviewRequestedAt: { not: null } },
+      }),
+      prisma.trip.count(),
+      prisma.trip.count({ where: { status: { in: ["boarding", "in_transit"] } } }),
+      prisma.payment.count({ where: { status: "released" } }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalUsers,
+        totalDrivers,
+        approvedDrivers,
+        pendingReview,
+        totalTrips,
+        activeTrips,
+        totalPayments,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
 
 export async function getMeController(
   req: AuthRequest,

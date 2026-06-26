@@ -44,7 +44,7 @@ router.patch("/admin/:id", authenticate, requireRole("admin"), validate(adminTri
 router.patch("/admin/:id/status", authenticate, requireRole("admin"), validate(updateTripStatusSchema), updateTripStatusAdminController);
 router.delete("/admin/:id", authenticate, requireRole("admin"), deleteTripAdminController);
 router.get("/:id/location", authenticate, getTripLocationController);
-router.get("/:id", authenticate, getTripController);
+router.get("/:id", getTripController);  // public — no auth required to view a trip
 router.patch("/:id", authenticate, requireRole("driver"), validate(updateTripSchema), updateTripController);
 router.patch("/:id/start", authenticate, requireRole("driver"), startTripController);
 router.patch("/:id/complete", authenticate, requireRole("driver"), completeTripController);

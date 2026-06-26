@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ApiError, userService, type User } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
-import { Camera, Loader2 } from "lucide-react";
+import { Camera, Loader2, Pencil } from "lucide-react";
 import { SecureImage } from "@/components/secure-image";
 
 export const Route = createFileRoute("/app/profile")({
@@ -79,6 +79,12 @@ function Profile() {
         title="Profile"
         description="Personal details and emergency contact."
       />
+
+      {/* Edit hint for non-digitally-literate users */}
+      <div className="flex items-center gap-2 rounded-md border border-border bg-surface-2 px-4 py-2.5 text-sm text-muted-foreground">
+        <Pencil className="h-3.5 w-3.5 shrink-0" />
+        <span>You can edit your details below. When done, press <strong className="text-foreground">Save changes</strong>.</span>
+      </div>
 
       {/* Photo Upload */}
       <div className="flex items-start gap-4">

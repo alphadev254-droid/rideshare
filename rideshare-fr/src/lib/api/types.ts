@@ -109,9 +109,11 @@ export interface Vehicle {
 
 export interface Trip {
   id: string;
+  driverId?: string;
   vehicleId?: string;
   status: TripStatus;
   originName: string;
+  pickupPoint?: string | null;
   destinationName: string;
   originLat?: number;
   originLng?: number;
@@ -166,6 +168,7 @@ export interface Booking {
   codeAvailable?: boolean;
   boardingCode?: string | null;
   codeUsed?: boolean;
+  ratedDriver?: boolean;
   secretCode?: string | null;
   createdAt: string;
   passenger?: {

@@ -63,7 +63,7 @@ export async function createTrip(userId: string, input: CreateTripInput) {
   const baseFareMwk = input.farePerSeatMwk;
 
   type TripRow = {
-    id: string; origin_name: string; destination_name: string;
+    id: string; origin_name: string; pickup_point: string | null; destination_name: string;
     departure_time: Date; available_seats: number; comfort_class: string;
     base_fare_mwk: bigint; distance_km: number; estimated_duration_minutes: number | null;
     status: string;
@@ -71,12 +71,13 @@ export async function createTrip(userId: string, input: CreateTripInput) {
 
   const rows = await prisma.$queryRaw<TripRow[]>`
     INSERT INTO trips (
-      driver_id, vehicle_id, origin_name, origin_point, destination_name,
+      driver_id, vehicle_id, origin_name, pickup_point, origin_point, destination_name,
       destination_point, departure_time, total_seats, available_seats,
       comfort_class, distance_km, base_fare_mwk, estimated_duration_minutes
     ) VALUES (
       ${driver.id}::uuid, ${input.vehicleId}::uuid,
       ${input.originName},
+      ${input.pickupPoint ?? null},
       ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
       ${input.destinationName},
       ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
@@ -85,7 +86,7 @@ export async function createTrip(userId: string, input: CreateTripInput) {
       ${comfortClass}::"ComfortClass",
       ${distanceKm}, ${BigInt(baseFareMwk)}, ${input.estimatedDurationMinutes}
     )
-    RETURNING id, origin_name, destination_name, departure_time,
+    RETURNING id, origin_name, pickup_point, destination_name, departure_time,
               available_seats, comfort_class, base_fare_mwk, distance_km,
               estimated_duration_minutes, status`;
 
@@ -94,6 +95,7 @@ export async function createTrip(userId: string, input: CreateTripInput) {
     id: r.id,
     status: r.status,
     originName: r.origin_name,
+    pickupPoint: r.pickup_point ?? null,
     destinationName: r.destination_name,
     departureTime: r.departure_time,
     availableSeats: r.available_seats,
@@ -167,7 +169,7 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
   const availableSeats = input.totalSeats - bookedSeats;
 
   type TripRow = {
-    id: string; origin_name: string; destination_name: string;
+    id: string; origin_name: string; pickup_point: string | null; destination_name: string;
     departure_time: Date; total_seats: number; available_seats: number;
     comfort_class: string; base_fare_mwk: bigint; distance_km: number;
     estimated_duration_minutes: number | null; status: string;
@@ -177,6 +179,7 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
     UPDATE trips
     SET vehicle_id = ${input.vehicleId}::uuid,
         origin_name = ${input.originName},
+        pickup_point = ${input.pickupPoint ?? null},
         origin_point = ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
         destination_name = ${input.destinationName},
         destination_point = ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
@@ -189,7 +192,7 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
         estimated_duration_minutes = ${input.estimatedDurationMinutes},
         updated_at = now()
     WHERE id = ${tripId}::uuid AND driver_id = ${driver.id}::uuid
-    RETURNING id, origin_name, destination_name, departure_time, total_seats,
+    RETURNING id, origin_name, pickup_point, destination_name, departure_time, total_seats,
               available_seats, comfort_class, base_fare_mwk, distance_km,
               estimated_duration_minutes, status`;
 
@@ -198,6 +201,7 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
     id: r.id,
     status: r.status,
     originName: r.origin_name,
+    pickupPoint: r.pickup_point ?? null,
     destinationName: r.destination_name,
     departureTime: r.departure_time,
     availableSeats: r.available_seats,
@@ -246,19 +250,20 @@ export async function createTripAdmin(input: AdminTripInput) {
 
   const rows = await prisma.$queryRaw<TripRow[]>`
     INSERT INTO trips (
-      driver_id, vehicle_id, origin_name, origin_point, destination_name, destination_point,
+      driver_id, vehicle_id, origin_name, pickup_point, origin_point, destination_name, destination_point,
       departure_time, total_seats, available_seats, comfort_class, distance_km, base_fare_mwk,
       estimated_duration_minutes
     )
     VALUES (
       ${driver.id}::uuid, ${input.vehicleId}::uuid,
-      ${input.originName}, ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
+      ${input.originName}, ${input.pickupPoint ?? null},
+      ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
       ${input.destinationName}, ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
       ${departureTime}, ${input.totalSeats}, ${input.totalSeats},
       ${vehicle.comfortClass as ComfortClass}::"ComfortClass",
       ${distanceKm}, ${BigInt(input.farePerSeatMwk)}, ${input.estimatedDurationMinutes}
     )
-    RETURNING id, origin_name, destination_name, departure_time, total_seats,
+    RETURNING id, origin_name, pickup_point, destination_name, departure_time, total_seats,
               available_seats, comfort_class, base_fare_mwk, distance_km,
               estimated_duration_minutes, status`;
 
@@ -267,6 +272,7 @@ export async function createTripAdmin(input: AdminTripInput) {
     id: r.id,
     status: r.status,
     originName: r.origin_name,
+    pickupPoint: (r as { pickup_point?: string | null }).pickup_point ?? null,
     destinationName: r.destination_name,
     departureTime: r.departure_time,
     availableSeats: r.available_seats,
@@ -329,6 +335,7 @@ export async function updateTripAdmin(tripId: string, input: AdminTripInput) {
     SET driver_id = ${driver.id}::uuid,
         vehicle_id = ${input.vehicleId}::uuid,
         origin_name = ${input.originName},
+        pickup_point = ${input.pickupPoint ?? null},
         origin_point = ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
         destination_name = ${input.destinationName},
         destination_point = ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
@@ -341,7 +348,7 @@ export async function updateTripAdmin(tripId: string, input: AdminTripInput) {
         estimated_duration_minutes = ${input.estimatedDurationMinutes},
         updated_at = now()
     WHERE id = ${tripId}::uuid
-    RETURNING id, origin_name, destination_name, departure_time, total_seats,
+    RETURNING id, origin_name, pickup_point, destination_name, departure_time, total_seats,
               available_seats, comfort_class, base_fare_mwk, distance_km,
               estimated_duration_minutes, status`;
 
@@ -350,6 +357,7 @@ export async function updateTripAdmin(tripId: string, input: AdminTripInput) {
     id: r.id,
     status: r.status,
     originName: r.origin_name,
+    pickupPoint: (r as { pickup_point?: string | null }).pickup_point ?? null,
     destinationName: r.destination_name,
     departureTime: r.departure_time,
     availableSeats: r.available_seats,
@@ -461,6 +469,7 @@ export async function listPublicTrips(
     date?: string;
     seats?: number;
     comfortClass?: string;
+    driverId?: string;
   } = {},
 ) {
   const safePage = Math.max(1, page);
@@ -471,6 +480,8 @@ export async function listPublicTrips(
   const where: Prisma.TripWhereInput = {
     status: "scheduled",
     departureTime: { gte: today },
+    // Never show fully-booked trips in public listing
+    availableSeats: { gt: 0 },
   };
   if (filters.originName?.trim()) {
     where.originName = { contains: filters.originName.trim(), mode: "insensitive" };
@@ -491,6 +502,9 @@ export async function listPublicTrips(
   }
   if (filters.comfortClass) {
     where.comfortClass = filters.comfortClass as never;
+  }
+  if (filters.driverId) {
+    where.driverId = filters.driverId;
   }
 
   const [total, trips] = await prisma.$transaction([

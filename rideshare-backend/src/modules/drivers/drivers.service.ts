@@ -132,7 +132,7 @@ export async function addVehicle(userId: string, input: AddVehicleInput) {
     data: {
       driverId: driver.id,
       ...vehicleData(input),
-      reviewStatus: "pending",
+      reviewStatus: "approved",
     },
   });
   return { ...vehicle, imageUrls: [] };
@@ -151,7 +151,7 @@ export async function updateVehicle(userId: string, vehicleId: string, input: Ad
 
   const vehicle = await prisma.vehicle.update({
     where: { id: vehicleId },
-    data: { ...vehicleData(input), reviewStatus: "pending" },
+    data: { ...vehicleData(input) },
   });
   const [withImages] = await attachVehicleImages([vehicle]);
   return withImages;
@@ -197,10 +197,8 @@ export async function addVehicleImage(userId: string, vehicleId: string, url: st
   }
 
   await prisma.vehicleImage.create({ data: { vehicleId, url } });
-  const updated = await prisma.vehicle.update({
-    where: { id: vehicleId },
-    data: { reviewStatus: "pending" },
-  });
+  const updated = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
+  if (!updated) throw new AppError(404, "Vehicle not found");
   const [withImages] = await attachVehicleImages([updated]);
   return withImages;
 }
@@ -213,10 +211,8 @@ export async function removeVehicleImage(userId: string, vehicleId: string, url:
   });
   if (!vehicle) throw new AppError(404, "Vehicle not found");
   await prisma.vehicleImage.deleteMany({ where: { vehicleId, url } });
-  const updated = await prisma.vehicle.update({
-    where: { id: vehicleId },
-    data: { reviewStatus: "pending" },
-  });
+  const updated = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
+  if (!updated) throw new AppError(404, "Vehicle not found");
   const [withImages] = await attachVehicleImages([updated]);
   return withImages;
 }
@@ -231,7 +227,7 @@ export async function updateVehicleInsuranceDocument(userId: string, vehicleId: 
 
   const updated = await prisma.vehicle.update({
     where: { id: vehicleId },
-    data: { insuranceDocUrl: url, reviewStatus: "pending" },
+    data: { insuranceDocUrl: url },
   });
   const [withImages] = await attachVehicleImages([updated]);
   return withImages;

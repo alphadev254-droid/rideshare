@@ -3,6 +3,7 @@ import { z } from "zod";
 export const createTripSchema = z.object({
   vehicleId: z.string().uuid(),
   originName: z.string().min(2).max(255),
+  pickupPoint: z.string().max(255).optional(),
   originLat: z.coerce.number().min(-90).max(90).optional().default(0),
   originLng: z.coerce.number().min(-180).max(180).optional().default(0),
   destinationName: z.string().min(2).max(255),
@@ -19,6 +20,7 @@ export const createTripSchema = z.object({
 export const updateTripSchema = createTripSchema;
 export const adminTripSchema = createTripSchema.extend({
   driverId: z.string().uuid(),
+  pickupPoint: z.string().max(255).optional(),
 });
 
 export const searchTripsSchema = z.object({

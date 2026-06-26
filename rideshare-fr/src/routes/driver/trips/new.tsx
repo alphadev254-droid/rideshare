@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, type FormEvent } from "react";
-import { driverService, tripService, type Trip } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient, useMemo } from "@tanstack/react-query";
+import { useState, useRef, useEffect, type FormEvent } from "react";
+import { driverService, tripService, locationService, type Trip } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MapPin, Search, X } from "lucide-react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/driver/trips/new")({
@@ -67,6 +69,7 @@ function toTwentyFourHour(hour: string, period: string) {
 type TripFormState = {
   vehicleId: string;
   originName: string;
+  pickupPoint: string;
   destinationName: string;
   departureYear: string;
   departureMonth: string;
@@ -117,9 +120,35 @@ function NewTrip() {
     queryFn: () => driverService.vehicles(),
   });
 
+  const { data: districts } = useQuery({
+    queryKey: ["locations", "districts"],
+    queryFn: () => locationService.districts(),
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const [originSearch, setOriginSearch] = useState("");
+  const [destSearch, setDestSearch] = useState("");
+  const debouncedOrigin = useDebounce(originSearch, 150);
+  const debouncedDest = useDebounce(destSearch, 150);
+  const [originOpen, setOriginOpen] = useState(false);
+  const [destOpen, setDestOpen] = useState(false);
+
+  const filteredOrigin = useMemo(() => {
+    if (!districts) return [];
+    const q = debouncedOrigin.toLowerCase().trim();
+    return q ? districts.filter((d) => d.toLowerCase().includes(q)) : districts;
+  }, [districts, debouncedOrigin]);
+
+  const filteredDest = useMemo(() => {
+    if (!districts) return [];
+    const q = debouncedDest.toLowerCase().trim();
+    return q ? districts.filter((d) => d.toLowerCase().includes(q)) : districts;
+  }, [districts, debouncedDest]);
+
   const [form, setForm] = useState({
     vehicleId: "",
     originName: "",
+    pickupPoint: "",
     destinationName: "",
     departureYear: "",
     departureMonth: "",
@@ -197,6 +226,7 @@ function NewTrip() {
       return tripService.create({
         vehicleId: form.vehicleId,
         originName: form.originName.trim(),
+        pickupPoint: form.pickupPoint.trim() || undefined,
         destinationName: form.destinationName.trim(),
         departureTime,
         totalSeats: Number(form.totalSeats),
@@ -245,9 +275,9 @@ function NewTrip() {
 
       {!hasVehicles && (
         <div className="rounded-md border border-gold/40 bg-gold/5 p-4 text-sm">
-          You need an active approved vehicle to publish trips.{" "}
-          <Link to="/driver/onboarding" className="text-primary hover:underline">
-            Add one
+          You need an active vehicle to publish trips.{" "}
+          <Link to="/driver/vehicles" className="text-primary hover:underline">
+            Add one now
           </Link>
           .
         </div>
@@ -259,26 +289,55 @@ function NewTrip() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="label-eyebrow">Origin</Label>
-              <Input
-                required
-                aria-invalid={!!errors.originName}
+              <DistrictSearch
                 value={form.originName}
-                onChange={(e) => up("originName", e.target.value)}
-                placeholder="Lilongwe"
+                search={originSearch}
+                onSearch={(v) => { setOriginSearch(v); setOriginOpen(true); }}
+                onPick={(d) => {
+                  up("originName", d);
+                  setOriginSearch("");
+                  setOriginOpen(false);
+                }}
+                onClear={() => { up("originName", ""); setOriginSearch(""); }}
+                open={originOpen}
+                setOpen={setOriginOpen}
+                districts={filteredOrigin}
+                placeholder="Search districts…"
+                invalid={!!errors.originName}
               />
               <FieldError message={errors.originName} />
             </div>
             <div className="space-y-1.5">
               <Label className="label-eyebrow">Destination</Label>
-              <Input
-                required
-                aria-invalid={!!errors.destinationName}
+              <DistrictSearch
                 value={form.destinationName}
-                onChange={(e) => up("destinationName", e.target.value)}
-                placeholder="Blantyre"
+                search={destSearch}
+                onSearch={(v) => { setDestSearch(v); setDestOpen(true); }}
+                onPick={(d) => {
+                  up("destinationName", d);
+                  setDestSearch("");
+                  setDestOpen(false);
+                }}
+                onClear={() => { up("destinationName", ""); setDestSearch(""); }}
+                open={destOpen}
+                setOpen={setDestOpen}
+                districts={filteredDest}
+                placeholder="Search districts…"
+                invalid={!!errors.destinationName}
               />
               <FieldError message={errors.destinationName} />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="label-eyebrow">Pickup point</Label>
+            <Input
+              value={form.pickupPoint}
+              onChange={(e) => up("pickupPoint", e.target.value)}
+              placeholder="e.g. Old Town Bus Depot, Lilongwe"
+            />
+            <p className="text-xs text-muted-foreground">
+              Exact boarding location shown to passengers. Leave blank to use the origin name.
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label className="label-eyebrow">Distance (km, optional)</Label>
@@ -514,6 +573,98 @@ function DateSelect({
           ))}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+function DistrictSearch({
+  value,
+  search,
+  onSearch,
+  onPick,
+  onClear,
+  open,
+  setOpen,
+  districts,
+  placeholder,
+  invalid,
+}: {
+  value: string;
+  search: string;
+  onSearch: (v: string) => void;
+  onPick: (d: string) => void;
+  onClear: () => void;
+  open: boolean;
+  setOpen: (o: boolean) => void;
+  districts: string[];
+  placeholder: string;
+  invalid?: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open, setOpen]);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      {value ? (
+        <div
+          className={`flex items-center gap-1 rounded-md border bg-surface-2 px-3 py-2 ${
+            invalid ? "border-destructive" : "border-border"
+          }`}
+        >
+          <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="flex-1 text-sm">{value}</span>
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-muted-foreground hover:text-foreground"
+            aria-label="Clear"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            onFocus={() => setOpen(true)}
+            placeholder={placeholder}
+            className={`pl-9 ${invalid ? "border-destructive" : ""}`}
+            aria-invalid={invalid}
+          />
+          {open && districts.length > 0 && (
+            <div className="absolute z-50 mt-1 max-h-52 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg">
+              {districts.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-2"
+                  onMouseDown={(e) => {
+                    // prevent blur from closing before click registers
+                    e.preventDefault();
+                    onPick(d);
+                  }}
+                >
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  {d}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

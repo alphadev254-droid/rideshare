@@ -110,20 +110,19 @@ export async function getBalance(userId: string) {
   });
   if (!driver) throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
 
-  const [credits, debits] = await Promise.all([
-    prisma.walletTransaction.aggregate({
-      where: { driverId: driver.id, type: "credit" },
-      _sum: { amountMwk: true },
-    }),
-    prisma.walletTransaction.aggregate({
-      where: { driverId: driver.id, type: "withdrawal" },
-      _sum: { amountMwk: true },
-    }),
-  ]);
+  // Read from the authoritative wallet row. createWalletLedgerEntry keeps
+  // balanceMwk and totalEarnedMwk in sync on every transaction, so there is
+  // no need to re-aggregate the raw transaction log here.
+  // Re-aggregating was incorrect because it counted *all* credit types
+  // (including admin_adjustment_credit from refunded withdrawals) as earnings,
+  // inflating the displayed balance beyond the actual trip payout.
+  const wallet = await prisma.driverWallet.findUnique({
+    where: { driverId: driver.id },
+    select: { balanceMwk: true, totalEarnedMwk: true },
+  });
 
-  const totalEarnedMwk = credits._sum.amountMwk ?? 0n;
-  const withdrawnMwk = debits._sum.amountMwk ?? 0n;
-  const balanceMwk = totalEarnedMwk - withdrawnMwk;
+  const balanceMwk = wallet?.balanceMwk ?? 0n;
+  const totalEarnedMwk = wallet?.totalEarnedMwk ?? 0n;
 
   return {
     balanceMwk: balanceMwk.toString(),
@@ -503,7 +502,16 @@ export async function processWithdrawalRequest(withdrawalId: string) {
 }
 
 /**
- * Refunds a withdrawal: credits the wallet back and marks the request as failed.
+ * Refunds a withdrawal: credits the wallet back ONLY if it was previously debited,
+ * then marks the request as failed.
+ *
+ * The wallet debit happens in finalizeWithdrawalPayout (on webhook success).
+ * If the payout fails before the webhook fires (Paychangu rejection or timeout),
+ * the wallet was never debited — so crediting it back would inflate the balance.
+ *
+ * Rule:
+ *  - status "processing" and walletTxId IS SET  → wallet was debited → credit it back
+ *  - status "processing" and walletTxId IS NULL  → wallet was NOT debited → just mark failed
  * Idempotent — skips if already completed/failed.
  */
 export async function refundWithdrawal(withdrawalId: string) {
@@ -511,24 +519,31 @@ export async function refundWithdrawal(withdrawalId: string) {
   return prisma.$transaction(async (client) => {
     const req = await client.walletWithdrawalRequest.findUnique({
       where: { id: withdrawalId },
-      select: { id: true, driverId: true, amountMwk: true, status: true, reference: true },
+      select: { id: true, driverId: true, amountMwk: true, status: true, reference: true, walletTxId: true },
     });
     if (!req || req.status === "completed" || req.status === "failed") {
       console.log(`[WITHDRAW] Refund skipped for ${withdrawalId} — status=${req?.status ?? 'not-found'}`);
       return req;
     }
 
-    // Credit the wallet back
-    const tx = await createWalletLedgerEntry(client, {
-      driverId: req.driverId,
-      type: "credit",
-      kind: "admin_adjustment_credit",
-      amountMwk: req.amountMwk,
-      reference: `refund:${req.reference}`,
-      metadata: { withdrawalId: req.id, reason: "withdrawal_payout_failed" },
-      countAsEarnings: false,
-    });
-    console.log(`[WITHDRAW] Refund ${withdrawalId} — wallet credited back ${req.amountMwk} MWK, txId=${tx.id}`);
+    // Only credit back if the wallet was actually debited (walletTxId is set).
+    // The debit only happens inside finalizeWithdrawalPayout when the webhook
+    // confirms success. If we are here before that webhook, the wallet balance
+    // was never touched — crediting it back would double-count the funds.
+    if (req.walletTxId) {
+      const tx = await createWalletLedgerEntry(client, {
+        driverId: req.driverId,
+        type: "credit",
+        kind: "admin_adjustment_credit",
+        amountMwk: req.amountMwk,
+        reference: `refund:${req.reference}`,
+        metadata: { withdrawalId: req.id, reason: "withdrawal_payout_failed" },
+        countAsEarnings: false,
+      });
+      console.log(`[WITHDRAW] Refund ${withdrawalId} — wallet credited back ${req.amountMwk} MWK (debit tx ${req.walletTxId} reversed), txId=${tx.id}`);
+    } else {
+      console.log(`[WITHDRAW] Refund ${withdrawalId} — wallet was never debited (no walletTxId), skipping credit to avoid inflation`);
+    }
 
     return client.walletWithdrawalRequest.update({
       where: { id: req.id },

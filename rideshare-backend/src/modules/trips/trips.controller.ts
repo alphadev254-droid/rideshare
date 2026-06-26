@@ -107,6 +107,7 @@ export async function listPublicTripsController(
       date: req.query.date ? String(req.query.date) : undefined,
       seats: req.query.seats ? Number(req.query.seats) : undefined,
       comfortClass: req.query.comfortClass ? String(req.query.comfortClass) : undefined,
+      driverId: req.query.driverId ? String(req.query.driverId) : undefined,
     });
     res.json({ success: true, data });
   } catch (err) {

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { formatDateTime, formatMwk, formatDistanceKm } from "@/lib/format";
 import { API_CONFIG } from "@/lib/api/config";
 import { createAuthedSocket } from "@/lib/socket";
-import { ArrowLeft, CheckCircle2, KeyRound, MapPin, Maximize2, Navigation, Pencil, Play, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Copy, ExternalLink, KeyRound, MapPin, Maximize2, Navigation, Pencil, Play, Share2, Users, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/driver/trips/$id")({
@@ -26,6 +26,8 @@ function DriverTripDetail() {
   const [gpsAllowed, setGpsAllowed] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [liveLocation, setLiveLocation] = useState<TripLocation | null>(null);
+  const [copiedTrip, setCopiedTrip] = useState(false);
+  const [copiedDriver, setCopiedDriver] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<import("maplibre-gl").Map | null>(null);
   const markerRef = useRef<import("maplibre-gl").Marker | null>(null);
@@ -284,7 +286,51 @@ function DriverTripDetail() {
         eyebrow={trip.comfortClass}
         title={`${trip.originName} → ${trip.destinationName}`}
         description={formatDateTime(trip.departureTime)}
-        actions={<StatusPill status={trip.status} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill status={trip.status} />
+            {/* Share this trip */}
+            <button
+              type="button"
+              onClick={() => {
+                const url = `${window.location.origin}/t/${trip.id}`;
+                navigator.clipboard.writeText(url).then(() => {
+                  setCopiedTrip(true);
+                  setTimeout(() => setCopiedTrip(false), 2000);
+                });
+              }}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+              title="Copy shareable trip link"
+            >
+              {copiedTrip ? (
+                <><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Copied!</>
+              ) : (
+                <><Copy className="h-3.5 w-3.5" /> Copy trip link</>
+              )}
+            </button>
+            {/* Share all my trips */}
+            <button
+              type="button"
+              onClick={() => {
+                const driverProfileId = trip.driverId ?? trip.driver?.id;
+                if (!driverProfileId) return;
+                const url = `${window.location.origin}/d/${driverProfileId}`;
+                navigator.clipboard.writeText(url).then(() => {
+                  setCopiedDriver(true);
+                  setTimeout(() => setCopiedDriver(false), 2000);
+                });
+              }}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+              title="Copy link to all your trips"
+            >
+              {copiedDriver ? (
+                <><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Copied!</>
+              ) : (
+                <><Users className="h-3.5 w-3.5" /> Share all my trips</>
+              )}
+            </button>
+          </div>
+        }
       />
 
       {/* ── GPS Permission Prompt ──────────────────────────── */}
