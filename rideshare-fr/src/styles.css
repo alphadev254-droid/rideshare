@@ -65,6 +65,10 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-gold: var(--gold);
   --color-gold-foreground: var(--gold-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-violet: var(--violet);
+  --color-violet-foreground: var(--violet-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
@@ -123,6 +127,14 @@
   /* Warm gold — third color for highlights, currency, status */
   --gold: oklch(0.80 0.12 80);
   --gold-foreground: oklch(0.18 0.03 80);
+
+  /* Steel blue — informational, in-transit, processing */
+  --info: oklch(0.62 0.12 230);
+  --info-foreground: oklch(0.14 0.02 230);
+
+  /* Muted violet — driver role, identity differentiation */
+  --violet: oklch(0.62 0.10 280);
+  --violet-foreground: oklch(0.14 0.02 280);
 
   --destructive: oklch(0.62 0.20 25);
   --destructive-foreground: oklch(0.98 0 0);

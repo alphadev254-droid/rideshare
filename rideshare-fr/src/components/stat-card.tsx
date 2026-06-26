@@ -6,7 +6,7 @@ interface StatCardProps extends HTMLAttributes<HTMLDivElement> {
   value: ReactNode;
   hint?: ReactNode;
   icon?: ReactNode;
-  accent?: "primary" | "gold" | "default";
+  accent?: "primary" | "gold" | "info" | "violet" | "default";
 }
 
 export function StatCard({
@@ -34,6 +34,8 @@ export function StatCard({
               "flex h-8 w-8 items-center justify-center rounded-md",
               accent === "primary" && "bg-primary/10 text-primary",
               accent === "gold" && "bg-gold/10 text-gold",
+              accent === "info" && "bg-info/10 text-info",
+              accent === "violet" && "bg-violet/10 text-violet",
               accent === "default" && "bg-surface-3 text-muted-foreground",
             )}
           >

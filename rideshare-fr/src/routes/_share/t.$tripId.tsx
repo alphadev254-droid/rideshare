@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { StatusPill } from "@/components/status-pill";
+import { StatusPill, ComfortBadge } from "@/components/status-pill";
 import { SecureImage } from "@/components/secure-image";
 import { toast } from "sonner";
 import {
@@ -187,9 +187,7 @@ function TripSharePage() {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <StatusPill status={trip.status} />
-                <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                  {trip.comfortClass}
-                </span>
+                <ComfortBadge value={trip.comfortClass} />
               </div>
               <h1 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
                 {trip.originName}
@@ -221,7 +219,7 @@ function TripSharePage() {
               <div className="font-display text-3xl font-bold text-primary">
                 {formatMwk(trip.farePerSeatMwk)}
               </div>
-              <div className="mt-0.5 flex items-center justify-end gap-1 text-xs text-muted-foreground">
+              <div className="mt-0.5 flex items-center justify-end gap-1 text-xs text-info">
                 <Users className="h-3.5 w-3.5" />
                 {fullyBooked ? (
                   <span className="text-destructive">Fully booked</span>
@@ -297,7 +295,7 @@ function TripSharePage() {
                   <div className="font-medium">{trip.driver.user.fullName}</div>
                   {trip.driver.rating && (
                     <div className="text-xs text-muted-foreground">
-                      ★ {Number(trip.driver.rating).toFixed(1)} rating
+                      <span className="text-gold">★</span> {Number(trip.driver.rating).toFixed(1)} rating
                     </div>
                   )}
                 </div>

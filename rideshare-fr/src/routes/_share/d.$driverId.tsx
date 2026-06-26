@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { tripService, type Trip } from "@/lib/api";
 import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
-import { StatusPill } from "@/components/status-pill";
+import { StatusPill, ComfortBadge } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { SecureImage } from "@/components/secure-image";
 import {
@@ -82,7 +82,7 @@ function DriverTripsPage() {
             </h1>
             <div className="mt-0.5 flex items-center gap-3 text-sm text-muted-foreground">
               {driverRating && (
-                <span>★ {Number(driverRating).toFixed(1)}</span>
+                <span><span className="text-gold">★</span> {Number(driverRating).toFixed(1)}</span>
               )}
               <span>{allTrips.length} upcoming trip{allTrips.length !== 1 ? "s" : ""}</span>
             </div>
@@ -144,9 +144,7 @@ function TripCard({ trip }: { trip: Trip }) {
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <StatusPill status={trip.status} />
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                {trip.comfortClass}
-              </span>
+              <ComfortBadge value={trip.comfortClass} />
             </div>
             <div className="font-display text-lg font-semibold">
               {trip.originName}
@@ -182,7 +180,7 @@ function TripCard({ trip }: { trip: Trip }) {
             <div className="font-display text-2xl font-bold text-primary">
               {formatMwk(trip.farePerSeatMwk)}
             </div>
-            <div className="mt-0.5 flex items-center justify-end gap-1 text-xs text-muted-foreground">
+            <div className="mt-0.5 flex items-center justify-end gap-1 text-xs text-info">
               <Users className="h-3 w-3" />
               {fullyBooked ? (
                 <span className="text-destructive">Full</span>

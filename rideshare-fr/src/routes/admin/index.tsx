@@ -30,7 +30,7 @@ function AdminOverview() {
         <LoadingState />
       ) : stats ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatCard
               label="Total users"
               value={stats.totalUsers}
@@ -42,6 +42,7 @@ function AdminOverview() {
               value={stats.totalDrivers}
               hint={`${stats.approvedDrivers} approved`}
               icon={<Car className="h-4 w-4" />}
+              accent="violet"
             />
             <StatCard
               label="Pending review"
@@ -55,9 +56,10 @@ function AdminOverview() {
               value={stats.activeTrips}
               hint="Boarding or in transit"
               icon={<UserCheck className="h-4 w-4" />}
+              accent="info"
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-2">
             <StatCard
               label="Total trips"
               value={stats.totalTrips}

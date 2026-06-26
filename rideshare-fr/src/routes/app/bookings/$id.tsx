@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatMwk, formatDateTime } from "@/lib/format";
-import { ArrowLeft, Car, KeyRound, RefreshCw, RotateCcw, Star, User, Navigation, Calendar } from "lucide-react";
+import { ArrowLeft, Car, KeyRound, RefreshCw, RotateCcw, Star, User as UserIcon, Navigation, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 
@@ -235,7 +235,7 @@ function BookingDetail() {
           {booking.trip?.driver && (
             <div className="rounded-md border border-border bg-card p-5">
               <h3 className="label-eyebrow mb-3 flex items-center gap-2">
-                <User className="h-3.5 w-3.5 text-muted-foreground" />
+                <UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
                 Driver
               </h3>
               <dl className="grid grid-cols-2 gap-4 text-sm">

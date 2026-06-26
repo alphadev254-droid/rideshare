@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ApiError, paymentService, tripService, userService, locationService, type ComfortClass, type PaymentMethod, type PendingPayment, type Trip, type User } from "@/lib/api";
 import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
-import { StatusPill } from "@/components/status-pill";
+import { StatusPill, ComfortBadge } from "@/components/status-pill";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModal } from "@/lib/auth-modal-context";
 import { setPendingTripId } from "@/lib/pending-trip";
@@ -186,7 +186,7 @@ function PublicTripsPage() {
               <div key={trip.id} className="group flex flex-col rounded-md border border-border bg-card p-5 transition-colors hover:border-border-strong">
                 <div className="flex items-center gap-2 mb-3">
                   <StatusPill status={trip.status} />
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{trip.comfortClass}</span>
+                  <ComfortBadge value={trip.comfortClass} />
                 </div>
                 <div className="flex items-center gap-2 font-display text-base font-semibold mb-1">
                   <span className="truncate">{trip.originName}</span>
@@ -201,7 +201,7 @@ function PublicTripsPage() {
                 <div className="mt-auto flex items-end justify-between pt-3 border-t border-border">
                   <div>
                     <div className="font-display text-xl font-semibold tabular text-primary">{formatMwk(trip.farePerSeatMwk)}</div>
-                    <div className="text-[11px] text-muted-foreground flex items-center gap-1"><Users className="h-3 w-3" />{trip.availableSeats} available</div>
+                    <div className="text-[11px] text-info flex items-center gap-1"><Users className="h-3 w-3" />{trip.availableSeats} left</div>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleView(trip)}>

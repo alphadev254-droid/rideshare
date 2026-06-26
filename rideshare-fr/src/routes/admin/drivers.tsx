@@ -98,7 +98,7 @@ function AdminDrivers() {
                       <ShieldCheck className="h-3 w-3" /> Approved
                     </span>
                   ) : d.reviewRequestedAt ? (
-                    <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-gold">
+                    <span className="rounded-full border border-violet/30 bg-violet/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-violet">
                       Awaiting review
                     </span>
                   ) : (
