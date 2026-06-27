@@ -367,7 +367,7 @@ function LandingTripDetailsDialog({
           <DialogTitle className="font-display text-xl">
             {trip.originName} to {trip.dropOffPoint || trip.destinationName}
           </DialogTitle>
-          <DialogDescription>{formatDateTime(trip.departureTime)}</DialogDescription>
+          <DialogDescription>Departure time: {formatDateTime(trip.departureTime)}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -443,6 +443,7 @@ function Detail({ label, value, sub }: { label: string; value: string; sub: stri
     </div>
   );
 }
+
 
 
 

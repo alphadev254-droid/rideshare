@@ -44,6 +44,10 @@ export const locationService = {
   districts: () => api.get<string[]>("/locations/districts", { auth: false }),
 };
 
+export const contactService = {
+  send: (body: { name: string; email: string; subject: string; message: string }) =>
+    api.post<{ sent: true; email: string }>("/contact", body, { auth: false }),
+};
 // ─── Auth ─────────────────────────────────────────────────────────
 export const authService = {
   register: (body: {
@@ -491,4 +495,5 @@ export const adminService = {
   refundPayment: (paymentId: string) =>
     api.post<{ message: string; paymentId: string }>(`/payments/${paymentId}/refund`),
 };
+
 

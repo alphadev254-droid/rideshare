@@ -296,7 +296,7 @@ function PassengerHome() {
           </div>
           <div className="col-span-2 space-y-1.5 lg:col-span-1">
             <div className="flex items-center justify-between gap-2">
-              <Label className="label-eyebrow">Date</Label>
+              <Label className="label-eyebrow">Departure date</Label>
               {(dateYear || dateMonth || dateDay) && (
                 <button
                   type="button"
@@ -547,7 +547,7 @@ function RideDetailsDialog({
           <DialogTitle className="font-display text-xl">
             {trip.originName} to {trip.dropOffPoint || trip.destinationName}
           </DialogTitle>
-          <DialogDescription>{formatDateTime(trip.departureTime)}</DialogDescription>
+          <DialogDescription>Departure time: {formatDateTime(trip.departureTime)}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -751,6 +751,7 @@ function DistrictSearch({
     </div>
   );
 }
+
 
 
 

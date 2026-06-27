@@ -217,7 +217,7 @@ function BookingDetail() {
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" /> Departure
+                    <Calendar className="h-3 w-3" /> Departure time
                   </dt>
                   <dd className="mt-0.5">{formatDateTime(booking.trip.departureTime)}</dd>
                 </div>
@@ -495,3 +495,5 @@ function BookingDetail() {
     </div>
   );
 }
+
+

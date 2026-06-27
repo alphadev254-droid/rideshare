@@ -48,6 +48,7 @@ const envSchema = z.object({
   SMTP_USER: z.string().default(""),
   SMTP_PASS: z.string().default(""),
   SMTP_FROM: z.string().default("ChepetsaRide <info@chepetsaride.com>"),
+  CONTACT_EMAIL: z.string().email().or(z.literal("")).default("info@chepetsaride.com"),
 
   FIREBASE_SERVICE_ACCOUNT_PATH: z
     .string()
@@ -91,3 +92,5 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+

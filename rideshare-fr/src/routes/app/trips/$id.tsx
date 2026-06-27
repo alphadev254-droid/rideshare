@@ -113,7 +113,7 @@ function TripDetail() {
       <PageHeader
         eyebrow={trip.comfortClass}
         title={`${trip.originName} → ${trip.destinationName}`}
-        description={formatDateTime(trip.departureTime)}
+        description={`Departure time: ${formatDateTime(trip.departureTime)}`}
         actions={<StatusPill status={trip.status} />}
       />
 
@@ -183,7 +183,7 @@ function TripDetail() {
                 <dd className="mt-0.5 font-medium capitalize">{trip.comfortClass}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Departure</dt>
+                <dt className="text-xs text-muted-foreground">Departure time</dt>
                 <dd className="mt-0.5 font-medium">{formatDateTime(trip.departureTime)}</dd>
               </div>
             </dl>
@@ -269,3 +269,4 @@ function formatDuration(minutes: number) {
   if (!mins) return `${hours} hr`;
   return `${hours} hr ${mins} min`;
 }
+

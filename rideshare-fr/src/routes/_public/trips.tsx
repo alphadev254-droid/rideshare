@@ -166,7 +166,7 @@ function PublicTripsPage() {
           <div className="space-y-1.5"><Label className="label-eyebrow">To</Label><SearchField val={destination} search={destSearch} onSearch={setDestSearch} onPick={(d: string) => { setDestination(d); setDestSearch(""); setDestOpen(false); setPage(1); }} onClear={() => { setDestination(""); setDestSearch(""); setPage(1); }} open={destOpen} setOpen={setDestOpen} districts={filteredDest} placeholder="Search..." /></div>
           <div className="col-span-2 space-y-1.5 lg:col-span-1">
             <div className="flex items-center justify-between gap-2">
-              <Label className="label-eyebrow">Date</Label>
+              <Label className="label-eyebrow">Departure date</Label>
               {(dateYear || dateMonth || dateDay) && <button type="button" onClick={() => { setDateYear(""); setDateMonth(""); setDateDay(""); setPage(1); }} className="text-xs text-primary hover:underline">Clear</button>}
             </div>
             <div className="grid grid-cols-[1.15fr_1.25fr_0.9fr] gap-2">
@@ -274,7 +274,7 @@ function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentMet
         <div className="bg-card p-6 border-b border-border">
           <DialogHeader>
             <DialogTitle className="font-display text-xl">{trip.originName} to {trip.dropOffPoint || trip.destinationName}</DialogTitle>
-            <DialogDescription className="flex items-center gap-1.5 mt-1"><Calendar className="h-3.5 w-3.5" />{formatDateTime(trip.departureTime)}</DialogDescription>
+            <DialogDescription className="flex items-center gap-1.5 mt-1"><Calendar className="h-3.5 w-3.5" />Departure time: {formatDateTime(trip.departureTime)}</DialogDescription>
           </DialogHeader>
         </div>
         <div className="p-6 space-y-5">
@@ -392,6 +392,8 @@ function SearchField({ val, search, onSearch, onPick, onClear, open, setOpen, di
     </div>
   );
 }
+
+
 
 
 

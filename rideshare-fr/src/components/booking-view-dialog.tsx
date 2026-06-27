@@ -239,7 +239,7 @@ function BookingDetailContent({
                 value={`${trip.originName} → ${trip.destinationName}`}
                 fullWidth
               />
-              <InfoCard label="Departure" value={formatDateTime(trip.departureTime)} />
+              <InfoCard label="Departure time" value={formatDateTime(trip.departureTime)} />
               <InfoCard
                 label="Trip Status"
                 value={<StatusPill status={trip.status} />}
@@ -356,3 +356,4 @@ function InfoCard({
     </div>
   );
 }
+

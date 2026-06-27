@@ -15,6 +15,7 @@ import walletRoutes from "./modules/wallet/wallet.routes.js";
 import reviewsRoutes from "./modules/reviews/reviews.routes.js";
 import uploadRoutes from "./modules/uploads/uploads.routes.js";
 import locationsRoutes from "./modules/locations/locations.routes.js";
+import contactRoutes from "./modules/contact/contact.routes.js";
 
 const app = express();
 
@@ -53,7 +54,9 @@ app.use("/api/v1/wallet", walletRoutes);
 app.use("/api/v1/reviews", reviewsRoutes);
 app.use("/api/v1/uploads", uploadRoutes);
 app.use("/api/v1/locations", locationsRoutes);
+app.use("/api/v1/contact", contactRoutes);
 
 app.use(errorHandler);
 
 export default app;
+

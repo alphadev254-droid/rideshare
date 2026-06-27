@@ -400,7 +400,7 @@ function NewTrip() {
                 />
               </div>
               <TimeSelect
-                label="Minutes"
+                label="Duration minutes"
                 value={form.durationMinutes}
                 placeholder="Min"
                 options={["00", "15", "30", "45"]}
@@ -413,7 +413,7 @@ function NewTrip() {
         </div>
 
         <div className="space-y-4 rounded-md border border-border bg-card p-4 sm:p-6">
-          <h3 className="label-eyebrow">Schedule & vehicle</h3>
+          <h3 className="label-eyebrow">Departure time & vehicle</h3>
           <div className="space-y-1.5">
             <Label className="label-eyebrow">Vehicle</Label>
             <Select value={form.vehicleId} onValueChange={(v) => up("vehicleId", v)}>
@@ -440,7 +440,7 @@ function NewTrip() {
           <div className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-[0.9fr_1.2fr_0.9fr]">
               <DateSelect
-                label="Year"
+                label="Departure year"
                 value={form.departureYear}
                 placeholder="Year"
                 options={years.map((year) => ({ value: year, label: year }))}
@@ -448,7 +448,7 @@ function NewTrip() {
                 error={errors.departureDate}
               />
               <DateSelect
-                label="Month"
+                label="Departure month"
                 value={form.departureMonth}
                 placeholder="Month"
                 options={months}
@@ -456,7 +456,7 @@ function NewTrip() {
                 error={errors.departureDate}
               />
               <DateSelect
-                label="Date"
+                label="Departure date"
                 value={form.departureDay}
                 placeholder="Date"
                 options={dayNumbers.map((day) => ({ value: day, label: day }))}
@@ -467,7 +467,7 @@ function NewTrip() {
             <FieldError message={errors.departureDate} />
             <div className="grid gap-2 min-[380px]:grid-cols-3">
               <TimeSelect
-                label="Hour"
+                label="Departure hour"
                 value={form.departureHour}
                 placeholder="Hour"
                 options={Array.from({ length: 12 }, (_, index) => String(index + 1))}
@@ -475,7 +475,7 @@ function NewTrip() {
                 error={errors.departureTime}
               />
               <TimeSelect
-                label="Minutes"
+                label="Departure minutes"
                 value={form.departureMinute}
                 placeholder="Min"
                 options={["00", "15", "30", "45"]}
@@ -494,7 +494,7 @@ function NewTrip() {
             <FieldError message={errors.departureTime} />
           </div>
           <div className="rounded-md bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
-            Time is saved using your local timezone.
+            Departure time is when passengers should be ready to board. It is saved using your local timezone.
           </div>
           <div className="space-y-1.5">
             <Label className="label-eyebrow">Bookable seats</Label>
@@ -689,5 +689,7 @@ function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return <p className="text-xs font-medium text-destructive">{message}</p>;
 }
+
+
 
 

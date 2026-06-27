@@ -193,7 +193,7 @@ function EditTrip() {
       <PageHeader
         eyebrow="My trips"
         title="Edit trip"
-        description="Update route, schedule, seats, fare and vehicle before the trip starts."
+        description="Update route, departure time, seats, fare and vehicle before the trip starts."
       />
 
       {bookedSeats > 0 && (
@@ -273,7 +273,7 @@ function EditTrip() {
               />
             </Field>
             <Choice
-              label="Minutes"
+              label="Duration minutes"
               value={form.durationMinutes}
               placeholder="Min"
               options={["00", "15", "30", "45"]}
@@ -285,7 +285,7 @@ function EditTrip() {
         </div>
 
         <div className="space-y-4 rounded-md border border-border bg-card p-4 sm:p-6">
-          <h3 className="label-eyebrow">Schedule & vehicle</h3>
+          <h3 className="label-eyebrow">Departure time & vehicle</h3>
           <div className="space-y-1.5">
             <Label className="label-eyebrow">Vehicle</Label>
             <Select value={form.vehicleId} onValueChange={(value) => up("vehicleId", value)}>
@@ -312,7 +312,7 @@ function EditTrip() {
           <div className="space-y-3">
             <div className="grid grid-cols-[0.8fr_1.2fr_0.8fr] gap-2">
               <DateChoice
-                label="Year"
+                label="Departure year"
                 value={form.departureYear}
                 placeholder="Year"
                 options={years.map((year) => ({ value: year, label: year }))}
@@ -320,7 +320,7 @@ function EditTrip() {
                 error={errors.departureDate}
               />
               <DateChoice
-                label="Month"
+                label="Departure month"
                 value={form.departureMonth}
                 placeholder="Month"
                 options={months}
@@ -328,7 +328,7 @@ function EditTrip() {
                 error={errors.departureDate}
               />
               <DateChoice
-                label="Date"
+                label="Departure date"
                 value={form.departureDay}
                 placeholder="Date"
                 options={dayNumbers.map((day) => ({ value: day, label: day }))}
@@ -339,7 +339,7 @@ function EditTrip() {
             <FieldError message={errors.departureDate} />
             <div className="grid grid-cols-3 gap-2">
               <Choice
-                label="Hour"
+                label="Departure hour"
                 value={form.departureHour}
                 placeholder="Hour"
                 options={Array.from({ length: 12 }, (_, index) => String(index + 1))}
@@ -347,7 +347,7 @@ function EditTrip() {
                 error={errors.departureTime}
               />
               <Choice
-                label="Minutes"
+                label="Departure minutes"
                 value={form.departureMinute}
                 placeholder="Min"
                 options={["00", "15", "30", "45"]}
@@ -612,5 +612,7 @@ function nearestQuarterMinute(minutes: number) {
   );
   return String(closest).padStart(2, "0");
 }
+
+
 
 

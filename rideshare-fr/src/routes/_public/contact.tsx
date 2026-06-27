@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { toast } from "sonner";
+import { contactService } from "@/lib/api";
+import { extractApiError } from "@/lib/api/client";
 
 export const Route = createFileRoute("/_public/contact")({
   head: () => ({
@@ -24,10 +26,32 @@ export const Route = createFileRoute("/_public/contact")({
 
 function Contact() {
   const [sent, setSent] = useState(false);
-  function submit(e: FormEvent) {
+  const [isSending, setIsSending] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
+
+  function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+    if (sent) setSent(false);
+  }
+
+  async function submit(e: FormEvent) {
     e.preventDefault();
-    setSent(true);
-    toast.success("Thanks — we'll respond within 24 hours.");
+    setIsSending(true);
+    try {
+      await contactService.send({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        subject: form.subject.trim(),
+        message: form.message.trim(),
+      });
+      setSent(true);
+      setForm({ name: "", email: "", subject: "", message: "" });
+      toast.success("Thanks - we'll respond within 24 hours.");
+    } catch (error) {
+      toast.error(extractApiError(error, "Could not send your message"));
+    } finally {
+      setIsSending(false);
+    }
   }
   return (
     <div className="mx-auto max-w-7xl px-6 py-16">
@@ -62,32 +86,35 @@ function Contact() {
               <Label className="label-eyebrow" htmlFor="n">
                 Name
               </Label>
-              <Input id="n" required />
+              <Input id="n" required value={form.name} onChange={(e) => update("name", e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label className="label-eyebrow" htmlFor="e">
                 Email
               </Label>
-              <Input id="e" required type="email" />
+              <Input id="e" required type="email" value={form.email} onChange={(e) => update("email", e.target.value)} />
             </div>
           </div>
           <div className="space-y-1.5">
             <Label className="label-eyebrow" htmlFor="s">
               Subject
             </Label>
-            <Input id="s" required />
+            <Input id="s" required value={form.subject} onChange={(e) => update("subject", e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label className="label-eyebrow" htmlFor="m">
               Message
             </Label>
-            <Textarea id="m" required rows={6} />
+            <Textarea id="m" required rows={6} value={form.message} onChange={(e) => update("message", e.target.value)} />
           </div>
-          <Button type="submit" disabled={sent}>
-            {sent ? "Sent" : "Send message"}
+          <Button type="submit" disabled={isSending}>
+            {isSending ? "Sending..." : sent ? "Sent" : "Send message"}
           </Button>
         </form>
       </div>
     </div>
   );
 }
+
+
+
