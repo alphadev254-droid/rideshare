@@ -77,8 +77,8 @@ function TripDetail() {
       }
       return paymentService.initiateRide({
         tripId: id,
-        boardingPoint: trip.originName,
-        dropOffPoint: trip.destinationName,
+        boardingPoint: trip.pickupPoint || trip.originName,
+        dropOffPoint: trip.dropOffPoint || trip.destinationName,
         method,
         phone: payPhone,
       });
@@ -200,11 +200,11 @@ function TripDetail() {
             <div className="mt-5 space-y-3 border-t border-border pt-5">
               <div className="rounded-md bg-surface-2 p-3 text-sm">
                 <div className="label-eyebrow">Boarding point</div>
-                <div className="mt-1 font-medium">{trip.originName}</div>
+                <div className="mt-1 font-medium">{trip.pickupPoint || trip.originName}</div>
               </div>
               <div className="rounded-md bg-surface-2 p-3 text-sm">
                 <div className="label-eyebrow">Drop-off point</div>
-                <div className="mt-1 font-medium">{trip.destinationName}</div>
+                <div className="mt-1 font-medium">{trip.dropOffPoint || trip.destinationName}</div>
               </div>
               {!user?.emergencyContactPhone && (
                 <div className="space-y-3 rounded-md border border-gold/40 bg-gold/5 p-3">

@@ -7,6 +7,7 @@ export const createTripSchema = z.object({
   originLat: z.coerce.number().min(-90).max(90).optional().default(0),
   originLng: z.coerce.number().min(-180).max(180).optional().default(0),
   destinationName: z.string().min(2).max(255),
+  dropOffPoint: z.string().max(255).optional(),
   destinationLat: z.coerce.number().min(-90).max(90).optional().default(0),
   destinationLng: z.coerce.number().min(-180).max(180).optional().default(0),
   departureTime: z.string(),

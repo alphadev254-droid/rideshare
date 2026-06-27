@@ -167,6 +167,7 @@ export interface TripCreateBody {
   originLat?: number;
   originLng?: number;
   destinationName: string;
+  dropOffPoint?: string;
   destinationLat?: number;
   destinationLng?: number;
   departureTime: string;

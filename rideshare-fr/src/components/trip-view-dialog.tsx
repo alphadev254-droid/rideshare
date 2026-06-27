@@ -132,7 +132,7 @@ function TripDetailContent({ trip, onClose }: { trip: Trip; onClose: () => void 
         <div className="flex items-center gap-2 text-sm">
           <span className="font-medium">{trip.originName}</span>
           <Navigation className="h-3 w-3 shrink-0 text-muted-foreground" />
-          <span className="font-medium">{trip.destinationName}</span>
+          <span className="font-medium">{trip.dropOffPoint || trip.destinationName}</span>
         </div>
       ),
       icon: <Route className="h-4 w-4 text-muted-foreground" />,

@@ -71,6 +71,7 @@ type TripFormState = {
   originName: string;
   pickupPoint: string;
   destinationName: string;
+  dropOffPoint: string;
   departureYear: string;
   departureMonth: string;
   departureDay: string;
@@ -150,6 +151,7 @@ function NewTrip() {
     originName: "",
     pickupPoint: "",
     destinationName: "",
+    dropOffPoint: "",
     departureYear: "",
     departureMonth: "",
     departureDay: "",
@@ -228,6 +230,7 @@ function NewTrip() {
         originName: form.originName.trim(),
         pickupPoint: form.pickupPoint.trim() || undefined,
         destinationName: form.destinationName.trim(),
+        dropOffPoint: form.dropOffPoint.trim() || undefined,
         departureTime,
         totalSeats: Number(form.totalSeats),
         comfortClass: selectedVehicle?.comfortClass ?? "economy",
@@ -328,16 +331,29 @@ function NewTrip() {
               <FieldError message={errors.destinationName} />
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="label-eyebrow">Pickup point</Label>
-            <Input
-              value={form.pickupPoint}
-              onChange={(e) => up("pickupPoint", e.target.value)}
-              placeholder="e.g. Old Town Bus Depot, Lilongwe"
-            />
-            <p className="text-xs text-muted-foreground">
-              Exact boarding location shown to passengers. Leave blank to use the origin name.
-            </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="label-eyebrow">Pickup point</Label>
+              <Input
+                value={form.pickupPoint}
+                onChange={(e) => up("pickupPoint", e.target.value)}
+                placeholder="e.g. Old Town Bus Depot"
+              />
+              <p className="text-xs text-muted-foreground">
+                Boarding location. Blank uses the origin name.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="label-eyebrow">Drop-off point</Label>
+              <Input
+                value={form.dropOffPoint}
+                onChange={(e) => up("dropOffPoint", e.target.value)}
+                placeholder="e.g. Shoprite car park"
+              />
+              <p className="text-xs text-muted-foreground">
+                Final drop-off location. Blank uses the destination name.
+              </p>
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label className="label-eyebrow">Distance (km, optional)</Label>

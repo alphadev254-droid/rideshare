@@ -128,13 +128,24 @@ async function performRequest<T>(
 }
 
 export function extractApiError(err: unknown, fallback = "Something went wrong"): string {
-  if (!(err instanceof ApiError)) return fallback;
-  const data = err.data as { error?: string; details?: Record<string, string[]> } | null;
+  if (!(err instanceof ApiError)) {
+    return err instanceof Error && err.message ? err.message : fallback;
+  }
+
+  const data = err.data as {
+    error?: string;
+    message?: string;
+    details?: Record<string, string[] | string>;
+  } | null;
+
   if (data?.details) {
-    const msgs = Object.values(data.details).flat().filter(Boolean);
+    const msgs = Object.values(data.details)
+      .flatMap((value) => (Array.isArray(value) ? value : [value]))
+      .filter(Boolean);
     if (msgs.length) return msgs.join("; ");
   }
-  return err.message || fallback;
+
+  return data?.error ?? data?.message ?? err.message ?? fallback;
 }
 
 export function getApiErrorCode(err: unknown): string | undefined {
@@ -158,3 +169,4 @@ export const api = {
   upload: <T>(path: string, formData: FormData, opts?: RequestOptions) =>
     performRequest<T>("POST", path, { ...opts, body: formData, formData: true }),
 };
+

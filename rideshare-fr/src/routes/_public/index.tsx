@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, MapPin, Clock, Car } from "lucide-react";
+import { ArrowRight, MapPin, Clock, Car, ShieldCheck, Route as RouteIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -97,7 +97,7 @@ function Landing() {
   return (
     <>
       {/* HERO */}
-      <section className="relative overflow-hidden border-b border-border">
+      <section className="public-shell relative overflow-hidden border-b public-section">
         <img
           src={landingHeroImageUrl}
           alt="ChepetsaRide road landscape"
@@ -108,10 +108,13 @@ function Landing() {
           width={1600}
           height={900}
         />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,10,12,0.96)_0%,rgba(5,10,12,0.9)_52%,rgba(5,10,12,0.82)_100%)] lg:bg-[linear-gradient(90deg,rgba(5,10,12,0.96)_0%,rgba(5,10,12,0.9)_48%,rgba(5,10,12,0.46)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,12,14,0.94)_0%,rgba(8,12,14,0.88)_50%,rgba(8,12,14,0.8)_100%)] lg:bg-[linear-gradient(90deg,rgba(8,12,14,0.96)_0%,rgba(8,12,14,0.88)_46%,rgba(8,12,14,0.44)_100%)]" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-12 lg:gap-12 lg:py-16 xl:py-20">
           <div className="lg:col-span-8">
-            <div className="label-eyebrow">Lilongwe - Blantyre - Mzuzu - Zomba</div>
+            <div className="flex flex-wrap gap-2">
+              <span className="route-chip"><RouteIcon className="h-3.5 w-3.5" /> Shared routes across Malawi</span>
+              <span className="trust-chip"><ShieldCheck className="h-3.5 w-3.5" /> Verified drivers</span>
+            </div>
             <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
               A driver going your way. <br />
               <span className="text-primary">You book a seat, share the cost.</span>
@@ -126,27 +129,27 @@ function Landing() {
                 </Button>
               </Link>
               <Button size="lg" variant="outline" onClick={handleCtaDrive}>
-                Drive with us
+                Publish a trip
               </Button>
             </div>
 
-            <dl className="mt-12 grid max-w-lg grid-cols-3 gap-6 border-t border-border pt-6">
+            <dl className="mt-12 grid max-w-2xl grid-cols-3 gap-3 border-t border-border/70 pt-6 sm:gap-4">
               {[
-                { k: "Route cost", v: "Split fairly" },
-                { k: "Payment", v: "Escrow held" },
-                { k: "Verification", v: "Every driver" },
+                { k: "Route cost", v: "Shared" },
+                { k: "Payment", v: "Escrow" },
+                { k: "Drivers", v: "Reviewed" },
               ].map((s) => (
-                <div key={s.k}>
-                  <dt className="label-eyebrow mt-1">{s.k}</dt>
-                  <dd className="font-display text-2xl font-semibold tabular">{s.v}</dd>
+                <div key={s.k} className="public-card-soft rounded-lg p-3 sm:p-4">
+                  <dt className="label-eyebrow">{s.k}</dt>
+                  <dd className="mt-1 font-display text-lg font-semibold tabular sm:text-xl">{s.v}</dd>
                 </div>
               ))}
             </dl>
           </div>
 
           {/* Route visual */}
-          <div className="hidden lg:col-span-5 lg:-translate-y-12 xl:-translate-y-10">
-            <div className="rounded-xl border border-border bg-card/95 p-0 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset]">
+          <div className="hidden lg:col-span-5 lg:block lg:-translate-y-12 xl:-translate-y-10">
+            <div className="public-card rounded-xl p-0 shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
               <img
                 src={landingRouteImageUrl}
                 alt="ChepetsaRide route preview"
@@ -162,7 +165,7 @@ function Landing() {
       </section>
 
       {/* AVAILABLE TRIPS */}
-      <section className="border-b border-border">
+      <section className="border-b public-section">
         <div className="mx-auto max-w-7xl px-6 py-20">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -195,7 +198,7 @@ function Landing() {
               <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {trips.map((trip) => (
                   <li key={trip.id}>
-                    <div className="flex h-full flex-col rounded-lg border border-border bg-card p-5 transition-colors hover:border-border-strong">
+                    <div className="public-card group flex h-full flex-col rounded-xl p-5 transition-colors hover:border-primary/45">
                       <div className="flex items-center gap-2">
                         <StatusPill status={trip.status} />
                         <span className="font-mono text-[10px] uppercase text-muted-foreground">
@@ -203,13 +206,18 @@ function Landing() {
                         </span>
                       </div>
 
-                      <div className="mt-3 flex items-center gap-2 font-display text-base font-semibold">
-                        <span className="truncate">{trip.originName}</span>
-                        <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="truncate">{trip.destinationName}</span>
+                      <div className="route-rail mt-4 space-y-3 pl-6">
+                        <div className="relative flex items-center gap-2">
+                          <span className="route-dot absolute -left-6" />
+                          <span className="truncate font-display text-base font-semibold">{trip.originName}</span>
+                        </div>
+                        <div className="relative flex items-center gap-2">
+                          <span className="route-dot absolute -left-6 bg-primary" />
+                          <span className="truncate font-display text-base font-semibold">{trip.dropOffPoint || trip.destinationName}</span>
+                        </div>
                       </div>
 
-                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1.5">
                           <Clock className="h-3 w-3" />
                           {formatDateTime(trip.departureTime)}
@@ -232,7 +240,7 @@ function Landing() {
                             {formatMwk(trip.farePerSeatMwk)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {trip.availableSeats} available
+                            {trip.availableSeats} seats available
                           </div>
                         </div>
                         <div className="flex shrink-0 gap-2">
@@ -260,7 +268,7 @@ function Landing() {
       </section>
 
       {/* POPULAR ROUTES */}
-      <section className="border-b border-border bg-surface/30">
+      <section className="border-b public-section bg-surface/25">
         <div className="mx-auto max-w-7xl px-6 py-16">
           <div className="max-w-3xl">
             <div className="label-eyebrow">Popular shared ride routes</div>
@@ -279,7 +287,7 @@ function Landing() {
               <Link
                 key={`${route.from}-${route.to}`}
                 to="/trips"
-                className="group rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/60 hover:bg-surface-2 sm:p-4"
+                className="group public-card-soft rounded-xl p-3 transition-colors hover:border-primary/60 hover:bg-surface-2 sm:p-4"
               >
                 <div className="flex items-center gap-1.5 text-xs font-semibold sm:gap-2 sm:text-sm">
                   <span className="truncate">{route.from}</span>
@@ -294,7 +302,7 @@ function Landing() {
             ))}
           </div>
 
-          <div className="mt-6 flex flex-col gap-3 rounded-lg border border-dashed border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-6 flex flex-col gap-3 rounded-xl border border-dashed border-route/35 bg-route/5 p-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs leading-5 text-muted-foreground sm:text-sm">
               These are some of the routes. You can search more towns, areas, districts and
               pickup places across Malawi.
@@ -323,13 +331,13 @@ function Landing() {
       {/* CTA */}
       <section>
         <div className="mx-auto max-w-7xl px-6 py-20">
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-10 text-center sm:p-16">
+          <div className="public-card rounded-2xl border-primary/30 bg-primary/5 p-10 text-center sm:p-16">
             <div className="label-eyebrow text-primary">Get started</div>
             <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-              Your next trip is one phone number away.
+              Ready to share the next ride?
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-              Sign up with your phone - we'll text a one-time code to verify your account.
+              Find a seat on a planned trip, or publish your own route and earn from empty seats.
             </p>
             <div className="mt-7 flex flex-wrap justify-center gap-3">
               <Button size="lg" onClick={() => openModal({ mode: "register", role: "passenger" })}>
@@ -369,7 +377,7 @@ function LandingTripDetailsDialog({
       <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
-            {trip.originName} to {trip.destinationName}
+            {trip.originName} to {trip.dropOffPoint || trip.destinationName}
           </DialogTitle>
           <DialogDescription>{formatDateTime(trip.departureTime)}</DialogDescription>
         </DialogHeader>
@@ -386,7 +394,7 @@ function LandingTripDetailsDialog({
             <div className="space-y-3">
               <RoutePoint label="From" value={trip.originName} />
               <div className="ml-2 h-6 border-l border-dashed border-border" />
-              <RoutePoint label="To" value={trip.destinationName} />
+              <RoutePoint label="To" value={trip.dropOffPoint || trip.destinationName} />
             </div>
           </div>
 

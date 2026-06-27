@@ -29,7 +29,9 @@ const monthOptions = Array.from({ length: 12 }, (_, index) => ({
 type TripFormState = {
   vehicleId: string;
   originName: string;
+  pickupPoint: string;
   destinationName: string;
+  dropOffPoint: string;
   departureYear: string;
   departureMonth: string;
   departureDay: string;
@@ -125,7 +127,9 @@ function EditTrip() {
       return tripService.update(id, {
         vehicleId: form.vehicleId,
         originName: form.originName.trim(),
+        pickupPoint: form.pickupPoint.trim() || undefined,
         destinationName: form.destinationName.trim(),
+        dropOffPoint: form.dropOffPoint.trim() || undefined,
         departureTime: new Date(`${departureDate}T${hour}:${form.departureMinute}`).toISOString(),
         totalSeats: Number(form.totalSeats),
         comfortClass: selectedVehicle?.comfortClass ?? trip?.comfortClass ?? "economy",
@@ -217,6 +221,22 @@ function EditTrip() {
                 aria-invalid={!!errors.destinationName}
                 value={form.destinationName}
                 onChange={(event) => up("destinationName", event.target.value)}
+              />
+            </Field>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Pickup point">
+              <Input
+                value={form.pickupPoint}
+                onChange={(event) => up("pickupPoint", event.target.value)}
+                placeholder="Blank uses origin name"
+              />
+            </Field>
+            <Field label="Drop-off point">
+              <Input
+                value={form.dropOffPoint}
+                onChange={(event) => up("dropOffPoint", event.target.value)}
+                placeholder="Blank uses destination name"
               />
             </Field>
           </div>
@@ -370,7 +390,9 @@ function EditTrip() {
 const emptyForm: TripFormState = {
   vehicleId: "",
   originName: "",
+  pickupPoint: "",
   destinationName: "",
+  dropOffPoint: "",
   departureYear: "",
   departureMonth: "",
   departureDay: "",
@@ -393,7 +415,9 @@ function formFromTrip(trip: Trip): TripFormState {
   return {
     vehicleId: trip.vehicleId ?? "",
     originName: trip.originName,
+    pickupPoint: trip.pickupPoint ?? "",
     destinationName: trip.destinationName,
+    dropOffPoint: trip.dropOffPoint ?? "",
     departureYear: String(departure.getFullYear()),
     departureMonth: String(departure.getMonth() + 1).padStart(2, "0"),
     departureDay: String(departure.getDate()).padStart(2, "0"),

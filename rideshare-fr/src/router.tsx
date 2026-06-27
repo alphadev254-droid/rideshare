@@ -32,6 +32,7 @@ export const getRouter = () => {
     mutationCache: new MutationCache({
       onError: (error, _vars, _ctx, mutation) => {
         if (mutation.meta?.silent) return;
+        if (mutation.options.onError) return;
         if (isDriverNotOnboardedError(error)) return;
         toast.error(extractApiError(error, "Something went wrong"));
       },

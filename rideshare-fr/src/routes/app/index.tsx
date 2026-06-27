@@ -187,8 +187,8 @@ function PassengerHome() {
     mutationFn: async (trip: Trip) => {
       return paymentService.initiateRide({
         tripId: trip.id,
-        boardingPoint: trip.originName,
-        dropOffPoint: trip.destinationName,
+        boardingPoint: trip.pickupPoint || trip.originName,
+        dropOffPoint: trip.dropOffPoint || trip.destinationName,
         method: paymentMethod,
         phone: paymentPhone,
       });
@@ -418,7 +418,7 @@ function PassengerHome() {
                     <div className="mt-2 flex items-center gap-2 font-display text-base font-semibold">
                       <span className="truncate">{trip.originName}</span>
                       <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{trip.destinationName}</span>
+                      <span className="truncate">{trip.dropOffPoint || trip.destinationName}</span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1.5">
@@ -545,7 +545,7 @@ function RideDetailsDialog({
       <DialogContent className="max-h-[92svh] overflow-y-auto p-4 sm:max-w-xl sm:p-6">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
-            {trip.originName} to {trip.destinationName}
+            {trip.originName} to {trip.dropOffPoint || trip.destinationName}
           </DialogTitle>
           <DialogDescription>{formatDateTime(trip.departureTime)}</DialogDescription>
         </DialogHeader>
@@ -586,7 +586,7 @@ function RideDetailsDialog({
                 <MapPin className="mt-0.5 h-4 w-4 text-primary" />
                 <div>
                   <div className="font-medium">Drop-off point</div>
-                  <div className="text-muted-foreground">{trip.destinationName}</div>
+                  <div className="text-muted-foreground">{trip.dropOffPoint || trip.destinationName}</div>
                 </div>
               </div>
             </div>

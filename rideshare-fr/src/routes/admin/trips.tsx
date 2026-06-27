@@ -83,7 +83,9 @@ type TripForm = {
   driverId: string;
   vehicleId: string;
   originName: string;
+  pickupPoint: string;
   destinationName: string;
+  dropOffPoint: string;
   departureTime: string;
   totalSeats: string;
   distanceKm: string;
@@ -95,7 +97,9 @@ const emptyForm: TripForm = {
   driverId: "",
   vehicleId: "",
   originName: "",
+  pickupPoint: "",
   destinationName: "",
+  dropOffPoint: "",
   departureTime: "",
   totalSeats: "1",
   distanceKm: "",
@@ -222,7 +226,9 @@ function AdminTrips() {
       driverId: trip.driver?.id ?? "",
       vehicleId: trip.vehicleId ?? "",
       originName: trip.originName,
+      pickupPoint: trip.pickupPoint ?? "",
       destinationName: trip.destinationName,
+      dropOffPoint: trip.dropOffPoint ?? "",
       departureTime: toDateTimeLocal(trip.departureTime),
       totalSeats: String(trip.totalSeats),
       distanceKm: String(trip.distanceKm ?? ""),
@@ -363,7 +369,7 @@ function AdminTrips() {
                     <StatusPill status={trip.status} />
                   </TableCell>
                   <TableCell className="min-w-56 font-medium">
-                    {trip.originName} to {trip.destinationName}
+                    {trip.originName} to {trip.dropOffPoint || trip.destinationName}
                     <div className="mt-1 font-mono text-[10px] text-muted-foreground">
                       {trip.id.slice(0, 8)}
                     </div>
@@ -537,6 +543,22 @@ function AdminTrips() {
               </Field>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Pickup point">
+                <Input
+                  value={form.pickupPoint}
+                  placeholder="Blank uses origin"
+                  onChange={(event) => setForm((current) => ({ ...current, pickupPoint: event.target.value }))}
+                />
+              </Field>
+              <Field label="Drop-off point">
+                <Input
+                  value={form.dropOffPoint}
+                  placeholder="Blank uses destination"
+                  onChange={(event) => setForm((current) => ({ ...current, dropOffPoint: event.target.value }))}
+                />
+              </Field>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Departure">
                 <Input
                   required
@@ -613,7 +635,9 @@ function toPayload(form: TripForm, comfortClass: ComfortClass = "economy") {
     driverId: form.driverId,
     vehicleId: form.vehicleId,
     originName: form.originName.trim(),
+    pickupPoint: form.pickupPoint.trim() || undefined,
     destinationName: form.destinationName.trim(),
+    dropOffPoint: form.dropOffPoint.trim() || undefined,
     departureTime: new Date(form.departureTime).toISOString(),
     totalSeats: Number(form.totalSeats),
     comfortClass,

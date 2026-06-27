@@ -115,6 +115,7 @@ export interface Trip {
   originName: string;
   pickupPoint?: string | null;
   destinationName: string;
+  dropOffPoint?: string | null;
   originLat?: number;
   originLng?: number;
   destinationLat?: number;

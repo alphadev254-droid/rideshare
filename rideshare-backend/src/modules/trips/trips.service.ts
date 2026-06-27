@@ -63,7 +63,7 @@ export async function createTrip(userId: string, input: CreateTripInput) {
   const baseFareMwk = input.farePerSeatMwk;
 
   type TripRow = {
-    id: string; origin_name: string; pickup_point: string | null; destination_name: string;
+    id: string; origin_name: string; pickup_point: string | null; destination_name: string; drop_off_point: string | null;
     departure_time: Date; available_seats: number; comfort_class: string;
     base_fare_mwk: bigint; distance_km: number; estimated_duration_minutes: number | null;
     status: string;
@@ -71,7 +71,7 @@ export async function createTrip(userId: string, input: CreateTripInput) {
 
   const rows = await prisma.$queryRaw<TripRow[]>`
     INSERT INTO trips (
-      driver_id, vehicle_id, origin_name, pickup_point, origin_point, destination_name,
+      driver_id, vehicle_id, origin_name, pickup_point, origin_point, destination_name, drop_off_point,
       destination_point, departure_time, total_seats, available_seats,
       comfort_class, distance_km, base_fare_mwk, estimated_duration_minutes
     ) VALUES (
@@ -80,13 +80,14 @@ export async function createTrip(userId: string, input: CreateTripInput) {
       ${input.pickupPoint ?? null},
       ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
       ${input.destinationName},
+      ${input.dropOffPoint ?? null},
       ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
       ${departureTime},
       ${input.totalSeats}, ${input.totalSeats},
       ${comfortClass}::"ComfortClass",
       ${distanceKm}, ${BigInt(baseFareMwk)}, ${input.estimatedDurationMinutes}
     )
-    RETURNING id, origin_name, pickup_point, destination_name, departure_time,
+    RETURNING id, origin_name, pickup_point, destination_name, drop_off_point, departure_time,
               available_seats, comfort_class, base_fare_mwk, distance_km,
               estimated_duration_minutes, status`;
 
@@ -97,6 +98,7 @@ export async function createTrip(userId: string, input: CreateTripInput) {
     originName: r.origin_name,
     pickupPoint: r.pickup_point ?? null,
     destinationName: r.destination_name,
+    dropOffPoint: r.drop_off_point ?? null,
     departureTime: r.departure_time,
     availableSeats: r.available_seats,
     totalSeats: input.totalSeats,
@@ -169,7 +171,7 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
   const availableSeats = input.totalSeats - bookedSeats;
 
   type TripRow = {
-    id: string; origin_name: string; pickup_point: string | null; destination_name: string;
+    id: string; origin_name: string; pickup_point: string | null; destination_name: string; drop_off_point: string | null;
     departure_time: Date; total_seats: number; available_seats: number;
     comfort_class: string; base_fare_mwk: bigint; distance_km: number;
     estimated_duration_minutes: number | null; status: string;
@@ -182,6 +184,7 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
         pickup_point = ${input.pickupPoint ?? null},
         origin_point = ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
         destination_name = ${input.destinationName},
+        drop_off_point = ${input.dropOffPoint ?? null},
         destination_point = ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
         departure_time = ${departureTime},
         total_seats = ${input.totalSeats},
@@ -192,7 +195,7 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
         estimated_duration_minutes = ${input.estimatedDurationMinutes},
         updated_at = now()
     WHERE id = ${tripId}::uuid AND driver_id = ${driver.id}::uuid
-    RETURNING id, origin_name, pickup_point, destination_name, departure_time, total_seats,
+    RETURNING id, origin_name, pickup_point, destination_name, drop_off_point, departure_time, total_seats,
               available_seats, comfort_class, base_fare_mwk, distance_km,
               estimated_duration_minutes, status`;
 
@@ -203,6 +206,7 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
     originName: r.origin_name,
     pickupPoint: r.pickup_point ?? null,
     destinationName: r.destination_name,
+    dropOffPoint: r.drop_off_point ?? null,
     departureTime: r.departure_time,
     availableSeats: r.available_seats,
     totalSeats: r.total_seats,
@@ -242,7 +246,7 @@ export async function createTripAdmin(input: AdminTripInput) {
     : input.distanceKm ?? 0;
 
   type TripRow = {
-    id: string; origin_name: string; destination_name: string;
+    id: string; origin_name: string; destination_name: string; drop_off_point: string | null;
     departure_time: Date; total_seats: number; available_seats: number;
     comfort_class: string; base_fare_mwk: bigint; distance_km: number;
     estimated_duration_minutes: number | null; status: string;
@@ -250,7 +254,7 @@ export async function createTripAdmin(input: AdminTripInput) {
 
   const rows = await prisma.$queryRaw<TripRow[]>`
     INSERT INTO trips (
-      driver_id, vehicle_id, origin_name, pickup_point, origin_point, destination_name, destination_point,
+      driver_id, vehicle_id, origin_name, pickup_point, origin_point, destination_name, drop_off_point, destination_point,
       departure_time, total_seats, available_seats, comfort_class, distance_km, base_fare_mwk,
       estimated_duration_minutes
     )
@@ -258,12 +262,12 @@ export async function createTripAdmin(input: AdminTripInput) {
       ${driver.id}::uuid, ${input.vehicleId}::uuid,
       ${input.originName}, ${input.pickupPoint ?? null},
       ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
-      ${input.destinationName}, ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
+      ${input.destinationName}, ${input.dropOffPoint ?? null}, ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
       ${departureTime}, ${input.totalSeats}, ${input.totalSeats},
       ${vehicle.comfortClass as ComfortClass}::"ComfortClass",
       ${distanceKm}, ${BigInt(input.farePerSeatMwk)}, ${input.estimatedDurationMinutes}
     )
-    RETURNING id, origin_name, pickup_point, destination_name, departure_time, total_seats,
+    RETURNING id, origin_name, pickup_point, destination_name, drop_off_point, departure_time, total_seats,
               available_seats, comfort_class, base_fare_mwk, distance_km,
               estimated_duration_minutes, status`;
 
@@ -274,6 +278,7 @@ export async function createTripAdmin(input: AdminTripInput) {
     originName: r.origin_name,
     pickupPoint: (r as { pickup_point?: string | null }).pickup_point ?? null,
     destinationName: r.destination_name,
+    dropOffPoint: r.drop_off_point ?? null,
     departureTime: r.departure_time,
     availableSeats: r.available_seats,
     totalSeats: r.total_seats,
@@ -324,7 +329,7 @@ export async function updateTripAdmin(tripId: string, input: AdminTripInput) {
   const availableSeats = input.totalSeats - bookedSeats;
 
   type TripRow = {
-    id: string; origin_name: string; destination_name: string;
+    id: string; origin_name: string; destination_name: string; drop_off_point: string | null;
     departure_time: Date; total_seats: number; available_seats: number;
     comfort_class: string; base_fare_mwk: bigint; distance_km: number;
     estimated_duration_minutes: number | null; status: string;
@@ -338,6 +343,7 @@ export async function updateTripAdmin(tripId: string, input: AdminTripInput) {
         pickup_point = ${input.pickupPoint ?? null},
         origin_point = ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
         destination_name = ${input.destinationName},
+        drop_off_point = ${input.dropOffPoint ?? null},
         destination_point = ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
         departure_time = ${departureTime},
         total_seats = ${input.totalSeats},
@@ -348,7 +354,7 @@ export async function updateTripAdmin(tripId: string, input: AdminTripInput) {
         estimated_duration_minutes = ${input.estimatedDurationMinutes},
         updated_at = now()
     WHERE id = ${tripId}::uuid
-    RETURNING id, origin_name, pickup_point, destination_name, departure_time, total_seats,
+    RETURNING id, origin_name, pickup_point, destination_name, drop_off_point, departure_time, total_seats,
               available_seats, comfort_class, base_fare_mwk, distance_km,
               estimated_duration_minutes, status`;
 
@@ -359,6 +365,7 @@ export async function updateTripAdmin(tripId: string, input: AdminTripInput) {
     originName: r.origin_name,
     pickupPoint: (r as { pickup_point?: string | null }).pickup_point ?? null,
     destinationName: r.destination_name,
+    dropOffPoint: r.drop_off_point ?? null,
     departureTime: r.departure_time,
     availableSeats: r.available_seats,
     totalSeats: r.total_seats,
@@ -408,7 +415,7 @@ export async function searchTrips(input: SearchTripsInput) {
   const radiusM = 30_000;
 
   type SearchRow = {
-    id: string; origin_name: string; destination_name: string;
+    id: string; origin_name: string; destination_name: string; drop_off_point: string | null;
     departure_time: Date; available_seats: number; comfort_class: string;
     base_fare_mwk: bigint; distance_km: number; estimatedDurationMinutes: number | null;
     status: string;
@@ -487,7 +494,11 @@ export async function listPublicTrips(
     where.originName = { contains: filters.originName.trim(), mode: "insensitive" };
   }
   if (filters.destName?.trim()) {
-    where.destinationName = { contains: filters.destName.trim(), mode: "insensitive" };
+    const destQuery = filters.destName.trim();
+    where.OR = [
+      { destinationName: { contains: destQuery, mode: "insensitive" } },
+      { dropOffPoint: { contains: destQuery, mode: "insensitive" } },
+    ];
   }
   if (filters.date) {
     const selected = new Date(filters.date);
@@ -850,7 +861,7 @@ export async function getDriverTrips(userId: string) {
   const trips = await prisma.trip.findMany({
     where: { driverId: driver.id },
     select: {
-      id: true, status: true, originName: true, destinationName: true,
+      id: true, status: true, originName: true, destinationName: true, dropOffPoint: true,
       departureTime: true, totalSeats: true, availableSeats: true,
       comfortClass: true, distanceKm: true, baseFareMwk: true,
       gpsTrackingActive: true, startedAt: true, completedAt: true, createdAt: true,
@@ -891,6 +902,7 @@ export async function listTripsAdmin(
     const searchFilters: Prisma.TripWhereInput[] = [
       { originName: { contains: q, mode: "insensitive" } },
       { destinationName: { contains: q, mode: "insensitive" } },
+      { dropOffPoint: { contains: q, mode: "insensitive" } },
       { driver: { user: { fullName: { contains: q, mode: "insensitive" } } } },
       { driver: { user: { phone: { contains: q, mode: "insensitive" } } } },
       { vehicle: { plateNumber: { contains: q, mode: "insensitive" } } },
@@ -928,6 +940,7 @@ export async function listTripsAdmin(
       vehicleId: true,
       originName: true,
       destinationName: true,
+      dropOffPoint: true,
       departureTime: true,
       availableSeats: true,
       totalSeats: true,

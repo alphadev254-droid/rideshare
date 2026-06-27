@@ -99,7 +99,7 @@ function TripSharePage() {
       return paymentService.initiateRide({
         tripId: t.id,
         boardingPoint: t.pickupPoint || t.originName,
-        dropOffPoint: t.destinationName,
+        dropOffPoint: t.dropOffPoint || t.destinationName,
         method: paymentMethod,
         phone: paymentPhone,
       });
@@ -199,7 +199,7 @@ function TripSharePage() {
               <h1 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
                 {trip.originName}
                 <span className="mx-2 text-muted-foreground">→</span>
-                {trip.destinationName}
+                {trip.dropOffPoint || trip.destinationName}
               </h1>
               <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
@@ -278,7 +278,7 @@ function TripSharePage() {
             <div className="space-y-1">
               <StopRow letter="A" label="Boarding point" place={trip.pickupPoint || trip.originName} />
               <div className="ml-[11px] h-8 w-px bg-border" />
-              <StopRow letter="B" label="Drop-off point" place={trip.destinationName} />
+              <StopRow letter="B" label="Drop-off point" place={trip.dropOffPoint || trip.destinationName} />
             </div>
           </div>
 

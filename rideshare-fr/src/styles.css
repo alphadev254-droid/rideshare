@@ -69,6 +69,8 @@
   --color-info-foreground: oklch(0.14 0.02 230);
   --color-violet: oklch(0.62 0.10 280);
   --color-violet-foreground: oklch(0.14 0.02 280);
+  --color-route: var(--route);
+  --color-route-foreground: var(--route-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
@@ -200,5 +202,83 @@
   }
   .ring-focus:focus-visible {
     box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px var(--color-primary);
+  }
+}
+
+
+@layer utilities {
+  .public-shell {
+    background:
+      radial-gradient(circle at top left, color-mix(in oklch, var(--color-route) 14%, transparent) 0, transparent 34rem),
+      radial-gradient(circle at top right, color-mix(in oklch, var(--color-primary) 12%, transparent) 0, transparent 30rem),
+      var(--color-background);
+  }
+
+  .public-section {
+    border-color: color-mix(in oklch, var(--color-border) 82%, transparent);
+  }
+
+  .public-card {
+    border: 1px solid color-mix(in oklch, var(--color-border) 84%, transparent);
+    background: color-mix(in oklch, var(--color-card) 86%, transparent);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
+  }
+
+  .public-card-soft {
+    border: 1px solid color-mix(in oklch, var(--color-border) 72%, transparent);
+    background: color-mix(in oklch, var(--color-surface) 68%, transparent);
+  }
+
+  .route-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklch, var(--color-route) 38%, transparent);
+    background: color-mix(in oklch, var(--color-route) 12%, transparent);
+    color: var(--color-route);
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .trust-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklch, var(--color-primary) 32%, transparent);
+    background: color-mix(in oklch, var(--color-primary) 10%, transparent);
+    color: var(--color-primary);
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .route-rail {
+    position: relative;
+  }
+
+  .route-rail::before {
+    content: "";
+    position: absolute;
+    left: 0.42rem;
+    top: 1rem;
+    bottom: 1rem;
+    width: 1px;
+    background: linear-gradient(to bottom, var(--color-route), var(--color-primary));
+    opacity: 0.7;
+  }
+
+  .route-dot {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    height: 0.85rem;
+    width: 0.85rem;
+    border-radius: 999px;
+    border: 2px solid var(--color-background);
+    background: var(--color-route);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-route) 24%, transparent);
   }
 }

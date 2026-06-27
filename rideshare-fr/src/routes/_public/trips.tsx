@@ -115,7 +115,7 @@ function PublicTripsPage() {
   });
 
   const book = useMutation({
-    mutationFn: (t: Trip) => paymentService.initiateRide({ tripId: t.id, boardingPoint: t.originName, dropOffPoint: t.destinationName, method: paymentMethod, phone: paymentPhone }),
+    mutationFn: (t: Trip) => paymentService.initiateRide({ tripId: t.id, boardingPoint: t.pickupPoint || t.originName, dropOffPoint: t.dropOffPoint || t.destinationName, method: paymentMethod, phone: paymentPhone }),
     onSuccess: (p: PendingPayment & { checkoutUrl?: string | null }) => {
       toast.success("Opening secure payment.");
       setViewTrip(null);
@@ -153,13 +153,14 @@ function PublicTripsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:p-8">
+    <div className="public-shell min-h-screen px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-8">
       <PageHeader
         title="Find shared trips"
         description="Book a seat on a driver's planned trip and share the travel cost."
       />
 
-      <div className="rounded-md border border-border bg-card p-3 sm:p-5">
+      <div className="public-card rounded-2xl p-3 sm:p-5">
         <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5 lg:gap-4">
           <div className="space-y-1.5"><Label className="label-eyebrow">From</Label><SearchField val={origin} search={originSearch} onSearch={setOriginSearch} onPick={(d: string) => { setOrigin(d); setOriginSearch(""); setOriginOpen(false); setPage(1); }} onClear={() => { setOrigin(""); setOriginSearch(""); setPage(1); }} open={originOpen} setOpen={setOriginOpen} districts={filteredOrigin} placeholder="Search..." /></div>
           <div className="space-y-1.5"><Label className="label-eyebrow">To</Label><SearchField val={destination} search={destSearch} onSearch={setDestSearch} onPick={(d: string) => { setDestination(d); setDestSearch(""); setDestOpen(false); setPage(1); }} onClear={() => { setDestination(""); setDestSearch(""); setPage(1); }} open={destOpen} setOpen={setDestOpen} districts={filteredDest} placeholder="Search..." /></div>
@@ -185,9 +186,9 @@ function PublicTripsPage() {
           {publicTrips && <div className="text-xs text-muted-foreground">Page {publicTrips.page} of {totalPages} - {publicTrips.total} trips</div>}
         </div>
         {loading ? (
-          <div className="rounded-md border border-border bg-card p-6 text-sm text-muted-foreground">Loading trips...</div>
+          <div className="public-card-soft rounded-xl p-6 text-sm text-muted-foreground">Loading trips...</div>
         ) : trips.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border p-12 text-center">
+          <div className="rounded-xl border border-dashed border-route/35 bg-route/5 p-12 text-center">
             <Car className="mx-auto h-10 w-10 text-muted-foreground" />
             <p className="mt-4 text-sm font-medium text-muted-foreground">No scheduled trips found.</p>
             <p className="mt-1 text-xs text-muted-foreground">Try adjusting your filters or check back later.</p>
@@ -195,15 +196,20 @@ function PublicTripsPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {trips.map((trip) => (
-              <div key={trip.id} className="group flex flex-col rounded-md border border-border bg-card p-5 transition-colors hover:border-border-strong">
+              <div key={trip.id} className="group public-card flex flex-col rounded-xl p-5 transition-colors hover:border-primary/45">
                 <div className="flex items-center gap-2 mb-3">
                   <StatusPill status={trip.status} />
                   <ComfortBadge value={trip.comfortClass} />
                 </div>
-                <div className="flex items-center gap-2 font-display text-base font-semibold mb-1">
-                  <span className="truncate">{trip.originName}</span>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="truncate">{trip.destinationName}</span>
+                <div className="route-rail mb-4 mt-3 space-y-3 pl-6">
+                  <div className="relative flex items-center gap-2">
+                    <span className="route-dot absolute -left-6" />
+                    <span className="truncate font-display text-base font-semibold">{trip.originName}</span>
+                  </div>
+                  <div className="relative flex items-center gap-2">
+                    <span className="route-dot absolute -left-6 bg-primary" />
+                    <span className="truncate font-display text-base font-semibold">{trip.dropOffPoint || trip.destinationName}</span>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mb-4">
                   <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDateTime(trip.departureTime)}</span>
@@ -212,8 +218,8 @@ function PublicTripsPage() {
                 </div>
                 <div className="mt-auto flex items-end justify-between pt-3 border-t border-border">
                   <div>
-                    <div className="font-display text-xl font-semibold tabular text-primary">{formatMwk(trip.farePerSeatMwk)}</div>
-                    <div className="text-[11px] text-info flex items-center gap-1"><Users className="h-3 w-3" />{trip.availableSeats} left</div>
+                    <div className="font-display text-xl font-semibold tabular text-gold">{formatMwk(trip.farePerSeatMwk)}</div>
+                    <div className="flex items-center gap-1 text-[11px] text-route"><Users className="h-3 w-3" />{trip.availableSeats} seats available</div>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleView(trip)}>
@@ -234,6 +240,7 @@ function PublicTripsPage() {
           <Button variant="outline" disabled={page >= totalPages || loading} onClick={() => setPage((c) => c + 1)}>Next</Button>
         </div>
       </section>
+      </div>
 
       <TripDetailModal
         trip={viewTrip}
@@ -266,7 +273,7 @@ function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentMet
       <DialogContent className="max-h-[92svh] overflow-y-auto p-0 sm:max-w-lg">
         <div className="bg-card p-6 border-b border-border">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl">{trip.originName} to {trip.destinationName}</DialogTitle>
+            <DialogTitle className="font-display text-xl">{trip.originName} to {trip.dropOffPoint || trip.destinationName}</DialogTitle>
             <DialogDescription className="flex items-center gap-1.5 mt-1"><Calendar className="h-3.5 w-3.5" />{formatDateTime(trip.departureTime)}</DialogDescription>
           </DialogHeader>
         </div>
@@ -290,7 +297,7 @@ function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentMet
               <div className="ml-2.5 border-l-2 border-dashed border-border pl-3.5 h-6" />
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">B</div>
-                <div><div className="text-sm font-medium">Drop-off point</div><div className="text-xs text-muted-foreground">{trip.destinationName}</div></div>
+                <div><div className="text-sm font-medium">Drop-off point</div><div className="text-xs text-muted-foreground">{trip.dropOffPoint || trip.destinationName}</div></div>
               </div>
             </div>
           </div>

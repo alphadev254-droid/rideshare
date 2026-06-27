@@ -251,6 +251,7 @@ model Trip {
   pickupPoint         String?      @map("pickup_point") @db.VarChar(255)
   originPoint         Unsupported("geometry(Point, 4326)")? @map("origin_point")
   destinationName     String       @map("destination_name") @db.VarChar(255)
+  dropOffPoint       String?      @map("drop_off_point") @db.VarChar(255)
   destinationPoint    Unsupported("geometry(Point, 4326)")? @map("destination_point")
   routePolyline       String?      @map("route_polyline")
   departureTime       DateTime     @map("departure_time") @db.Timestamptz()
