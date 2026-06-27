@@ -37,7 +37,7 @@ function baseTemplate(bodyContent: string): string {
           <!-- Header -->
           <tr>
             <td style="background-color:${BRAND_COLOR};padding:28px 32px;text-align:center;">
-              <img src="${escapeHtml(BRAND_LOGO_URL)}" alt="ChepetsaRide" width="96" style="display:block;width:96px;max-width:96px;height:auto;margin:0 auto 10px;border:0;outline:none;text-decoration:none;object-fit:contain;">
+              <img src="${escapeHtml(BRAND_LOGO_URL)}" alt="ChepetsaRide" width="96" style="display:block;width:96px;max-width:96px;height:auto;margin:0 auto 10px;border:0;outline:none;text-decoration:none;object-fit:contain;border-radius:8px;">
               <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.5px;">ChepetsaRide</h1>
               <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Safe, reliable shared rides across Malawi</p>
             </td>
