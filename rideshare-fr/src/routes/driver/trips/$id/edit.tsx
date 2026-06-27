@@ -276,7 +276,7 @@ function EditTrip() {
               label="Duration minutes"
               value={form.durationMinutes}
               placeholder="Min"
-              options={["00", "15", "30", "45"]}
+              options={Array.from({ length: 60 }, (_, index) => String(index).padStart(2, "0"))}
               onChange={(value) => up("durationMinutes", value)}
               error={errors.duration}
             />
@@ -350,7 +350,7 @@ function EditTrip() {
                 label="Departure minutes"
                 value={form.departureMinute}
                 placeholder="Min"
-                options={["00", "15", "30", "45"]}
+                options={Array.from({ length: 60 }, (_, index) => String(index).padStart(2, "0"))}
                 onChange={(value) => up("departureMinute", value)}
                 error={errors.departureTime}
               />
@@ -422,7 +422,7 @@ function formFromTrip(trip: Trip): TripFormState {
     departureMonth: String(departure.getMonth() + 1).padStart(2, "0"),
     departureDay: String(departure.getDate()).padStart(2, "0"),
     departureHour: String(hour12),
-    departureMinute: nearestQuarterMinute(departure.getMinutes()),
+    departureMinute: String(departure.getMinutes()).padStart(2, "0"),
     departurePeriod: hours24 >= 12 ? "PM" : "AM",
     durationHours: duration ? String(Math.floor(duration / 60)) : "",
     durationMinutes: String(duration % 60).padStart(2, "0"),
@@ -604,15 +604,5 @@ function toTwentyFourHour(hour: string, period: string) {
   if (period === "AM") return String(parsedHour === 12 ? 0 : parsedHour).padStart(2, "0");
   return String(parsedHour === 12 ? 12 : parsedHour + 12).padStart(2, "0");
 }
-
-function nearestQuarterMinute(minutes: number) {
-  const allowed = [0, 15, 30, 45];
-  const closest = allowed.reduce((best, current) =>
-    Math.abs(current - minutes) < Math.abs(best - minutes) ? current : best,
-  );
-  return String(closest).padStart(2, "0");
-}
-
-
 
 

@@ -28,7 +28,16 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
   formData?: boolean; // if true, body is FormData (skip JSON.stringify & Content-Type)
 }
 
+export const AUTH_UNAUTHORIZED_EVENT = "chepetsaride:auth-unauthorized";
+
 let refreshPromise: Promise<string | null> | null = null;
+
+function notifyUnauthorized() {
+  tokenStorage.clear();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT));
+  }
+}
 
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = tokenStorage.getRefresh();
@@ -43,13 +52,13 @@ async function refreshAccessToken(): Promise<string | null> {
         body: JSON.stringify({ refreshToken }),
       });
       if (!res.ok) {
-        tokenStorage.clear();
+        notifyUnauthorized();
         return null;
       }
       const json = (await res.json()) as ApiResponse<{ accessToken: string }>;
       const newAccess = json.data?.accessToken;
       if (!newAccess) {
-        tokenStorage.clear();
+        notifyUnauthorized();
         return null;
       }
       tokenStorage.setTokens(newAccess);
@@ -104,10 +113,13 @@ async function performRequest<T>(
     throw new ApiError("Network error — could not reach the server. Check your connection.", 0);
   }
 
-  // 401 → try refresh once
-  if (res.status === 401 && auth && !isRetry) {
-    const refreshed = await refreshAccessToken();
-    if (refreshed) return performRequest<T>(method, path, opts, true);
+  // 401 -> try refresh once, then clear the session if it still fails.
+  if (res.status === 401 && auth) {
+    if (!isRetry) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) return performRequest<T>(method, path, opts, true);
+    }
+    notifyUnauthorized();
   }
 
   let json: ApiResponse<T> | null = null;
@@ -169,4 +181,6 @@ export const api = {
   upload: <T>(path: string, formData: FormData, opts?: RequestOptions) =>
     performRequest<T>("POST", path, { ...opts, body: formData, formData: true }),
 };
+
+
 

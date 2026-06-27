@@ -39,6 +39,11 @@ export function SiteHeader() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   useEffect(() => setOpen(false), [path]);
 
+  async function handleLogout() {
+    await logout();
+    setOpen(false);
+  }
+
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
@@ -89,7 +94,7 @@ export function SiteHeader() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
-                  onClick={() => logout()}
+                  onClick={handleLogout}
                 >
                   <LogOut className="mr-2 h-4 w-4" /> Sign out
                 </DropdownMenuItem>
@@ -155,7 +160,7 @@ export function SiteHeader() {
                 <Button
                   variant="ghost"
                   className="w-full justify-start gap-2 text-destructive hover:text-destructive"
-                  onClick={() => logout()}
+                  onClick={handleLogout}
                 >
                   <LogOut className="h-4 w-4" /> Sign out
                 </Button>
@@ -174,3 +179,4 @@ export function SiteHeader() {
     </header>
   );
 }
+

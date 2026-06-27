@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { authService, tokenStorage, userService, type User } from "@/lib/api";
+import { AUTH_UNAUTHORIZED_EVENT, authService, tokenStorage, userService, type User } from "@/lib/api";
 
 interface AuthContextValue {
   user: User | null;
@@ -24,6 +24,16 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    function handleUnauthorized() {
+      setUserState(null);
+      setIsLoading(false);
+    }
+
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+  }, []);
 
   useEffect(() => {
     const cached = tokenStorage.getUser();
@@ -93,3 +103,4 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
+

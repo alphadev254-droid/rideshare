@@ -403,7 +403,7 @@ function NewTrip() {
                 label="Duration minutes"
                 value={form.durationMinutes}
                 placeholder="Min"
-                options={["00", "15", "30", "45"]}
+                options={Array.from({ length: 60 }, (_, index) => String(index).padStart(2, "0"))}
                 onChange={(v) => up("durationMinutes", v)}
                 error={errors.duration}
               />
@@ -478,7 +478,7 @@ function NewTrip() {
                 label="Departure minutes"
                 value={form.departureMinute}
                 placeholder="Min"
-                options={["00", "15", "30", "45"]}
+                options={Array.from({ length: 60 }, (_, index) => String(index).padStart(2, "0"))}
                 onChange={(v) => up("departureMinute", v)}
                 error={errors.departureTime}
               />
@@ -689,6 +689,8 @@ function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return <p className="text-xs font-medium text-destructive">{message}</p>;
 }
+
+
 
 
 
