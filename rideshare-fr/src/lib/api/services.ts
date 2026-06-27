@@ -254,22 +254,24 @@ export const bookingService = {
 };
 
 // ─── Payments ─────────────────────────────────────────────────────
+const DEFAULT_CHECKOUT_PAYMENT_METHOD: PaymentMethod = "airtel_money";
+
 export const paymentService = {
-  initiate: (body: { bookingId: string; method: PaymentMethod; phone: string }) =>
+  initiate: (body: { bookingId: string; method?: PaymentMethod; phone: string }) =>
     api.post<PendingPayment & { paymentUrl: string; checkoutUrl: string }>(
       "/payments/initiate",
-      body,
+      { ...body, method: body.method ?? DEFAULT_CHECKOUT_PAYMENT_METHOD },
     ),
   initiateRide: (body: {
     tripId: string;
     boardingPoint: string;
     dropOffPoint?: string;
-    method: PaymentMethod;
+    method?: PaymentMethod;
     phone: string;
   }) =>
     api.post<PendingPayment & { paymentUrl: string; checkoutUrl: string }>(
       "/payments/initiate-ride",
-      body,
+      { ...body, method: body.method ?? DEFAULT_CHECKOUT_PAYMENT_METHOD },
     ),
   verify: (paymentId: string) =>
     api.get<{ state: string; transaction: Payment | PendingPayment | null }>(`/payments/verify/${paymentId}`),
@@ -495,5 +497,3 @@ export const adminService = {
   refundPayment: (paymentId: string) =>
     api.post<{ message: string; paymentId: string }>(`/payments/${paymentId}/refund`),
 };
-
-

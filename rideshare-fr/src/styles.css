@@ -138,6 +138,10 @@
   --violet: oklch(0.62 0.10 280);
   --violet-foreground: oklch(0.14 0.02 280);
 
+  /* Clear sky blue for route metadata on dark cards */
+  --route: oklch(0.74 0.12 220);
+  --route-foreground: oklch(0.13 0.03 220);
+
   --destructive: oklch(0.62 0.20 25);
   --destructive-foreground: oklch(0.98 0 0);
   --success: oklch(0.70 0.16 152);
@@ -253,6 +257,13 @@
     padding: 0.35rem 0.65rem;
     font-size: 0.75rem;
     font-weight: 600;
+  }
+
+  .route-chip svg,
+  .trust-chip svg {
+    color: currentColor;
+    stroke-width: 2.4;
+    opacity: 1;
   }
 
   .route-rail {

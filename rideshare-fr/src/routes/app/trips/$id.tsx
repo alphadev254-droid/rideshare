@@ -6,7 +6,6 @@ import {
   tripService,
   userService,
   ApiError,
-  type PaymentMethod,
   type PendingPayment,
   type User as ApiUser,
 } from "@/lib/api";
@@ -16,13 +15,6 @@ import { StatusPill } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
 import { ArrowLeft, Car, MapPin, Star, User } from "lucide-react";
 import { toast } from "sonner";
@@ -35,7 +27,6 @@ export const Route = createFileRoute("/app/trips/$id")({
 function TripDetail() {
   const { id } = Route.useParams();
   const { user, setUser } = useAuth();
-  const [method, setMethod] = useState<PaymentMethod>("airtel_money");
   const [payPhone, setPayPhone] = useState(user?.phone ?? "");
   const [emergencyName, setEmergencyName] = useState(user?.emergencyContactName ?? "");
   const [emergencyPhone, setEmergencyPhone] = useState(user?.emergencyContactPhone ?? "");
@@ -79,7 +70,6 @@ function TripDetail() {
         tripId: id,
         boardingPoint: trip.pickupPoint || trip.originName,
         dropOffPoint: trip.dropOffPoint || trip.destinationName,
-        method,
         phone: payPhone,
       });
     },
@@ -220,21 +210,6 @@ function TripDetail() {
                 </div>
               )}
               <div className="space-y-1.5">
-                <Label className="label-eyebrow">Payment method</Label>
-                <Select value={method} onValueChange={(value) => setMethod(value as PaymentMethod)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="airtel_money">Airtel Money</SelectItem>
-                    <SelectItem value="tnm_mpamba">TNM Mpamba</SelectItem>
-                    <SelectItem value="visa">Visa</SelectItem>
-                    <SelectItem value="mastercard">Mastercard</SelectItem>
-                    <SelectItem value="bank_transfer">Bank transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
                 <Label className="label-eyebrow">Payment phone</Label>
                 <Input value={payPhone} onChange={(e) => setPayPhone(e.target.value)} />
               </div>
@@ -269,4 +244,6 @@ function formatDuration(minutes: number) {
   if (!mins) return `${hours} hr`;
   return `${hours} hr ${mins} min`;
 }
+
+
 

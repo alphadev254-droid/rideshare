@@ -6,7 +6,6 @@ import {
   paymentService,
   userService,
   type Trip,
-  type PaymentMethod,
   type PendingPayment,
   type User,
   ApiError,
@@ -18,7 +17,6 @@ import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusPill, ComfortBadge } from "@/components/status-pill";
 import { SecureImage } from "@/components/secure-image";
 import { toast } from "sonner";
@@ -61,7 +59,6 @@ function TripSharePage() {
   });
 
   // Payment state
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("airtel_money");
   const [paymentPhone, setPaymentPhone] = useState("");
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
@@ -100,7 +97,6 @@ function TripSharePage() {
         tripId: t.id,
         boardingPoint: t.pickupPoint || t.originName,
         dropOffPoint: t.dropOffPoint || t.destinationName,
-        method: paymentMethod,
         phone: paymentPhone,
       });
     },
@@ -416,24 +412,6 @@ function TripSharePage() {
                       </div>
                     )}
                     <div className="space-y-1">
-                      <Label className="label-eyebrow">Payment method</Label>
-                      <Select
-                        value={paymentMethod}
-                        onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="airtel_money">Airtel Money</SelectItem>
-                          <SelectItem value="tnm_mpamba">TNM Mpamba</SelectItem>
-                          <SelectItem value="visa">Visa</SelectItem>
-                          <SelectItem value="mastercard">Mastercard</SelectItem>
-                          <SelectItem value="bank_transfer">Bank transfer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
                       <Label className="label-eyebrow">Mobile money number</Label>
                       <Input
                         value={paymentPhone}
@@ -521,3 +499,5 @@ function TripSkeleton() {
     </div>
   );
 }
+
+

@@ -9,13 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ShareRouteImport } from './routes/_share'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ShareRouteImport } from './routes/_share'
 import { Route as PublicRouteImport } from './routes/_public'
-import { Route as ShareTTripIdRouteImport } from './routes/_share/t.$tripId'
-import { Route as ShareDDriverIdRouteImport } from './routes/_share/d.$driverId'
 import { Route as DriverIndexRouteImport } from './routes/driver/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
@@ -50,6 +48,8 @@ import { Route as AppPaymentsCallbackRouteImport } from './routes/app/payments.c
 import { Route as AppBookingsIdRouteImport } from './routes/app/bookings/$id'
 import { Route as AdminUsersIdRouteImport } from './routes/admin/users.$id'
 import { Route as AdminPaymentsIdRouteImport } from './routes/admin/payments.$id'
+import { Route as ShareTTripIdRouteImport } from './routes/_share/t.$tripId'
+import { Route as ShareDDriverIdRouteImport } from './routes/_share/d.$driverId'
 import { Route as DriverTripsIdEditRouteImport } from './routes/driver/trips/$id/edit'
 
 const DriverRoute = DriverRouteImport.update({
@@ -65,6 +65,10 @@ const AppRoute = AppRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShareRoute = ShareRouteImport.update({
+  id: '/_share',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PublicRoute = PublicRouteImport.update({
@@ -241,27 +245,20 @@ const AdminPaymentsIdRoute = AdminPaymentsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AdminPaymentsRoute,
 } as any)
-const DriverTripsIdEditRoute = DriverTripsIdEditRouteImport.update({
-  id: '/edit',
-  path: '/edit',
-  getParentRoute: () => DriverTripsIdRoute,
-} as any)
-
-const ShareRoute = ShareRouteImport.update({
-  id: '/_share',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
 const ShareTTripIdRoute = ShareTTripIdRouteImport.update({
   id: '/t/$tripId',
   path: '/t/$tripId',
   getParentRoute: () => ShareRoute,
 } as any)
-
 const ShareDDriverIdRoute = ShareDDriverIdRouteImport.update({
   id: '/d/$driverId',
   path: '/d/$driverId',
   getParentRoute: () => ShareRoute,
+} as any)
+const DriverTripsIdEditRoute = DriverTripsIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => DriverTripsIdRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -290,6 +287,8 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/app/': typeof AppIndexRoute
   '/driver/': typeof DriverIndexRoute
+  '/d/$driverId': typeof ShareDDriverIdRoute
+  '/t/$tripId': typeof ShareTTripIdRoute
   '/admin/payments/$id': typeof AdminPaymentsIdRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
   '/app/bookings/$id': typeof AppBookingsIdRoute
@@ -303,10 +302,9 @@ export interface FileRoutesByFullPath {
   '/app/bookings/': typeof AppBookingsIndexRoute
   '/driver/trips/': typeof DriverTripsIndexRoute
   '/driver/trips/$id/edit': typeof DriverTripsIdEditRoute
-  '/t/$tripId': typeof ShareTTripIdRoute
-  '/d/$driverId': typeof ShareDDriverIdRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof PublicIndexRoute
   '/about': typeof PublicAboutRoute
   '/contact': typeof PublicContactRoute
   '/drivers-info': typeof PublicDriversInfoRoute
@@ -325,10 +323,11 @@ export interface FileRoutesByTo {
   '/driver/transactions': typeof DriverTransactionsRouteWithChildren
   '/driver/vehicles': typeof DriverVehiclesRoute
   '/driver/wallet': typeof DriverWalletRoute
-  '/': typeof PublicIndexRoute
   '/admin': typeof AdminIndexRoute
   '/app': typeof AppIndexRoute
   '/driver': typeof DriverIndexRoute
+  '/d/$driverId': typeof ShareDDriverIdRoute
+  '/t/$tripId': typeof ShareTTripIdRoute
   '/admin/payments/$id': typeof AdminPaymentsIdRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
   '/app/bookings/$id': typeof AppBookingsIdRoute
@@ -342,12 +341,11 @@ export interface FileRoutesByTo {
   '/app/bookings': typeof AppBookingsIndexRoute
   '/driver/trips': typeof DriverTripsIndexRoute
   '/driver/trips/$id/edit': typeof DriverTripsIdEditRoute
-  '/t/$tripId': typeof ShareTTripIdRoute
-  '/d/$driverId': typeof ShareDDriverIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_public': typeof PublicRouteWithChildren
+  '/_share': typeof ShareRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
   '/app': typeof AppRouteWithChildren
   '/driver': typeof DriverRouteWithChildren
@@ -373,6 +371,8 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/app/': typeof AppIndexRoute
   '/driver/': typeof DriverIndexRoute
+  '/_share/d/$driverId': typeof ShareDDriverIdRoute
+  '/_share/t/$tripId': typeof ShareTTripIdRoute
   '/admin/payments/$id': typeof AdminPaymentsIdRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
   '/app/bookings/$id': typeof AppBookingsIdRoute
@@ -386,9 +386,6 @@ export interface FileRoutesById {
   '/app/bookings/': typeof AppBookingsIndexRoute
   '/driver/trips/': typeof DriverTripsIndexRoute
   '/driver/trips/$id/edit': typeof DriverTripsIdEditRoute
-  '/_share': typeof ShareRouteWithChildren
-  '/_share/t/$tripId': typeof ShareTTripIdRoute
-  '/_share/d/$driverId': typeof ShareDDriverIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -418,6 +415,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/app/'
     | '/driver/'
+    | '/d/$driverId'
+    | '/t/$tripId'
     | '/admin/payments/$id'
     | '/admin/users/$id'
     | '/app/bookings/$id'
@@ -431,10 +430,9 @@ export interface FileRouteTypes {
     | '/app/bookings/'
     | '/driver/trips/'
     | '/driver/trips/$id/edit'
-    | '/t/$tripId'
-    | '/d/$driverId'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/about'
     | '/contact'
     | '/drivers-info'
@@ -453,10 +451,11 @@ export interface FileRouteTypes {
     | '/driver/transactions'
     | '/driver/vehicles'
     | '/driver/wallet'
-    | '/'
     | '/admin'
     | '/app'
     | '/driver'
+    | '/d/$driverId'
+    | '/t/$tripId'
     | '/admin/payments/$id'
     | '/admin/users/$id'
     | '/app/bookings/$id'
@@ -470,11 +469,10 @@ export interface FileRouteTypes {
     | '/app/bookings'
     | '/driver/trips'
     | '/driver/trips/$id/edit'
-    | '/t/$tripId'
-    | '/d/$driverId'
   id:
     | '__root__'
     | '/_public'
+    | '/_share'
     | '/admin'
     | '/app'
     | '/driver'
@@ -500,6 +498,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/app/'
     | '/driver/'
+    | '/_share/d/$driverId'
+    | '/_share/t/$tripId'
     | '/admin/payments/$id'
     | '/admin/users/$id'
     | '/app/bookings/$id'
@@ -513,18 +513,15 @@ export interface FileRouteTypes {
     | '/app/bookings/'
     | '/driver/trips/'
     | '/driver/trips/$id/edit'
-    | '/_share'
-    | '/_share/t/$tripId'
-    | '/_share/d/$driverId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   PublicRoute: typeof PublicRouteWithChildren
+  ShareRoute: typeof ShareRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
   AppRoute: typeof AppRouteWithChildren
   DriverRoute: typeof DriverRouteWithChildren
   TripsIdLocationRoute: typeof TripsIdLocationRoute
-  ShareRoute: typeof ShareRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -548,6 +545,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_share': {
+      id: '/_share'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ShareRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_public': {
@@ -795,20 +799,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPaymentsIdRouteImport
       parentRoute: typeof AdminPaymentsRoute
     }
-    '/driver/trips/$id/edit': {
-      id: '/driver/trips/$id/edit'
-      path: '/edit'
-      fullPath: '/driver/trips/$id/edit'
-      preLoaderRoute: typeof DriverTripsIdEditRouteImport
-      parentRoute: typeof DriverTripsIdRoute
-    }
-    '/_share': {
-      id: '/_share'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof ShareRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_share/t/$tripId': {
       id: '/_share/t/$tripId'
       path: '/t/$tripId'
@@ -822,6 +812,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/d/$driverId'
       preLoaderRoute: typeof ShareDDriverIdRouteImport
       parentRoute: typeof ShareRoute
+    }
+    '/driver/trips/$id/edit': {
+      id: '/driver/trips/$id/edit'
+      path: '/edit'
+      fullPath: '/driver/trips/$id/edit'
+      preLoaderRoute: typeof DriverTripsIdEditRouteImport
+      parentRoute: typeof DriverTripsIdRoute
     }
   }
 }
@@ -846,6 +843,18 @@ const PublicRouteChildren: PublicRouteChildren = {
 
 const PublicRouteWithChildren =
   PublicRoute._addFileChildren(PublicRouteChildren)
+
+interface ShareRouteChildren {
+  ShareDDriverIdRoute: typeof ShareDDriverIdRoute
+  ShareTTripIdRoute: typeof ShareTTripIdRoute
+}
+
+const ShareRouteChildren: ShareRouteChildren = {
+  ShareDDriverIdRoute: ShareDDriverIdRoute,
+  ShareTTripIdRoute: ShareTTripIdRoute,
+}
+
+const ShareRouteWithChildren = ShareRoute._addFileChildren(ShareRouteChildren)
 
 interface AdminPaymentsRouteChildren {
   AdminPaymentsIdRoute: typeof AdminPaymentsIdRoute
@@ -977,25 +986,13 @@ const DriverRouteChildren: DriverRouteChildren = {
 const DriverRouteWithChildren =
   DriverRoute._addFileChildren(DriverRouteChildren)
 
-interface ShareRouteChildren {
-  ShareTTripIdRoute: typeof ShareTTripIdRoute
-  ShareDDriverIdRoute: typeof ShareDDriverIdRoute
-}
-
-const ShareRouteChildren: ShareRouteChildren = {
-  ShareTTripIdRoute: ShareTTripIdRoute,
-  ShareDDriverIdRoute: ShareDDriverIdRoute,
-}
-
-const ShareRouteWithChildren = ShareRoute._addFileChildren(ShareRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   PublicRoute: PublicRouteWithChildren,
+  ShareRoute: ShareRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
   AppRoute: AppRouteWithChildren,
   DriverRoute: DriverRouteWithChildren,
   TripsIdLocationRoute: TripsIdLocationRoute,
-  ShareRoute: ShareRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

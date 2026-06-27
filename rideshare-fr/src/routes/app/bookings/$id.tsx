@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   bookingService,
   paymentService,
-  type PaymentMethod,
   ApiError,
   reviewService,
   userService,
@@ -26,13 +25,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { formatMwk, formatDateTime } from "@/lib/format";
 import { ArrowLeft, Car, KeyRound, RefreshCw, RotateCcw, Star, User as UserIcon, Navigation, Calendar } from "lucide-react";
 import { toast } from "sonner";
@@ -51,7 +43,6 @@ function BookingDetail() {
     queryFn: () => bookingService.byId(id),
   });
 
-  const [method, setMethod] = useState<PaymentMethod>("airtel_money");
   const [payPhone, setPayPhone] = useState(user?.phone ?? "");
   const [emergencyName, setEmergencyName] = useState(user?.emergencyContactName ?? "");
   const [emergencyPhone, setEmergencyPhone] = useState(user?.emergencyContactPhone ?? "");
@@ -94,7 +85,7 @@ function BookingDetail() {
         if (!emergencyPhone.trim()) throw new Error("Emergency phone number is required before payment");
         await saveEmergencyContact.mutateAsync();
       }
-      return paymentService.initiate({ bookingId: id, method, phone: payPhone });
+      return paymentService.initiate({ bookingId: id, phone: payPhone });
     },
     onSuccess: (res: PendingPayment & { checkoutUrl?: string | null }) => {
       toast.success("Payment initiated");
@@ -379,21 +370,6 @@ function BookingDetail() {
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <Label className="label-eyebrow">Method</Label>
-                  <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="airtel_money">Airtel Money</SelectItem>
-                      <SelectItem value="tnm_mpamba">TNM Mpamba</SelectItem>
-                      <SelectItem value="visa">Visa</SelectItem>
-                      <SelectItem value="mastercard">Mastercard</SelectItem>
-                      <SelectItem value="bank_transfer">Bank transfer</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
                   <Label className="label-eyebrow">Phone</Label>
                   <Input value={payPhone} onChange={(e) => setPayPhone(e.target.value)} />
                 </div>
@@ -495,5 +471,3 @@ function BookingDetail() {
     </div>
   );
 }
-
-

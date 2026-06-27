@@ -27,7 +27,6 @@ import {
   tripService,
   userService,
   type ComfortClass,
-  type PaymentMethod,
   type Trip,
   type User,
   locationService,
@@ -113,7 +112,6 @@ function PassengerHome() {
   const [comfortClass, setComfortClass] = useState<string>("any");
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("airtel_money");
   const [paymentPhone, setPaymentPhone] = useState("");
   const date = dateValue(dateYear, dateMonth, dateDay);
   const years = Array.from({ length: 3 }, (_, index) => String(new Date().getFullYear() + index));
@@ -189,7 +187,6 @@ function PassengerHome() {
         tripId: trip.id,
         boardingPoint: trip.pickupPoint || trip.originName,
         dropOffPoint: trip.dropOffPoint || trip.destinationName,
-        method: paymentMethod,
         phone: paymentPhone,
       });
     },
@@ -488,11 +485,9 @@ function PassengerHome() {
         needsEmergencyContact={needsEmergencyContact}
         emergencyName={emergencyName}
         emergencyPhone={emergencyPhone}
-        paymentMethod={paymentMethod}
         paymentPhone={paymentPhone}
         onEmergencyNameChange={setEmergencyName}
         onEmergencyPhoneChange={setEmergencyPhone}
-        onPaymentMethodChange={setPaymentMethod}
         onPaymentPhoneChange={setPaymentPhone}
         onOpenChange={(open) => {
           if (!open) setSelectedTrip(null);
@@ -512,11 +507,9 @@ function RideDetailsDialog({
   needsEmergencyContact,
   emergencyName,
   emergencyPhone,
-  paymentMethod,
   paymentPhone,
   onEmergencyNameChange,
   onEmergencyPhoneChange,
-  onPaymentMethodChange,
   onPaymentPhoneChange,
   onOpenChange,
   onReserve,
@@ -529,11 +522,9 @@ function RideDetailsDialog({
   needsEmergencyContact: boolean;
   emergencyName: string;
   emergencyPhone: string;
-  paymentMethod: PaymentMethod;
   paymentPhone: string;
   onEmergencyNameChange: (value: string) => void;
   onEmergencyPhoneChange: (value: string) => void;
-  onPaymentMethodChange: (value: PaymentMethod) => void;
   onPaymentPhoneChange: (value: string) => void;
   onOpenChange: (open: boolean) => void;
   onReserve: () => Promise<void> | void;
@@ -618,21 +609,6 @@ function RideDetailsDialog({
               Your booking is created only after payment is confirmed.
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label className="label-eyebrow">Method</Label>
-                <Select value={paymentMethod} onValueChange={(value) => onPaymentMethodChange(value as PaymentMethod)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="airtel_money">Airtel Money</SelectItem>
-                    <SelectItem value="tnm_mpamba">TNM Mpamba</SelectItem>
-                    <SelectItem value="visa">Visa</SelectItem>
-                    <SelectItem value="mastercard">Mastercard</SelectItem>
-                    <SelectItem value="bank_transfer">Bank transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="space-y-1.5">
                 <Label className="label-eyebrow">Payment phone</Label>
                 <Input value={paymentPhone} onChange={(e) => onPaymentPhoneChange(e.target.value)} />
@@ -751,6 +727,8 @@ function DistrictSearch({
     </div>
   );
 }
+
+
 
 
 

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ApiError, paymentService, tripService, userService, locationService, type ComfortClass, type PaymentMethod, type PendingPayment, type Trip, type User } from "@/lib/api";
+import { ApiError, paymentService, tripService, userService, locationService, type ComfortClass, type PendingPayment, type Trip, type User } from "@/lib/api";
 import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
 import { StatusPill, ComfortBadge } from "@/components/status-pill";
 import { useAuth } from "@/lib/auth-context";
@@ -59,7 +59,6 @@ function PublicTripsPage() {
   const [viewTrip, setViewTrip] = useState<Trip | null>(null);
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("airtel_money");
   const [paymentPhone, setPaymentPhone] = useState("");
   const date = dateStr(dateYear, dateMonth, dateDay);
   const years = Array.from({ length: 3 }, (_, i) => String(new Date().getFullYear() + i));
@@ -115,7 +114,7 @@ function PublicTripsPage() {
   });
 
   const book = useMutation({
-    mutationFn: (t: Trip) => paymentService.initiateRide({ tripId: t.id, boardingPoint: t.pickupPoint || t.originName, dropOffPoint: t.dropOffPoint || t.destinationName, method: paymentMethod, phone: paymentPhone }),
+    mutationFn: (t: Trip) => paymentService.initiateRide({ tripId: t.id, boardingPoint: t.pickupPoint || t.originName, dropOffPoint: t.dropOffPoint || t.destinationName, phone: paymentPhone }),
     onSuccess: (p: PendingPayment & { checkoutUrl?: string | null }) => {
       toast.success("Opening secure payment.");
       setViewTrip(null);
@@ -212,14 +211,14 @@ function PublicTripsPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mb-4">
-                  <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDateTime(trip.departureTime)}</span>
-                  <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{formatDistanceKm(trip.distanceKm)}</span>
-                  {trip.vehicle && <span className="flex items-center gap-1"><Car className="h-3 w-3" />{trip.vehicle.make} {trip.vehicle.model}</span>}
+                  <span className="flex items-center gap-1"><Calendar className="h-3 w-3 text-gold" />{formatDateTime(trip.departureTime)}</span>
+                  <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-route" />{formatDistanceKm(trip.distanceKm)}</span>
+                  {trip.vehicle && <span className="flex items-center gap-1"><Car className="h-3 w-3 text-primary" />{trip.vehicle.make} {trip.vehicle.model}</span>}
                 </div>
                 <div className="mt-auto flex items-end justify-between pt-3 border-t border-border">
                   <div>
                     <div className="font-display text-xl font-semibold tabular text-gold">{formatMwk(trip.farePerSeatMwk)}</div>
-                    <div className="flex items-center gap-1 text-[11px] text-route"><Users className="h-3 w-3" />{trip.availableSeats} seats available</div>
+                    <div className="flex items-center gap-1 text-[11px] text-route"><Users className="h-3 w-3 text-route" />{trip.availableSeats} seats available</div>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleView(trip)}>
@@ -246,12 +245,12 @@ function PublicTripsPage() {
         trip={viewTrip}
         open={!!viewTrip}
         emergencyName={emergencyName} emergencyPhone={emergencyPhone}
-        paymentMethod={paymentMethod} paymentPhone={paymentPhone}
+        paymentPhone={paymentPhone}
         needsEmergency={needsEmergency}
         isAuthenticated={!!user}
         isBooking={book.isPending} isSavingEmergency={saveEmergency.isPending}
         onEmergencyNameChange={setEmergencyName} onEmergencyPhoneChange={setEmergencyPhone}
-        onPaymentMethodChange={setPaymentMethod} onPaymentPhoneChange={setPaymentPhone}
+        onPaymentPhoneChange={setPaymentPhone}
         onClose={() => setViewTrip(null)}
         onReserve={reserve}
       />
@@ -259,11 +258,11 @@ function PublicTripsPage() {
   );
 }
 
-function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentMethod, paymentPhone, needsEmergency, isAuthenticated, isBooking, isSavingEmergency, onEmergencyNameChange, onEmergencyPhoneChange, onPaymentMethodChange, onPaymentPhoneChange, onClose, onReserve }: {
-  trip: Trip | null; open: boolean; emergencyName: string; emergencyPhone: string; paymentMethod: PaymentMethod; paymentPhone: string;
+function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentPhone, needsEmergency, isAuthenticated, isBooking, isSavingEmergency, onEmergencyNameChange, onEmergencyPhoneChange, onPaymentPhoneChange, onClose, onReserve }: {
+  trip: Trip | null; open: boolean; emergencyName: string; emergencyPhone: string; paymentPhone: string;
   needsEmergency: boolean; isAuthenticated: boolean; isBooking: boolean; isSavingEmergency: boolean;
   onEmergencyNameChange: (v: string) => void; onEmergencyPhoneChange: (v: string) => void;
-  onPaymentMethodChange: (v: PaymentMethod) => void; onPaymentPhoneChange: (v: string) => void;
+ onPaymentPhoneChange: (v: string) => void;
   onClose: () => void; onReserve: () => void;
 }) {
   if (!trip) return null;
@@ -316,7 +315,6 @@ function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentMet
                 <div className="label-eyebrow">Payment</div>
                 <p className="mt-1 text-xs text-muted-foreground">Your booking is created only after payment is confirmed.</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5"><Label className="label-eyebrow">Method</Label><Select value={paymentMethod} onValueChange={(v) => onPaymentMethodChange(v as PaymentMethod)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="airtel_money">Airtel Money</SelectItem><SelectItem value="tnm_mpamba">TNM Mpamba</SelectItem></SelectContent></Select></div>
                   <div className="space-y-1.5"><Label className="label-eyebrow">Payment phone</Label><Input value={paymentPhone} onChange={(e) => onPaymentPhoneChange(e.target.value)} /></div>
                 </div>
               </div>
@@ -392,6 +390,9 @@ function SearchField({ val, search, onSearch, onPick, onClear, open, setOpen, di
     </div>
   );
 }
+
+
+
 
 
 

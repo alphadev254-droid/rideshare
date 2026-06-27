@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, MapPin, Clock, Car, ShieldCheck, Route as RouteIcon } from "lucide-react";
+import { ArrowRight, MapPin, Clock, Car, ShieldCheck, Route as RouteIcon, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -202,16 +202,16 @@ function Landing() {
 
                       <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1.5">
-                          <Clock className="h-3 w-3" />
+                          <Clock className="h-3 w-3 text-gold" />
                           {formatDateTime(trip.departureTime)}
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <MapPin className="h-3 w-3" />
+                          <MapPin className="h-3 w-3 text-route" />
                           {formatDistanceKm(trip.distanceKm)}
                         </span>
                         {trip.vehicle && (
                           <span className="flex items-center gap-1.5">
-                            <Car className="h-3 w-3" />
+                            <Car className="h-3 w-3 text-primary" />
                             {trip.vehicle.make} {trip.vehicle.model}
                           </span>
                         )}
