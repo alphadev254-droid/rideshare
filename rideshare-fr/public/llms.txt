@@ -1,0 +1,16 @@
+# ChepetsaRide
+
+ChepetsaRide is a Malawi shared-ride platform where drivers publish planned trips and passengers book available seats to share travel costs.
+
+## Primary Pages
+
+- [Home](https://chepetsaride.com/) - Overview of shared rides across Malawi.
+- [Find Trips](https://chepetsaride.com/trips) - Public trip search and available rides.
+- [Drive With ChepetsaRide](https://chepetsaride.com/drivers-info) - Information for drivers who want to publish planned trips.
+- [Safety](https://chepetsaride.com/safety) - Driver verification, vehicle review, payments, and boarding code safety.
+- [About](https://chepetsaride.com/about) - How ChepetsaRide works for drivers and passengers.
+- [Contact](https://chepetsaride.com/contact) - Contact ChepetsaRide support.
+
+## Crawling Guidance
+
+Public pages may be crawled for search and AI discovery. Authenticated app, driver, and admin areas are private user workflows and should not be treated as public content.

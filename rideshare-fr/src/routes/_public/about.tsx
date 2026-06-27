@@ -29,6 +29,9 @@ function About() {
             alt="ChepetsaRide route map"
             className="h-auto w-full object-contain"
             loading="lazy"
+            decoding="async"
+            width={1200}
+            height={900}
           />
         </div>
 

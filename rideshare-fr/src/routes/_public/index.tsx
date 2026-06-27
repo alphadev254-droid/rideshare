@@ -96,11 +96,15 @@ function Landing() {
           alt="ChepetsaRide road landscape"
           className="absolute inset-0 h-full w-full object-cover object-center"
           loading="eager"
+          fetchPriority="high"
+          decoding="async"
+          width={1600}
+          height={900}
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,10,12,0.96)_0%,rgba(5,10,12,0.9)_52%,rgba(5,10,12,0.82)_100%)] lg:bg-[linear-gradient(90deg,rgba(5,10,12,0.96)_0%,rgba(5,10,12,0.9)_48%,rgba(5,10,12,0.46)_100%)]" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-12 lg:gap-12 lg:py-16 xl:py-20">
           <div className="lg:col-span-8">
-            <div className="label-eyebrow">Lilongwe · Blantyre · Mzuzu · Zomba</div>
+            <div className="label-eyebrow">Lilongwe - Blantyre - Mzuzu - Zomba</div>
             <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
               A driver going your way. <br />
               <span className="text-primary">You book a seat, share the cost.</span>
@@ -126,8 +130,8 @@ function Landing() {
                 { k: "Verification", v: "Every driver" },
               ].map((s) => (
                 <div key={s.k}>
-                  <div className="font-display text-2xl font-semibold tabular">{s.v}</div>
-                  <div className="label-eyebrow mt-1">{s.k}</div>
+                  <dt className="label-eyebrow mt-1">{s.k}</dt>
+                  <dd className="font-display text-2xl font-semibold tabular">{s.v}</dd>
                 </div>
               ))}
             </dl>
@@ -141,6 +145,9 @@ function Landing() {
                 alt="ChepetsaRide route preview"
                 className="h-auto w-full rounded-xl object-contain"
                 loading="eager"
+                decoding="async"
+                width={1200}
+                height={900}
               />
             </div>
           </div>
