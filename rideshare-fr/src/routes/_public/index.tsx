@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, MapPin, Clock, Car } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +58,12 @@ function Landing() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [viewTrip, setViewTrip] = useState<Trip | null>(null);
+  const [shouldLoadTrips, setShouldLoadTrips] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShouldLoadTrips(true), 1200);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const { data: publicTrips, isLoading: isLoadingTrips } = useQuery({
     queryKey: ["trips", "public", "landing"],
@@ -68,7 +74,8 @@ function Landing() {
       }),
     staleTime: 15_000,
     gcTime: 5 * 60_000,
-    refetchInterval: 30_000,
+    enabled: shouldLoadTrips,
+    refetchInterval: shouldLoadTrips ? 30_000 : false,
     refetchOnWindowFocus: true,
     placeholderData: (previousData) => previousData,
   });
@@ -176,7 +183,7 @@ function Landing() {
           </div>
 
           <div className="mt-10">
-            {isLoadingTrips ? (
+            {!shouldLoadTrips || isLoadingTrips ? (
               <div className="rounded-md border border-border bg-card p-6 text-sm text-muted-foreground">
                 Loading available trips...
               </div>
