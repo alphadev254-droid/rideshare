@@ -22,9 +22,6 @@ const landingHeroImageUrl =
   (import.meta.env.VITE_LANDING_HERO_IMAGE_URL as string | undefined) ??
   "https://media.aircnc.co.ke/media-images/eef78f3e-8d81-4b17-956a-40ec0c71b708.webp";
 
-const landingRouteImageUrl =
-  (import.meta.env.VITE_LANDING_ROUTE_IMAGE_URL as string | undefined) ??
-  "https://media.aircnc.co.ke/media-images/1ece3bde-c4a6-4428-8f4d-cab1a4f1d59b.webp";
 const popularRoutes = [
   { from: "Lilongwe", to: "Blantyre", note: "Shared rides on one of Malawi's busiest routes" },
   { from: "Blantyre", to: "Lilongwe", note: "Book a seat on planned trips to the capital" },
@@ -97,7 +94,7 @@ function Landing() {
   return (
     <>
       {/* HERO */}
-      <section className="public-shell relative overflow-hidden border-b public-section">
+      <section className="relative overflow-hidden border-b public-section bg-background">
         <img
           src={landingHeroImageUrl}
           alt="ChepetsaRide road landscape"
@@ -108,12 +105,13 @@ function Landing() {
           width={1600}
           height={900}
         />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,12,14,0.94)_0%,rgba(8,12,14,0.88)_50%,rgba(8,12,14,0.8)_100%)] lg:bg-[linear-gradient(90deg,rgba(8,12,14,0.96)_0%,rgba(8,12,14,0.88)_46%,rgba(8,12,14,0.44)_100%)]" />
+        <div className="absolute inset-0 bg-background/62" />
+        <div className="absolute inset-y-0 left-0 w-full bg-background/18 lg:w-2/3" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-12 lg:gap-12 lg:py-16 xl:py-20">
           <div className="lg:col-span-8">
             <div className="flex flex-wrap gap-2">
               <span className="route-chip"><RouteIcon className="h-3.5 w-3.5" /> Shared routes across Malawi</span>
-              <span className="trust-chip"><ShieldCheck className="h-3.5 w-3.5" /> Verified drivers</span>
+              <span className="trust-chip"><ShieldCheck className="h-3.5 w-3.5" /> Verified drivers, safe trips, anywhere</span>
             </div>
             <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
               A driver going your way. <br />
@@ -125,7 +123,7 @@ function Landing() {
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/trips">
                 <Button size="lg" className="gap-2">
-                  Find a ride <ArrowRight className="h-4 w-4" />
+                  Find a seat <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
               <Button size="lg" variant="outline" onClick={handleCtaDrive}>
@@ -135,9 +133,9 @@ function Landing() {
 
             <dl className="mt-12 grid max-w-2xl grid-cols-3 gap-3 border-t border-border/70 pt-6 sm:gap-4">
               {[
-                { k: "Route cost", v: "Shared" },
+                { k: "Cost", v: "Shared" },
                 { k: "Payment", v: "Escrow" },
-                { k: "Drivers", v: "Reviewed" },
+                { k: "Boarding", v: "Code" },
               ].map((s) => (
                 <div key={s.k} className="public-card-soft rounded-lg p-3 sm:p-4">
                   <dt className="label-eyebrow">{s.k}</dt>
@@ -145,21 +143,6 @@ function Landing() {
                 </div>
               ))}
             </dl>
-          </div>
-
-          {/* Route visual */}
-          <div className="hidden lg:col-span-5 lg:block lg:-translate-y-12 xl:-translate-y-10">
-            <div className="public-card rounded-xl p-0 shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
-              <img
-                src={landingRouteImageUrl}
-                alt="ChepetsaRide route preview"
-                className="h-auto w-full rounded-xl object-contain"
-                loading="eager"
-                decoding="async"
-                width={1200}
-                height={900}
-              />
-            </div>
           </div>
         </div>
       </section>
@@ -234,9 +217,14 @@ function Landing() {
                         )}
                       </div>
 
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <span className="trust-chip"><ShieldCheck className="h-3.5 w-3.5" /> Verified</span>
+                        <span className="route-chip"><Wallet className="h-3.5 w-3.5" /> Mobile money</span>
+                      </div>
+
                       <div className="mt-auto flex items-end justify-between gap-3 pt-4">
                         <div>
-                          <div className="font-display text-xl font-semibold tabular">
+                          <div className="font-display text-xl font-semibold tabular text-gold">
                             {formatMwk(trip.farePerSeatMwk)}
                           </div>
                           <div className="text-xs text-muted-foreground">
@@ -253,7 +241,7 @@ function Landing() {
                             disabled={trip.availableSeats <= 0}
                             onClick={() => handleBookTrip(trip)}
                           >
-                            {trip.availableSeats <= 0 ? "Full" : "Book"}
+                            {trip.availableSeats <= 0 ? "Full" : "Book seat"}
                             <ArrowRight className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -455,6 +443,12 @@ function Detail({ label, value, sub }: { label: string; value: string; sub: stri
     </div>
   );
 }
+
+
+
+
+
+
 
 
 
