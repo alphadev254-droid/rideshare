@@ -105,7 +105,7 @@ function Landing() {
           width={1600}
           height={900}
         />
-        <div className="absolute inset-0 bg-background/62" />
+        <div className="absolute inset-0 bg-background/75" />
         <div className="absolute inset-y-0 left-0 w-full bg-background/18 lg:w-2/3" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-12 lg:gap-12 lg:py-16 xl:py-20">
           <div className="lg:col-span-8">
@@ -131,18 +131,7 @@ function Landing() {
               </Button>
             </div>
 
-            <dl className="mt-12 grid max-w-2xl grid-cols-3 gap-3 border-t border-border/70 pt-6 sm:gap-4">
-              {[
-                { k: "Cost", v: "Shared" },
-                { k: "Payment", v: "Escrow" },
-                { k: "Boarding", v: "Code" },
-              ].map((s) => (
-                <div key={s.k} className="public-card-soft rounded-lg p-3 sm:p-4">
-                  <dt className="label-eyebrow">{s.k}</dt>
-                  <dd className="mt-1 font-display text-lg font-semibold tabular sm:text-xl">{s.v}</dd>
-                </div>
-              ))}
-            </dl>
+          
           </div>
         </div>
       </section>
