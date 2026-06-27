@@ -25,15 +25,29 @@ const landingHeroImageUrl =
 const landingRouteImageUrl =
   (import.meta.env.VITE_LANDING_ROUTE_IMAGE_URL as string | undefined) ??
   "https://media.aircnc.co.ke/media-images/1ece3bde-c4a6-4428-8f4d-cab1a4f1d59b.webp";
+const popularRoutes = [
+  { from: "Lilongwe", to: "Blantyre", note: "Shared rides on one of Malawi's busiest routes" },
+  { from: "Blantyre", to: "Lilongwe", note: "Book a seat on planned trips to the capital" },
+  { from: "Lilongwe", to: "Mzuzu", note: "Affordable shared travel heading north" },
+  { from: "Mzuzu", to: "Lilongwe", note: "Find drivers returning through central Malawi" },
+  { from: "Lilongwe", to: "Zomba", note: "Split the travel cost between Malawi locations" },
+  { from: "Zomba", to: "Blantyre", note: "Shorter shared trips with available seats" },
+  { from: "Blantyre", to: "Mangochi", note: "Book seats toward lakeshore destinations" },
+  { from: "Lilongwe", to: "Salima", note: "Shared rides for central Malawi routes" },
+] as const;
+
 export const Route = createFileRoute("/_public/")({
   head: () => ({
     meta: [
-      { title: "RideShare Malawi - Shared rides between cities" },
-      {
-        name: "description",
-        content:
-          "Find a seat on intercity rides across Malawi. Vetted drivers, escrow payments, secret boarding codes.",
-      },
+      { title: "ChepetsaRide - Book seats on shared trips across Malawi" },
+      { name: "description", content: "Drivers publish planned trips between Malawi places, passengers book available seats and everyone shares the travel cost. Lilongwe, Blantyre, Mzuzu, Zomba and more." },
+      { name: "keywords", content: "shared rides Malawi, rideshare Malawi, affordable rides Malawi, cheap rides Malawi, shared car Lilongwe Blantyre, intercity car travel Malawi, Lilongwe to Blantyre ride, Lilongwe to Mzuzu ride, Lilongwe to Zomba ride, Blantyre to Lilongwe ride, Blantyre to Mangochi ride, Lilongwe to Salima ride, Malawi locations rides, Airtel Money rideshare, TNM Mpamba rideshare, split travel cost Malawi, driver passenger Malawi, book seat Malawi" },
+      { property: "og:title", content: "ChepetsaRide - Book seats on shared trips across Malawi" },
+      { property: "og:description", content: "Drivers publish planned trips, passengers book seats and share the cost. Pay with Airtel Money or TNM Mpamba." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "ChepetsaRide - Book seats on shared trips across Malawi" },
+      { name: "twitter:description", content: "A driver going your way publishes a planned trip. Book a seat, share the cost and pay with mobile money." },
     ],
   }),
   component: Landing,
@@ -69,8 +83,8 @@ function Landing() {
     }
   }
 
-  function handleCtaFindRide() {
-    openModal({ mode: "register", role: "passenger" });
+  function handleCtaDrive() {
+    openModal({ mode: "register", role: "driver" });
   }
 
   return (
@@ -79,37 +93,37 @@ function Landing() {
       <section className="relative overflow-hidden border-b border-border">
         <img
           src={landingHeroImageUrl}
-          alt="RideShare Malawi road landscape"
+          alt="ChepetsaRide road landscape"
           className="absolute inset-0 h-full w-full object-cover object-center"
           loading="eager"
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,10,12,0.96)_0%,rgba(5,10,12,0.9)_52%,rgba(5,10,12,0.82)_100%)] lg:bg-[linear-gradient(90deg,rgba(5,10,12,0.96)_0%,rgba(5,10,12,0.9)_48%,rgba(5,10,12,0.46)_100%)]" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-12 lg:gap-12 lg:py-16 xl:py-20">
           <div className="lg:col-span-8">
-            <div className="label-eyebrow">Lilongwe to Blantyre - Mzuzu - Zomba</div>
+            <div className="label-eyebrow">Lilongwe · Blantyre · Mzuzu · Zomba</div>
             <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
-              Cross Malawi <br />
-              <span className="text-primary">on a driver-published trip.</span>
+              A driver going your way. <br />
+              <span className="text-primary">You book a seat, share the cost.</span>
             </h1>
             <p className="mt-6 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Real intercity rides from verified drivers. Pay with Airtel Money or TNM Mpamba - we hold the fare in escrow until you board with your secret code.
+              Drivers travelling between places publish planned trips and open available seats to passengers. Book your seat, pay with Airtel Money or TNM Mpamba, and travel with people going the same way.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button size="lg" onClick={handleCtaFindRide} className="gap-2">
-                Find a ride <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Link to="/drivers-info">
-                <Button size="lg" variant="outline">
-                  Drive with us
+              <Link to="/trips">
+                <Button size="lg" className="gap-2">
+                  Find a ride <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
+              <Button size="lg" variant="outline" onClick={handleCtaDrive}>
+                Drive with us
+              </Button>
             </div>
 
             <dl className="mt-12 grid max-w-lg grid-cols-3 gap-6 border-t border-border pt-6">
               {[
-                { k: "Trips run", v: "12,400+" },
-                { k: "Driver rating", v: "4.87" },
-                { k: "Cities", v: "11" },
+                { k: "Route cost", v: "Split fairly" },
+                { k: "Payment", v: "Escrow held" },
+                { k: "Verification", v: "Every driver" },
               ].map((s) => (
                 <div key={s.k}>
                   <div className="font-display text-2xl font-semibold tabular">{s.v}</div>
@@ -124,7 +138,7 @@ function Landing() {
             <div className="rounded-xl border border-border bg-card/95 p-0 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset]">
               <img
                 src={landingRouteImageUrl}
-                alt="RideShare route preview"
+                alt="ChepetsaRide route preview"
                 className="h-auto w-full rounded-xl object-contain"
                 loading="eager"
               />
@@ -227,6 +241,55 @@ function Landing() {
                 ))}
               </ul>
             )}
+          </div>
+        </div>
+      </section>
+
+      {/* POPULAR ROUTES */}
+      <section className="border-b border-border bg-surface/30">
+        <div className="mx-auto max-w-7xl px-6 py-16">
+          <div className="max-w-3xl">
+            <div className="label-eyebrow">Popular shared ride routes</div>
+            <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+              Affordable rides between Malawi places.
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
+              Search planned trips from drivers travelling between towns, areas, cities and districts
+              like Lilongwe, Blantyre, Mzuzu, Zomba, Mangochi and Salima. Book an available seat and
+              share the cost instead of paying for the whole journey alone.
+            </p>
+          </div>
+
+          <div className="mt-8 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+            {popularRoutes.map((route) => (
+              <Link
+                key={`${route.from}-${route.to}`}
+                to="/trips"
+                className="group rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/60 hover:bg-surface-2 sm:p-4"
+              >
+                <div className="flex items-center gap-1.5 text-xs font-semibold sm:gap-2 sm:text-sm">
+                  <span className="truncate">{route.from}</span>
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0 text-primary sm:h-4 sm:w-4" />
+                  <span className="truncate">{route.to}</span>
+                </div>
+                <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-muted-foreground sm:text-xs sm:leading-5">{route.note}</p>
+                <span className="mt-3 inline-flex text-xs font-medium text-primary group-hover:underline">
+                  Find seats
+                </span>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 rounded-lg border border-dashed border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs leading-5 text-muted-foreground sm:text-sm">
+              These are some of the routes. You can search more towns, areas, districts and
+              pickup places across Malawi.
+            </p>
+            <Link to="/trips" className="shrink-0">
+              <Button size="sm" variant="outline" className="w-full gap-2 sm:w-auto">
+                Explore more places <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

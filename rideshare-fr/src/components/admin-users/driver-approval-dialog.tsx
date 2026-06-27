@@ -22,10 +22,10 @@ interface DriverApprovalDialogProps {
 
 export function defaultDriverApprovalMessage(driverName: string, approve: boolean, reason: string) {
   if (approve) {
-    return `Hi ${driverName},\n\nYour RideShare driver profile has been approved. You can now publish trips and access driver tools.\n\n${reason ? `Note from admin: ${reason}\n\n` : ""}Thank you,\nRideShare Admin`;
+    return `Hi ${driverName},\n\nYour ChepetsaRide driver profile has been approved. You can now publish trips and access driver tools.\n\n${reason ? `Note from admin: ${reason}\n\n` : ""}Thank you,\nChepetsaRide Admin`;
   }
 
-  return `Hi ${driverName},\n\nYour RideShare driver profile is no longer approved and needs attention before you can publish trips.\n\nReason: ${reason || "Please review your submitted driver profile details and documents."}\n\nThank you,\nRideShare Admin`;
+  return `Hi ${driverName},\n\nYour ChepetsaRide driver profile is no longer approved and needs attention before you can publish trips.\n\nReason: ${reason || "Please review your submitted driver profile details and documents."}\n\nThank you,\nChepetsaRide Admin`;
 }
 
 export function DriverApprovalDialog({

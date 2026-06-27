@@ -145,7 +145,7 @@ export function startQueueWorkers() {
             return;
           case "otp":
             if (data.html && /@/.test(data.recipient)) {
-              await sendCustomEmail(data.recipient, "Your RideShare verification code", `Your RideShare verification code is ${data.otp}. Valid for 5 minutes. Do not share this code.`, data.html);
+              await sendCustomEmail(data.recipient, "Your ChepetsaRide verification code", `Your ChepetsaRide verification code is ${data.otp}. Valid for 5 minutes. Do not share this code.`, data.html);
             } else {
               await sendOtp(data.recipient, data.otp);
             }

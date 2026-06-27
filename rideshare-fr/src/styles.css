@@ -65,10 +65,10 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-gold: var(--gold);
   --color-gold-foreground: var(--gold-foreground);
-  --color-info: var(--info);
-  --color-info-foreground: var(--info-foreground);
-  --color-violet: var(--violet);
-  --color-violet-foreground: var(--violet-foreground);
+  --color-info: oklch(0.62 0.12 230);
+  --color-info-foreground: oklch(0.14 0.02 230);
+  --color-violet: oklch(0.62 0.10 280);
+  --color-violet-foreground: oklch(0.14 0.02 280);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);

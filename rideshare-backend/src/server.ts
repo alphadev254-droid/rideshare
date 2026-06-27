@@ -31,7 +31,7 @@ async function bootstrap() {
   registerGpsHandlers(io);
 
   httpServer.listen(env.PORT, () => {
-    console.log(`🚀 RideShare API running on http://localhost:${env.PORT}`);
+    console.log(`🚀 ChepetsaRide API running on http://localhost:${env.PORT}`);
     console.log(`   Environment: ${env.NODE_ENV}`);
     console.log(`   WebSocket:   enabled`);
   });

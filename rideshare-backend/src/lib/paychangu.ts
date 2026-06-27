@@ -186,7 +186,7 @@ export async function initiatePaychanguWithdrawalPayout(input: {
   if (input.provider === "bank_transfer") {
     body.payout_method = "bank_transfer";
     body.bank_account_number = msisdn;
-    body.bank_account_name = input.accountName ?? "RideShare Driver";
+    body.bank_account_name = input.accountName ?? "ChepetsaRide Driver";
     body.bank_uuid = ""; // Will be populated from supported-banks or env
   } else {
     // Mobile money: resolve operator UUID from cache → env fallback → PayChangu API

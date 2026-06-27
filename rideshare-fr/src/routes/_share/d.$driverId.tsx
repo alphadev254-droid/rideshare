@@ -18,6 +18,13 @@ import {
 import { useState } from "react";
 
 export const Route = createFileRoute("/_share/d/$driverId")({
+  head: () => ({
+    meta: [
+      { title: "Driver Trips — ChepetsaRide" },
+      { name: "description", content: "Browse upcoming intercity trips from a verified ChepetsaRide driver. Book a seat and pay securely with mobile money." },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: DriverTripsPage,
 });
 

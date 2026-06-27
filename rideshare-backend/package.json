@@ -1,7 +1,7 @@
 {
   "name": "rideshare-malawi-api",
   "version": "1.0.0",
-  "description": "RideShare Malawi — Express API backend",
+  "description": "ChepetsaRide Express API backend",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

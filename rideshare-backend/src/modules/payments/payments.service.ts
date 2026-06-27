@@ -311,7 +311,7 @@ async function sendSuccessfulPaymentEmails(row: PaymentRow) {
       await enqueueNotification({
         type: "email",
         to: details.passengerEmail,
-        subject: "Your RideShare booking is confirmed",
+        subject: "Your ChepetsaRide booking is confirmed",
         text: bookingConfirmationText(passengerTemplateParams),
         html: bookingConfirmationEmail(passengerTemplateParams),
       });
@@ -349,8 +349,8 @@ async function sendSuccessfulPaymentEmailsInline(row: PaymentRow) {
     tasks.push(
       sendCustomEmail(
         details.passengerEmail,
-        "Your RideShare booking is confirmed",
-        `Hi ${details.passengerName},\n\nYour payment was successful and your ride booking is confirmed.\n\nRoute: ${details.route}\nDeparture: ${details.departureLabel}\nAmount paid: MWK ${details.customerAmount}\nBooking ID: ${details.bookingId}\nTransaction ref: ${details.txRef}\n\nYour boarding code has been sent separately. Share it only with your driver at the boarding point.\n\nThank you for using RideShare.`,
+        "Your ChepetsaRide booking is confirmed",
+        `Hi ${details.passengerName},\n\nYour payment was successful and your ride booking is confirmed.\n\nRoute: ${details.route}\nDeparture: ${details.departureLabel}\nAmount paid: MWK ${details.customerAmount}\nBooking ID: ${details.bookingId}\nTransaction ref: ${details.txRef}\n\nYour boarding code has been sent separately. Share it only with your driver at the boarding point.\n\nThank you for using ChepetsaRide.`,
       ),
     );
   }
@@ -408,7 +408,7 @@ async function createPaychanguCheckout(params: {
         callback_url: params.callbackUrl,
         return_url: params.returnUrl,
         customization: {
-          title: "RideShare booking payment",
+          title: "ChepetsaRide booking payment",
           description: "Ride fare and processing fee",
         },
         meta: params.meta,

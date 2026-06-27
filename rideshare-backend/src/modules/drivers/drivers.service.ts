@@ -545,8 +545,8 @@ export async function updateDriverProfileAdmin(
         type: "email",
         to: existing.user.email,
         subject: isApproved
-          ? "Your RideShare driver profile was approved"
-          : "Your RideShare driver profile needs changes",
+          ? "Your ChepetsaRide driver profile was approved"
+          : "Your ChepetsaRide driver profile needs changes",
         text: isApproved
           ? driverApprovedText(templateParams)
           : driverChangesNeededText(templateParams),

@@ -11,7 +11,8 @@
     "build:static": "vite build --config vite.static.config.ts",
     "preview": "vite preview --outDir dist-static",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "icons:generate": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
@@ -89,5 +90,3 @@
     "vite": "^7.3.1"
   }
 }
-
-

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin
+Disallow: /driver
+Disallow: /app
+Disallow: /api
+
+Sitemap: https://chepetsaride.com/sitemap.xml

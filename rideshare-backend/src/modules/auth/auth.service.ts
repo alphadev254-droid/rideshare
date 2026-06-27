@@ -131,7 +131,7 @@ export async function forgotPassword(input: ForgotPasswordInput) {
   await enqueueNotification({
     type: "email",
     to: user.email,
-    subject: "Reset your RideShare password",
+    subject: "Reset your ChepetsaRide password",
     text: passwordResetCodeText({ code, ttlMinutes }),
     html: passwordResetCodeEmail({ name: user.fullName, code, ttlMinutes }),
   });

@@ -18,7 +18,16 @@ import { toast } from "sonner";
 import { SecureImage } from "@/components/secure-image";
 import { ArrowRight, Calendar, Car, Clock, MapPin, Search, ShieldCheck, Users, X, Zap } from "lucide-react";
 
-export const Route = createFileRoute("/_public/trips")({ component: PublicTripsPage });
+export const Route = createFileRoute("/_public/trips")({ component: PublicTripsPage, head: () => ({
+  meta: [
+    { title: "Find Shared Rides in Malawi - Book Seats on Planned Trips" },
+    { name: "description", content: "Search shared trips between Malawi places. Drivers publish planned journeys, passengers book available seats and share the travel cost. Pay with Airtel Money or TNM Mpamba." },
+    { name: "keywords", content: "shared rides Malawi, rideshare Malawi, book car seat Malawi, driver passenger Malawi, split travel cost Malawi, Lilongwe to Blantyre ride, Lilongwe to Mzuzu ride, Blantyre to Lilongwe ride, Airtel Money rideshare, TNM Mpamba rideshare, intercity car travel Malawi, safe shared travel Malawi" },
+    { property: "og:title", content: "Find Shared Rides in Malawi - ChepetsaRide" },
+    { property: "og:description", content: "Drivers publish planned trips, passengers book seats and share the cost. Pay securely with mobile money." },
+    { property: "og:type", content: "website" },
+  ],
+}) });
 
 const monthOptions = Array.from({ length: 12 }, (_, i) => ({
   value: String(i + 1).padStart(2, "0"),
@@ -145,12 +154,15 @@ function PublicTripsPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:p-8">
-      <PageHeader title="Find trips" description="Search verified intercity trips. Pay securely with mobile money." />
+      <PageHeader
+        title="Find shared trips"
+        description="Book a seat on a driver's planned trip and share the travel cost."
+      />
 
-      <div className="rounded-md border border-border bg-card p-5">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-4">
-          <div className="space-y-1.5"><Label className="label-eyebrow">From</Label><SearchField val={origin} search={originSearch} onSearch={setOriginSearch} onPick={(d: string) => { setOrigin(d); setOriginSearch(""); setOriginOpen(false); setPage(1); }} onClear={() => { setOrigin(""); setOriginSearch(""); setPage(1); }} open={originOpen} setOpen={setOriginOpen} districts={filteredOrigin} placeholder="Search districts..." /></div>
-          <div className="space-y-1.5"><Label className="label-eyebrow">To</Label><SearchField val={destination} search={destSearch} onSearch={setDestSearch} onPick={(d: string) => { setDestination(d); setDestSearch(""); setDestOpen(false); setPage(1); }} onClear={() => { setDestination(""); setDestSearch(""); setPage(1); }} open={destOpen} setOpen={setDestOpen} districts={filteredDest} placeholder="Search districts..." /></div>
+      <div className="rounded-md border border-border bg-card p-3 sm:p-5">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5 lg:gap-4">
+          <div className="space-y-1.5"><Label className="label-eyebrow">From</Label><SearchField val={origin} search={originSearch} onSearch={setOriginSearch} onPick={(d: string) => { setOrigin(d); setOriginSearch(""); setOriginOpen(false); setPage(1); }} onClear={() => { setOrigin(""); setOriginSearch(""); setPage(1); }} open={originOpen} setOpen={setOriginOpen} districts={filteredOrigin} placeholder="Search..." /></div>
+          <div className="space-y-1.5"><Label className="label-eyebrow">To</Label><SearchField val={destination} search={destSearch} onSearch={setDestSearch} onPick={(d: string) => { setDestination(d); setDestSearch(""); setDestOpen(false); setPage(1); }} onClear={() => { setDestination(""); setDestSearch(""); setPage(1); }} open={destOpen} setOpen={setDestOpen} districts={filteredDest} placeholder="Search..." /></div>
           <div className="col-span-2 space-y-1.5 lg:col-span-1">
             <div className="flex items-center justify-between gap-2">
               <Label className="label-eyebrow">Date</Label>
@@ -343,21 +355,28 @@ function SearchField({ val, search, onSearch, onPick, onClear, open, setOpen, di
   open: boolean; setOpen: (o: boolean) => void; districts: string[]; placeholder: string;
 }) {
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setOpen(false);
+        }
+      }}
+    >
       {val ? (
-        <div className="flex items-center gap-1 rounded-md border border-border bg-surface-2 px-3 py-2">
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-          <span className="flex-1 text-sm">{val}</span>
-          <button type="button" onClick={onClear} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+        <div className="flex h-9 items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1.5 sm:px-3 sm:py-2">
+          <MapPin className="h-3.5 w-3.5 text-muted-foreground sm:h-4 sm:w-4" />
+          <span className="min-w-0 flex-1 truncate text-xs sm:text-sm">{val}</span>
+          <button type="button" onClick={onClear} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5 sm:h-4 sm:w-4" /></button>
         </div>
       ) : (
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => { onSearch(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder={placeholder} className="pl-9" />
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground sm:left-3 sm:h-4 sm:w-4" />
+          <Input value={search} onChange={(e) => { onSearch(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder={placeholder} className="h-9 pl-8 text-xs placeholder:text-[11px] sm:pl-9 sm:text-sm sm:placeholder:text-sm" />
           {open && districts.length > 0 && (
-            <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg">
+            <div className="absolute z-50 mt-1 max-h-44 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg sm:max-h-48">
               {districts.map((d) => (
-                <button key={d} type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-surface-2" onClick={() => onPick(d)}><MapPin className="mr-2 inline h-3.5 w-3.5 text-muted-foreground" />{d}</button>
+                <button key={d} type="button" className="w-full px-2.5 py-2 text-left text-xs hover:bg-surface-2 sm:px-3 sm:text-sm" onClick={() => onPick(d)}><MapPin className="mr-1.5 inline h-3 w-3 text-muted-foreground sm:mr-2 sm:h-3.5 sm:w-3.5" />{d}</button>
               ))}
             </div>
           )}

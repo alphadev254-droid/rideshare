@@ -11,11 +11,12 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_public/contact")({
   head: () => ({
     meta: [
-      { title: "Contact — RideShare Malawi" },
-      {
-        name: "description",
-        content: "Get in touch with the RideShare Malawi team — support, partnerships, press.",
-      },
+      { title: "Contact ChepetsaRide — Support, Help & Enquiries" },
+      { name: "description", content: "Need help with a booking, driver application or have a question? Contact the ChepetsaRide team. Based in Lilongwe, serving passengers and drivers across Malawi." },
+      { name: "keywords", content: "contact ChepetsaRide, rideshare booking help Malawi, passenger support Malawi, driver application help, shared travel enquiry Malawi, Lilongwe rideshare contact, customer service Malawi rideshare" },
+      { property: "og:title", content: "Contact ChepetsaRide" },
+      { property: "og:description", content: "Reach our team for support, partnerships or press. We respond within 24 hours." },
+      { property: "og:type", content: "website" },
     ],
   }),
   component: Contact,

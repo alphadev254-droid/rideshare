@@ -8,12 +8,12 @@ const aboutRouteImageUrl =
 export const Route = createFileRoute("/_public/about")({
   head: () => ({
     meta: [
-      { title: "About - RideShare Malawi" },
-      {
-        name: "description",
-        content:
-          "We're building safer, faster intercity travel for Malawi by connecting drivers with spare seats to passengers who need them.",
-      },
+      { title: "About ChepetsaRide — How shared rides work" },
+      { name: "description", content: "ChepetsaRide lets drivers going between Malawi places publish planned trips and open available seats to passengers. Everyone shares the travel cost. Verified drivers, mobile-money payments and boarding codes." },
+      { name: "keywords", content: "about ChepetsaRide, how rideshare works Malawi, shared rides Malawi, cost sharing travel Malawi, driver passenger platform Malawi, intercity car travel Malawi, Lilongwe rideshare, safe shared travel Malawi" },
+      { property: "og:title", content: "About ChepetsaRide — Shared rides, shared costs" },
+      { property: "og:description", content: "Drivers publish planned trips, passengers book a seat and everyone shares the travel cost." },
+      { property: "og:type", content: "website" },
     ],
   }),
   component: About,
@@ -26,25 +26,25 @@ function About() {
         <div className="order-2 overflow-hidden rounded-xl border border-border bg-card/80 shadow-sm lg:order-1">
           <img
             src={aboutRouteImageUrl}
-            alt="RideShare Malawi route map"
+            alt="ChepetsaRide route map"
             className="h-auto w-full object-contain"
             loading="lazy"
           />
         </div>
 
         <div className="order-1 lg:order-2">
-          <PageHeader eyebrow="About" title="Travel in Malawi, reimagined" />
+          <PageHeader eyebrow="About" title="Shared travel for planned trips between places" />
           <div className="prose prose-invert mt-8 max-w-none text-muted-foreground">
             <p className="text-base leading-relaxed">
-              RideShare Malawi was started by a small team in Lilongwe who were tired of long waits at
-              the minibus stage, unclear fares, and journeys nobody could plan around. We believe people
-              who are already driving across the country shouldn't roll with three empty seats - and
-              people who need to get somewhere shouldn't have to gamble on departure times.
+              ChepetsaRide helps drivers who are already travelling between towns, cities and areas publish their
+              planned trips and open available seats to passengers. Instead of travelling alone, drivers
+              share the travel cost with people going the same way, while passengers get a clear route,
+              price and departure time before they book.
             </p>
             <p className="mt-4 text-base leading-relaxed">
-              So we built a platform that does three things very well: verifies drivers, holds payments
-              safely in escrow, and makes boarding tamper-proof with a one-time code. No middlemen, no
-              surprises.
+              The platform focuses on three things: verified drivers and vehicles, secure mobile-money
+              payments held in escrow, and boarding codes that confirm the right passenger joins the
+              right trip. The goal is simple: make shared travel across Malawi easier to plan and safer to use.
             </p>
             <div className="mt-10 grid grid-cols-2 gap-6 border-t border-border pt-8">
               <div>

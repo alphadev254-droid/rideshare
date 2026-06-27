@@ -7,12 +7,12 @@ import { Wallet, Calendar, Users, ArrowRight } from "lucide-react";
 export const Route = createFileRoute("/_public/drivers-info")({
   head: () => ({
     meta: [
-      { title: "Drive with RideShare Malawi" },
-      {
-        name: "description",
-        content:
-          "Earn from your spare seats. Publish trips, accept passengers, and withdraw to mobile money.",
-      },
+      { title: "Drive with ChepetsaRide - Earn from Planned Trips" },
+      { name: "description", content: "Already driving between Malawi places? Publish your planned trip, let passengers book available seats and get paid to your Airtel Money or TNM Mpamba wallet." },
+      { name: "keywords", content: "earn money driving Malawi, rideshare driver Malawi, intercity driver Malawi, make money from car Malawi, driver app Malawi, rideshare income Malawi, Airtel Money driver payout, TNM Mpamba driver, list trips Malawi, carry passengers Malawi" },
+      { property: "og:title", content: "Drive with ChepetsaRide - Earn from Planned Trips" },
+      { property: "og:description", content: "Publish planned trips, accept verified passengers and get paid to mobile money." },
+      { property: "og:type", content: "website" },
     ],
   }),
   component: DriversInfo,
@@ -24,8 +24,8 @@ function DriversInfo() {
     <div className="mx-auto max-w-7xl px-6 py-16">
       <PageHeader
         eyebrow="For drivers"
-        title="Fill your spare seats. Get paid."
-        description="If you're already driving between cities, list your trip and we'll bring you verified passengers."
+        title="Share your planned trip. Get paid."
+        description="If you are already driving between towns, cities, districts or other destinations, publish your route, set your seats and let passengers book in advance."
         actions={
           <Button size="lg" onClick={() => openModal({ mode: "register", role: "driver" })}>
             Apply to drive
@@ -48,7 +48,7 @@ function DriversInfo() {
           {
             icon: Users,
             t: "Verified passengers",
-            d: "Every passenger pays upfront into escrow and verifies their phone.",
+            d: "Passengers verify their phone and pay upfront before a booking is confirmed.",
           },
         ].map((f) => (
           <div key={f.t} className="rounded-md border border-border bg-card p-6">

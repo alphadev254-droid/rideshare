@@ -15,6 +15,8 @@ const envSchema = z.object({
   APP_URL: z.string().default("http://localhost:8080"),
   FRONTEND_URL: z.string().default(""),
   API_URL: z.string().default("http://localhost:5000"),
+  SITE_LOGO_IMAGE_URL: z.string().default("https://media.aircnc.co.ke/media-images/aede5ad7-84e4-4ec3-bbc7-34b1748968bb.webp"),
+  SITE_OG_IMAGE_URL: z.string().default("https://media.aircnc.co.ke/media-images/48e30923-fbfd-45d7-a520-1a172107bd19.webp"),
   REDIS_URL: z.string().default(""),
   REDIS_HOST: z.string().default("127.0.0.1"),
   REDIS_PORT: z.coerce.number().default(6379),
@@ -37,7 +39,7 @@ const envSchema = z.object({
 
   AT_API_KEY: z.string().default(""),
   AT_USERNAME: z.string().default("sandbox"),
-  AT_SENDER_ID: z.string().default("RideShare"),
+  AT_SENDER_ID: z.string().default("Chepetsa"),
   SMS_DEFAULT_COUNTRY_CODE: z.string().default("+265"),
 
   SMTP_HOST: z.string().default(""),
@@ -45,7 +47,7 @@ const envSchema = z.object({
   SMTP_SECURE: z.coerce.boolean().default(false),
   SMTP_USER: z.string().default(""),
   SMTP_PASS: z.string().default(""),
-  SMTP_FROM: z.string().default("RideShare <info@chepetsaride.com>"),
+  SMTP_FROM: z.string().default("ChepetsaRide <info@chepetsaride.com>"),
 
   FIREBASE_SERVICE_ACCOUNT_PATH: z
     .string()

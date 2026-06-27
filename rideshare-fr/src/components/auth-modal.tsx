@@ -327,20 +327,28 @@ function RegisterForm({
   return (
     <form className="space-y-4" onSubmit={submit}>
       <div className="grid grid-cols-2 gap-2 rounded-md border bg-surface-2 p-1">
-        {(["passenger", "driver"] as const).map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => setRole(r)}
-            className={`rounded px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
-              role === r
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {r === "passenger" ? "Find a ride" : "Drive"}
-          </button>
-        ))}
+        {(["passenger", "driver"] as const).map((r) => {
+          const isPassenger = r === "passenger";
+          return (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setRole(r)}
+              className={`rounded px-3 py-2 text-left transition-colors ${
+                role === r
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="block text-sm font-semibold">
+                {isPassenger ? "Find a ride" : "Create trips"}
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-4 opacity-80">
+                {isPassenger ? "Passenger account" : "Driver account"}
+              </span>
+            </button>
+          );
+        })}
       </div>
       <Field id="fullName" label="Full name">
         <Input

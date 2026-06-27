@@ -126,9 +126,9 @@ export async function sendCustomEmail(to: string, subject: string, text: string,
 }
 
 export async function sendOtp(recipient: string, otp: string): Promise<void> {
-  const message = `Your RideShare verification code is ${otp}. Valid for 5 minutes. Do not share this code.`;
+  const message = `Your ChepetsaRide verification code is ${otp}. Valid for 5 minutes. Do not share this code.`;
   if (isEmailAddress(recipient)) {
-    await sendEmail(recipient, "Your RideShare verification code", message);
+    await sendEmail(recipient, "Your ChepetsaRide verification code", message);
     return;
   }
 
@@ -143,7 +143,7 @@ export async function sendSecretCode(
 ): Promise<void> {
   await sendSms(
     phone,
-    `RideShare boarding code: ${code}\nDriver: ${driverName}\nRoute: ${route}\nShare ONLY with your driver at boarding.`,
+    `ChepetsaRide boarding code: ${code}\nDriver: ${driverName}\nRoute: ${route}\nShare ONLY with your driver at boarding.`,
   );
 }
 
@@ -155,6 +155,6 @@ export async function sendEmergencyAlert(
 ): Promise<void> {
   await sendSms(
     phone,
-    `ALERT: ${passengerName} has started a RideShare trip on route ${route}. Trip ID: ${tripId}. This is an automated safety notification.`,
+    `ALERT: ${passengerName} has started a ChepetsaRide trip on route ${route}. Trip ID: ${tripId}. This is an automated safety notification.`,
   );
 }

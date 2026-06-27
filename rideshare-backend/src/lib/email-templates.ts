@@ -1,3 +1,5 @@
+import { env } from "../config/env.js";
+
 const BRAND_COLOR = "#16a34a"; // green-600
 const BRAND_COLOR_DARK = "#15803d"; // green-700
 const TEXT_COLOR = "#1e293b"; // slate-800
@@ -5,6 +7,7 @@ const MUTED_COLOR = "#64748b"; // slate-500
 const BG_COLOR = "#f8fafc"; // slate-50
 const CARD_BG = "#ffffff";
 const BORDER_COLOR = "#e2e8f0"; // slate-200
+const BRAND_LOGO_URL = env.SITE_LOGO_IMAGE_URL;
 
 const DOUBLE_QUOTE_ENTITY = "\u0026quot;";
 const AMPERSAND_ENTITY = "\u0026amp;";
@@ -34,8 +37,11 @@ function baseTemplate(bodyContent: string): string {
           <!-- Header -->
           <tr>
             <td style="background-color:${BRAND_COLOR};padding:28px 32px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.5px;">RideShare</h1>
-              <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Safe, reliable rides across Malawi</p>
+              <div style="display:inline-block;background:#ffffff;border-radius:14px;padding:8px 12px;margin:0 0 12px;">
+                <img src="${escapeHtml(BRAND_LOGO_URL)}" alt="ChepetsaRide" width="140" style="display:block;max-width:140px;max-height:56px;height:auto;border:0;outline:none;text-decoration:none;">
+              </div>
+              <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.5px;">ChepetsaRide</h1>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Safe, reliable shared rides across Malawi</p>
             </td>
           </tr>
           <!-- Body -->
@@ -48,11 +54,11 @@ function baseTemplate(bodyContent: string): string {
           <tr>
             <td style="padding:20px 32px;border-top:1px solid ${BORDER_COLOR};text-align:center;">
               <p style="margin:0;color:${MUTED_COLOR};font-size:12px;line-height:1.6;">
-                This is an automated message from RideShare.<br>
+                This is an automated message from ChepetsaRide.<br>
                 If you did not expect this email, please contact info@chepetsaride.com.
               </p>
               <p style="margin:8px 0 0;color:${MUTED_COLOR};font-size:12px;">
-                &copy; ${new Date().getFullYear()} RideShare. All rights reserved.
+                &copy; ${new Date().getFullYear()} ChepetsaRide. All rights reserved.
               </p>
             </td>
           </tr>
@@ -110,7 +116,7 @@ export function bookingConfirmationEmail(params: {
       <p style="margin:0;color:#c2410c;font-size:14px;font-weight:600;">Your boarding code has been sent separately via SMS.</p>
       <p style="margin:4px 0 0;color:#9a3412;font-size:13px;">Share it <strong>only</strong> with your driver at the boarding point.</p>
     </div>
-    <p style="margin:16px 0 0;color:${MUTED_COLOR};font-size:14px;">Thank you for choosing RideShare!</p>
+    <p style="margin:16px 0 0;color:${MUTED_COLOR};font-size:14px;">Thank you for choosing ChepetsaRide!</p>
   `;
   return baseTemplate(body);
 }
@@ -193,7 +199,7 @@ export function verificationCodeEmail(params: {
 }) {
   const body = `
     ${greeting("there")}
-    <p style="margin:0 0 8px;color:${TEXT_COLOR};font-size:16px;line-height:1.6;">Use this code to <strong>verify your account</strong> on RideShare.</p>
+    <p style="margin:0 0 8px;color:${TEXT_COLOR};font-size:16px;line-height:1.6;">Use this code to <strong>verify your account</strong> on ChepetsaRide.</p>
     ${highlightBox(`<span style="font-size:32px;font-weight:800;letter-spacing:6px;color:${BRAND_COLOR_DARK};">${escapeHtml(params.code)}</span>`)}
     <p style="margin:8px 0 0;color:${MUTED_COLOR};font-size:13px;text-align:center;">Valid for ${params.ttlMinutes} minutes &bull; Do not share this code</p>
   `;
@@ -213,7 +219,7 @@ export function adminCustomEmail(params: {
 
 /** Build a plain-text fallback from the same data, for email clients that don't render HTML */
 export function bookingConfirmationText(params: Parameters<typeof bookingConfirmationEmail>[0]): string {
-  return `Hi ${params.passengerName},\n\nYour payment was successful and your ride booking is confirmed.\n\nRoute: ${params.route}\nDeparture: ${params.departureLabel}\nAmount paid: MWK ${params.customerAmount}\nBooking ID: ${params.bookingId}\nTransaction ref: ${params.txRef}\n\nYour boarding code has been sent separately. Share it only with your driver at the boarding point.\n\nThank you for using RideShare.`;
+  return `Hi ${params.passengerName},\n\nYour payment was successful and your ride booking is confirmed.\n\nRoute: ${params.route}\nDeparture: ${params.departureLabel}\nAmount paid: MWK ${params.customerAmount}\nBooking ID: ${params.bookingId}\nTransaction ref: ${params.txRef}\n\nYour boarding code has been sent separately. Share it only with your driver at the boarding point.\n\nThank you for using ChepetsaRide.`;
 }
 
 export function driverBookingNotificationText(params: Parameters<typeof driverBookingNotificationEmail>[0]): string {
@@ -229,11 +235,11 @@ export function driverChangesNeededText(params: Parameters<typeof driverChangesN
 }
 
 export function withdrawalCodeText(params: Parameters<typeof withdrawalCodeEmail>[0]): string {
-  return `Your RideShare withdrawal code is ${params.code}. Valid for ${params.ttlMinutes} minutes. Do not share this code.`;
+  return `Your ChepetsaRide withdrawal code is ${params.code}. Valid for ${params.ttlMinutes} minutes. Do not share this code.`;
 }
 
 export function verificationCodeText(params: Parameters<typeof verificationCodeEmail>[0]): string {
-  return `Your RideShare verification code is ${params.code}. Valid for ${params.ttlMinutes} minutes. Do not share this code.`;
+  return `Your ChepetsaRide verification code is ${params.code}. Valid for ${params.ttlMinutes} minutes. Do not share this code.`;
 }
 
 export function adminCustomText(params: Parameters<typeof adminCustomEmail>[0]): string {
@@ -242,7 +248,7 @@ export function adminCustomText(params: Parameters<typeof adminCustomEmail>[0]):
 export function passwordResetCodeEmail(params: { name: string; code: string; ttlMinutes: number }) {
   const body = `
     ${greeting(params.name)}
-    <p style="margin:0 0 8px;color:${TEXT_COLOR};font-size:16px;line-height:1.6;">Use this code to reset your RideShare password.</p>
+    <p style="margin:0 0 8px;color:${TEXT_COLOR};font-size:16px;line-height:1.6;">Use this code to reset your ChepetsaRide password.</p>
     ${highlightBox(`<div style="color:${BRAND_COLOR_DARK};font-size:32px;font-weight:800;letter-spacing:6px;font-family:monospace;">${escapeHtml(params.code)}</div>`)}
     <p style="margin:16px 0 0;color:${MUTED_COLOR};font-size:14px;">This code expires in ${params.ttlMinutes} minutes. If you did not request a password reset, ignore this email.</p>
   `;
@@ -250,5 +256,5 @@ export function passwordResetCodeEmail(params: { name: string; code: string; ttl
 }
 
 export function passwordResetCodeText(params: { code: string; ttlMinutes: number }) {
-  return `Your RideShare password reset code is ${params.code}. It expires in ${params.ttlMinutes} minutes.`;
+  return `Your ChepetsaRide password reset code is ${params.code}. It expires in ${params.ttlMinutes} minutes.`;
 }

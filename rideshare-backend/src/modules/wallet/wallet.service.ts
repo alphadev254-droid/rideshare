@@ -297,7 +297,7 @@ export async function requestWithdrawalOtp(userId: string) {
   await enqueueNotification({
     type: "email",
     to: driver.user.email,
-    subject: "Your RideShare withdrawal code",
+    subject: "Your ChepetsaRide withdrawal code",
     text: withdrawalCodeText({ code, ttlMinutes }),
     html: withdrawalCodeEmail({ code, ttlMinutes }),
   });

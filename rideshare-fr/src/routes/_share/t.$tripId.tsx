@@ -38,6 +38,13 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/_share/t/$tripId")({
+  head: () => ({
+    meta: [
+      { title: "Book an Intercity Ride — ChepetsaRide" },
+      { name: "description", content: "Secure your seat on a verified intercity trip in Malawi. Pay with Airtel Money or TNM Mpamba. Boarding code sent by SMS after payment." },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: TripSharePage,
 });
 

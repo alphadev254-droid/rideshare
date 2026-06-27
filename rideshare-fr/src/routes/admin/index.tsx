@@ -23,7 +23,7 @@ function AdminOverview() {
       <PageHeader
         eyebrow="Admin console"
         title="Platform overview"
-        description="Operational health of RideShare Malawi at a glance."
+        description="Operational health of ChepetsaRide at a glance."
       />
 
       {isLoading ? (
