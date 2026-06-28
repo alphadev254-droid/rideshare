@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, MapPin, Clock, Car, ShieldCheck, Route as RouteIcon, Wallet } from "lucide-react";
+import { ArrowRight, MapPin, Clock, Car, ShieldCheck, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +21,9 @@ import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
 const landingHeroImageUrl =
   (import.meta.env.VITE_LANDING_HERO_IMAGE_URL as string | undefined) ??
   "https://media.aircnc.co.ke/media-images/eef78f3e-8d81-4b17-956a-40ec0c71b708.webp";
+
+const homeHeroSideImageUrl =
+  (import.meta.env.VITE_HOME_HERO_SIDE_IMAGE_URL as string | undefined) ?? "/hello.png";
 
 const popularRoutes = [
   { from: "Lilongwe", to: "Blantyre", note: "Shared rides on one of Malawi's busiest routes" },
@@ -105,22 +108,33 @@ function Landing() {
           width={1600}
           height={900}
         />
-        <div className="absolute inset-0 bg-background/75" />
-        <div className="absolute inset-y-0 left-0 w-full bg-background/18 lg:w-2/3" />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-12 lg:gap-12 lg:py-16 xl:py-20">
-          <div className="lg:col-span-8">
-            <div className="flex flex-wrap gap-2">
-              <span className="route-chip"><RouteIcon className="h-3.5 w-3.5" /> Shared routes across Malawi</span>
-              <span className="trust-chip"><ShieldCheck className="h-3.5 w-3.5" /> Verified drivers, safe trips, anywhere</span>
+        <div className="absolute inset-0 bg-background/82" />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-6 px-4 py-10 sm:px-6 sm:py-12 lg:min-h-[calc(100svh-5rem)] lg:grid-cols-12 lg:gap-12 lg:py-10 xl:py-12">
+          <div className="lg:col-span-7 lg:-translate-y-4 xl:-translate-y-6">
+            <div className="max-w-xl">
+              <div className="relative grid grid-cols-4 px-1 pb-2 pt-6 text-center text-[11px] font-semibold uppercase tracking-wide sm:text-xs">
+                <span className="absolute left-4 right-4 top-[3.625rem] h-px bg-border-strong" />
+                {[
+                  ["Shared routes", "bg-primary text-primary ring-primary/15"],
+                  ["Verified drivers", "bg-gold text-gold ring-gold/15"],
+                  ["Safe trips", "bg-route text-route ring-route/15"],
+                  ["Anywhere", "bg-foreground text-foreground ring-foreground/10"],
+                ].map(([label, classes]) => (
+                  <span key={label} className="relative flex flex-col items-center gap-3">
+                    <span className={`rounded bg-background/80 px-2 ${classes.split(" ")[1]}`}>{label}</span>
+                    <span className={`h-3 w-3 rounded-full ring-4 ${classes}`} />
+                  </span>
+                ))}
+              </div>
             </div>
-            <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+            <h1 className="mt-2 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
               A driver going your way. <br />
               <span className="text-primary">You book a seat, share the cost.</span>
             </h1>
-            <p className="mt-6 max-w-xl text-base text-muted-foreground sm:text-lg">
+            <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
               Drivers travelling between places publish planned trips and open available seats to passengers. Book your seat, pay with Airtel Money or TNM Mpamba, and travel with people going the same way.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-3">
               <Link to="/trips">
                 <Button size="lg" className="gap-2">
                   Find a seat <ArrowRight className="h-4 w-4" />
@@ -130,8 +144,16 @@ function Landing() {
                 Publish a trip
               </Button>
             </div>
+          </div>
 
-          
+          <div className="lg:col-span-5">
+            <img
+              src={homeHeroSideImageUrl}
+              alt="ChepetsaRide passenger booking a shared trip"
+              className="mx-auto w-full max-w-md object-contain md:max-w-2xl lg:w-[115%] lg:max-w-none xl:w-[125%]"
+              loading="eager"
+              decoding="async"
+            />
           </div>
         </div>
       </section>
@@ -432,14 +454,3 @@ function Detail({ label, value, sub }: { label: string; value: string; sub: stri
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
