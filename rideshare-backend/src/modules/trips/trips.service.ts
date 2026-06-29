@@ -6,6 +6,7 @@ import { verifyCode, isCodeExpired } from "../../lib/secret-code.js";
 import { creditTripPayout } from "../wallet/wallet.service.js";
 import { getTripLocationFromRedis } from "../../lib/trip-location-cache.js";
 import { resolveReverseGeocodeForTrip } from "../../lib/mapbox-geocode.js";
+import { enqueueNotification } from "../../jobs/queue.js";
 import type {
   AdminTripInput,
   CreateTripInput,
@@ -18,6 +19,13 @@ import type {
 import type { ComfortClass } from "../../types/index.js";
 
 const TRIP_STATUSES = ["scheduled", "boarding", "in_transit", "completed", "cancelled"] as const;
+const DRIVER_TRIP_STATUS_TRANSITIONS: Record<string, readonly string[]> = {
+  scheduled: ["boarding", "cancelled"],
+  boarding: ["in_transit", "cancelled"],
+  in_transit: ["completed", "cancelled"],
+  completed: [],
+  cancelled: [],
+};
 
 export async function createTrip(userId: string, input: CreateTripInput) {
   const driver = await prisma.driverProfile.findFirst({
@@ -600,6 +608,50 @@ export async function getTripById(tripId: string, _userId?: string) {
   };
 }
 
+async function notifyPassengersAtBoardingPoint(trip: {
+  id: string;
+  originName: string;
+  destinationName: string;
+  dropOffPoint: string | null;
+}) {
+  const bookings = await prisma.booking.findMany({
+    where: {
+      tripId: trip.id,
+      status: { in: ["confirmed", "authenticated"] },
+      paymentStatus: { in: ["held_in_escrow", "released"] },
+    },
+    select: { passengerId: true },
+  });
+
+  const passengers = await prisma.user.findMany({
+    where: {
+      id: { in: bookings.map((booking) => booking.passengerId) },
+      fcmToken: { not: null },
+    },
+    select: { fcmToken: true },
+  });
+
+  const route = `${trip.originName} -> ${trip.dropOffPoint ?? trip.destinationName}`;
+  const jobs = passengers
+    .map((passenger) => passenger.fcmToken)
+    .filter((token): token is string => !!token)
+    .map((token) =>
+      enqueueNotification({
+        type: "push",
+        token,
+        title: "Driver is at the boarding point",
+        body: `Your driver is ready for boarding on ${route}. Please go to the boarding point and keep your code ready.`,
+        data: { tripId: trip.id, status: "boarding" },
+      }),
+    );
+
+  const results = await Promise.allSettled(jobs);
+  const failed = results.filter((result) => result.status === "rejected");
+  if (failed.length > 0) {
+    console.warn(`[TRIPS] Failed to queue ${failed.length} boarding notification(s) for trip ${trip.id}`);
+  }
+}
+
 export async function updateTripStatus(
   tripId: string,
   userId: string,
@@ -609,6 +661,14 @@ export async function updateTripStatus(
     where: { id: tripId, driver: { userId } },
   });
   if (!trip) throw new AppError(404, "Trip not found or unauthorized");
+
+  const allowedNextStatuses = DRIVER_TRIP_STATUS_TRANSITIONS[trip.status] ?? [];
+  if (!allowedNextStatuses.includes(input.status)) {
+    throw new AppError(
+      400,
+      `Trip status cannot move from ${trip.status} to ${input.status}`,
+    );
+  }
 
   const updateData: Prisma.TripUpdateInput = { status: input.status };
   if (input.status === "in_transit") {
@@ -621,11 +681,17 @@ export async function updateTripStatus(
   }
 
   if (input.status !== "completed") {
-    return prisma.trip.update({
+    const updated = await prisma.trip.update({
       where: { id: tripId },
       data: updateData,
       select: { id: true, status: true },
     });
+
+    if (input.status === "boarding") {
+      await notifyPassengersAtBoardingPoint(trip);
+    }
+
+    return updated;
   }
 
   return prisma.$transaction(async (tx) => {
@@ -978,4 +1044,3 @@ export async function listTripsAdmin(
     distanceKm: distanceKm ? Number(distanceKm) : 0,
   }));
 }
-

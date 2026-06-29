@@ -67,7 +67,7 @@ function DriverTripDetail() {
   const setStatus = useMutation({
     mutationFn: (s: "boarding") => tripService.setStatus(id, s),
     onSuccess: () => {
-      toast.success("Passengers can now board");
+      toast.success("Passengers notified that you are at the boarding point");
       qc.invalidateQueries({ queryKey: ["trip", id] });
     },
   });
@@ -405,19 +405,27 @@ function DriverTripDetail() {
           </Button>
         )}
         {trip.status === "scheduled" && (
-          <Button onClick={() => setStatus.mutate("boarding")} className="gap-2">
+          <Button
+            onClick={() => setStatus.mutate("boarding")}
+            disabled={setStatus.isPending}
+            className="gap-2 animate-pulse"
+          >
             <KeyRound className="h-4 w-4" />
-            I'm at the boarding point
+            Notify passengers you are at the boarding point
           </Button>
         )}
         {trip.status === "boarding" && (
-          <Button onClick={() => start.mutate()} className="gap-2">
+          <Button
+            onClick={() => start.mutate()}
+            disabled={start.isPending}
+            className="gap-2 animate-pulse"
+          >
             <Play className="h-4 w-4" />
-            Start trip
+            Start trip and share GPS
           </Button>
         )}
         {trip.status === "in_transit" && (
-          <Button onClick={() => complete.mutate()} className="gap-2">
+          <Button onClick={() => complete.mutate()} disabled={complete.isPending} className="gap-2">
             <CheckCircle2 className="h-4 w-4" />
             Mark complete
           </Button>
@@ -427,6 +435,7 @@ function DriverTripDetail() {
             variant="outline"
             className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
             onClick={() => cancel.mutate()}
+            disabled={cancel.isPending}
           >
             <XCircle className="h-4 w-4" /> Cancel
           </Button>
