@@ -9,11 +9,6 @@ export type MainTripDraft = {
   totalSeats: string;
 };
 
-export type RouteStopDraft = {
-  id: string;
-  name: string;
-};
-
 export type RouteSegmentDraft = {
   key: string;
   fromIndex: number;
@@ -26,7 +21,6 @@ export type RouteSegmentDraft = {
   distanceKm: string;
   amountMwk: string;
   enabled: boolean;
-  isFullJourney: boolean;
 };
 
 export type TripCreatePayloadParts = {
