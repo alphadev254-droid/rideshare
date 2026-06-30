@@ -208,6 +208,7 @@ function NewTrip() {
       ) : (
         <RouteTableStep
           form={form}
+          districts={districtList}
           segments={segments}
           errors={errors}
           publishing={create.isPending}

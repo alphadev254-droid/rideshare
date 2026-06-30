@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePickerField } from "@/components/date-picker-field";
 import { DistrictSearch } from "./district-search";
 import type { MainTripDraft } from "./trip-create-types";
 
@@ -104,11 +105,12 @@ export function MainTripStep({
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label className="label-eyebrow">Trip date</Label>
-          <Input
-            type="date"
+          <DatePickerField
             value={form.departureDate}
-            onChange={(event) => onChange("departureDate", event.target.value)}
-            aria-invalid={!!errors.departureDate}
+            onChange={(value) => onChange("departureDate", value)}
+            placeholder="Choose trip date"
+            fromYear={new Date().getFullYear()}
+            toYear={new Date().getFullYear() + 3}
           />
           <FieldError message={errors.departureDate} />
         </div>

@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import type { MainTripDraft, RouteSegmentDraft } from "./trip-create-types";
 
 export function RouteTableStep({
   form,
+  districts,
   segments,
   errors,
   publishing,
@@ -16,6 +18,7 @@ export function RouteTableStep({
   onPublish,
 }: {
   form: MainTripDraft;
+  districts: string[];
   segments: RouteSegmentDraft[];
   errors: Record<string, string>;
   publishing: boolean;
@@ -38,7 +41,7 @@ export function RouteTableStep({
             </p>
           </div>
           <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={onAddRow}>
-            <Plus className="h-3.5 w-3.5" /> Add stop
+            <Plus className="h-3.5 w-3.5" /> Add route
           </Button>
         </div>
 
@@ -61,29 +64,29 @@ export function RouteTableStep({
               {segments.map((segment) => (
                 <tr key={segment.key}>
                   <td className="px-3 py-2">
-                    <Input
+                    <RoutePlaceInput
+                      districts={districts}
                       value={segment.from}
-                      onChange={(event) => onUpdateSegment(segment.key, { from: event.target.value })}
+                      onChange={(value) => onUpdateSegment(segment.key, { from: value })}
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <Input
+                    <RoutePlaceInput
+                      districts={districts}
                       value={segment.to}
-                      onChange={(event) => onUpdateSegment(segment.key, { to: event.target.value })}
+                      onChange={(value) => onUpdateSegment(segment.key, { to: value })}
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <Input
-                      type="time"
+                    <RouteTimeInput
                       value={segment.departureTime}
-                      onChange={(event) => onUpdateSegment(segment.key, { departureTime: event.target.value })}
+                      onChange={(value) => onUpdateSegment(segment.key, { departureTime: value })}
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <Input
-                      type="time"
+                    <RouteTimeInput
                       value={segment.arrivalTime}
-                      onChange={(event) => onUpdateSegment(segment.key, { arrivalTime: event.target.value })}
+                      onChange={(value) => onUpdateSegment(segment.key, { arrivalTime: value })}
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -151,5 +154,89 @@ export function RouteTableStep({
         </Button>
       </div>
     </div>
+  );
+}
+
+function RoutePlaceInput({
+  districts,
+  value,
+  onChange,
+}: {
+  districts: string[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const filtered = useMemo(() => {
+    const q = value.toLowerCase().trim();
+    return q ? districts.filter((district) => district.toLowerCase().includes(q)) : districts;
+  }, [districts, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <Input
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onClick={() => setOpen(true)}
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute z-[80] mt-1 max-h-52 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg">
+          {filtered.map((district) => (
+            <button
+              key={district}
+              type="button"
+              className="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-surface-2"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                onChange(district);
+                setOpen(false);
+              }}
+            >
+              {district}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RouteTimeInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function openPicker() {
+    const input = inputRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
+    try {
+      input?.showPicker?.();
+    } catch {
+      input?.focus();
+    }
+  }
+
+  return (
+    <Input
+      ref={inputRef}
+      type="time"
+      value={value}
+      onClick={openPicker}
+      onFocus={openPicker}
+      onChange={(event) => onChange(event.target.value)}
+    />
   );
 }
