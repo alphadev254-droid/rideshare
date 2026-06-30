@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Clock, MapPin, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldError } from "./main-trip-step";
@@ -56,7 +56,6 @@ export function RouteTableStep({
                 <th className="px-3 py-2">Seats available</th>
                 <th className="px-3 py-2">Distance</th>
                 <th className="px-3 py-2">Amount</th>
-                <th className="px-3 py-2">Sell</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -115,13 +114,6 @@ export function RouteTableStep({
                       value={segment.amountMwk}
                       onChange={(event) => onUpdateSegment(segment.key, { amountMwk: event.target.value })}
                       placeholder="MWK"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={segment.enabled}
-                      onChange={(event) => onUpdateSegment(segment.key, { enabled: event.target.checked })}
                     />
                   </td>
                   <td className="px-3 py-2 text-right">
@@ -194,7 +186,9 @@ function RoutePlaceInput({
         }}
         onFocus={() => setOpen(true)}
         onClick={() => setOpen(true)}
+        className="pl-9"
       />
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       {open && filtered.length > 0 && (
         <div className="absolute z-[80] mt-1 max-h-52 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg">
           {filtered.map((district) => (
@@ -208,6 +202,7 @@ function RoutePlaceInput({
                 setOpen(false);
               }}
             >
+              <MapPin className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               {district}
             </button>
           ))}
@@ -230,13 +225,29 @@ function RouteTimeInput({ value, onChange }: { value: string; onChange: (value: 
   }
 
   return (
-    <Input
-      ref={inputRef}
-      type="time"
-      value={value}
-      onClick={openPicker}
-      onFocus={openPicker}
-      onChange={(event) => onChange(event.target.value)}
-    />
+    <div className="relative">
+      <Input
+        ref={inputRef}
+        type="time"
+        value={value}
+        onMouseDown={openPicker}
+        onClick={openPicker}
+        onFocus={openPicker}
+        onChange={(event) => onChange(event.target.value)}
+        className="cursor-pointer pr-9"
+      />
+      <button
+        type="button"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          inputRef.current?.focus();
+          openPicker();
+        }}
+        aria-label="Choose time"
+      >
+        <Clock className="h-4 w-4" />
+      </button>
+    </div>
   );
 }
