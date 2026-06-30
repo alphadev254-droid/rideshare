@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { tripService, type Trip } from "@/lib/api";
-import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
+import { formatMwk, formatDateTime, formatDistanceKm, formatDuration } from "@/lib/format";
 import { StatusPill, ComfortBadge } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { SecureImage } from "@/components/secure-image";
@@ -214,10 +214,3 @@ function TripCard({ trip }: { trip: Trip }) {
   );
 }
 
-function formatDuration(minutes: number) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (!h) return `${m} min`;
-  if (!m) return `${h} hr`;
-  return `${h} hr ${m} min`;
-}

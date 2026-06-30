@@ -16,7 +16,7 @@ import { BookingSeatsFields } from "@/components/booking-seats-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
+import { formatMwk, formatDateTime, formatDistanceKm, formatDuration } from "@/lib/format";
 import { ArrowLeft, Car, MapPin, Star, User } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
@@ -71,6 +71,7 @@ function TripDetail() {
       }
       return paymentService.initiateRide({
         tripId: id,
+        segmentId: trip.segmentId ?? undefined,
         boardingPoint: trip.pickupPoint || trip.originName,
         dropOffPoint: trip.dropOffPoint || trip.destinationName,
         seatsBooked,
@@ -251,10 +252,3 @@ function TripDetail() {
   );
 }
 
-function formatDuration(minutes: number) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (!hours) return `${mins} min`;
-  if (!mins) return `${hours} hr`;
-  return `${hours} hr ${mins} min`;
-}

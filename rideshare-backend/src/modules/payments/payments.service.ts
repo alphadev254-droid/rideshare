@@ -19,6 +19,7 @@ type PendingPaymentRow = {
   id: string;
   bookingId: string | null;
   tripId: string | null;
+  segmentId: string | null;
   passengerId: string;
   driverId: string;
   txRef: string;
@@ -140,6 +141,7 @@ function formatPending(row: PendingPaymentRow) {
     id: row.id,
     bookingId: row.bookingId,
     tripId: row.tripId,
+    segmentId: row.segmentId,
     passengerId: row.passengerId,
     driverId: row.driverId,
     txRef: row.txRef,
@@ -163,6 +165,27 @@ function formatPending(row: PendingPaymentRow) {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+async function getSegmentAvailableSeats(
+  db: Prisma.TransactionClient | typeof prisma,
+  tripId: string,
+  segment: { fromOrder: number; toOrder: number; maxSeats: number },
+  totalSeats: number,
+) {
+  const bookings = await db.booking.findMany({
+    where: {
+      tripId,
+      status: { notIn: ["cancelled", "no_show"] },
+      segment: {
+        fromOrder: { lt: segment.toOrder },
+        toOrder: { gt: segment.fromOrder },
+      },
+    },
+    select: { seatsBooked: true },
+  });
+  const occupiedSeats = bookings.reduce((total, booking) => total + booking.seatsBooked, 0);
+  return Math.max(0, Math.min(totalSeats, segment.maxSeats) - occupiedSeats);
 }
 
 function formatPayment(row: PaymentRow) {
@@ -615,15 +638,29 @@ export async function initiateRidePayment(
       id: true,
       driverId: true,
       originName: true,
+      pickupPoint: true,
       destinationName: true,
+      dropOffPoint: true,
       status: true,
       availableSeats: true,
+      totalSeats: true,
       baseFareMwk: true,
     },
   });
   if (!trip) throw new AppError(404, "Trip not found");
   if (trip.status !== "scheduled") throw new AppError(400, "Trip is not accepting bookings");
-  if (trip.availableSeats < input.seatsBooked) throw new AppError(400, "Not enough seats available");
+
+  const segment = input.segmentId
+    ? await prisma.tripSegment.findFirst({
+        where: { id: input.segmentId, tripId: input.tripId, isEnabled: true },
+        include: { fromStop: true, toStop: true },
+      })
+    : null;
+
+  const availableSeats = segment
+    ? await getSegmentAvailableSeats(prisma, trip.id, segment, trip.totalSeats)
+    : trip.availableSeats;
+  if (availableSeats < input.seatsBooked) throw new AppError(400, "Not enough seats available");
 
   const existingBooking = await prisma.booking.findFirst({
     where: {
@@ -634,7 +671,7 @@ export async function initiateRidePayment(
   });
   if (existingBooking) throw new AppError(409, "You already have a booking for this trip");
 
-  const farePerSeat = Number(trip.baseFareMwk ?? BigInt(0));
+  const farePerSeat = Number(segment?.fareMwk ?? trip.baseFareMwk ?? BigInt(0));
   const fareAmount = farePerSeat * input.seatsBooked;
   const travelerNames = normalizeTravelerNames(input.travelerNames, input.seatsBooked, user.fullName ?? "Passenger");
   const breakdown = calculatePaymentBreakdown(fareAmount);
@@ -657,6 +694,7 @@ export async function initiateRidePayment(
     returnUrl,
     meta: {
       tripId: input.tripId,
+      segmentId: segment?.id ?? "",
       passengerId,
       driverId: trip.driverId,
       route: `${trip.originName} -> ${trip.destinationName}`,
@@ -672,8 +710,8 @@ export async function initiateRidePayment(
       paymentMethod: input.method,
       seatsBooked: input.seatsBooked,
       travelerNames: travelerNames as Prisma.InputJsonValue,
-      boardingPoint: input.boardingPoint,
-      dropOffPoint: input.dropOffPoint ?? trip.destinationName,
+      boardingPoint: segment?.fromStop.pickupPoint ?? input.boardingPoint,
+      dropOffPoint: segment?.toStop.dropOffPoint ?? input.dropOffPoint ?? trip.dropOffPoint ?? trip.destinationName,
       fareAmountMwk: BigInt(breakdown.fareAmountMwk),
       providerFeeMwk: BigInt(breakdown.providerFeeMwk),
       providerFeeRate: breakdown.providerFeeRate,
@@ -745,25 +783,52 @@ async function finalizeVerifiedPayment(
         return null;
       }
 
-      const seatUpdate = await tx.trip.updateMany({
-        where: { id: pending.tripId, status: "scheduled", availableSeats: { gte: pending.seatsBooked } },
-        data: { availableSeats: { decrement: pending.seatsBooked } },
-      });
-      if (seatUpdate.count === 0) {
-        await tx.pendingPayment.update({
-          where: { id: pending.id },
-          data: {
-            status: "paid_booking_failed",
-            failureReason: "No seats available after payment verification",
-            providerPayload: toJson(verification),
+      if (pending.segmentId) {
+        const segment = await tx.tripSegment.findFirst({
+          where: { id: pending.segmentId, tripId: pending.tripId, isEnabled: true },
+          select: {
+            fromOrder: true,
+            toOrder: true,
+            maxSeats: true,
+            trip: { select: { totalSeats: true, status: true } },
           },
         });
-        return null;
+        const availableSeats = segment
+          ? await getSegmentAvailableSeats(tx, pending.tripId, segment, segment.trip.totalSeats)
+          : 0;
+        if (!segment || segment.trip.status !== "scheduled" || availableSeats < pending.seatsBooked) {
+          await tx.pendingPayment.update({
+            where: { id: pending.id },
+            data: {
+              status: "paid_booking_failed",
+              failureReason: "No seats available after payment verification",
+              providerPayload: toJson(verification),
+            },
+          });
+          return null;
+        }
+      } else {
+        const seatUpdate = await tx.trip.updateMany({
+          where: { id: pending.tripId, status: "scheduled", availableSeats: { gte: pending.seatsBooked } },
+          data: { availableSeats: { decrement: pending.seatsBooked } },
+        });
+        if (seatUpdate.count === 0) {
+          await tx.pendingPayment.update({
+            where: { id: pending.id },
+            data: {
+              status: "paid_booking_failed",
+              failureReason: "No seats available after payment verification",
+              providerPayload: toJson(verification),
+            },
+          });
+          return null;
+        }
       }
 
       const createdBooking = await tx.booking.create({
         data: {
           tripId: pending.tripId,
+          segmentId: pending.segmentId,
           passengerId: pending.passengerId,
           seatsBooked: pending.seatsBooked,
           boardingPoint: pending.boardingPoint,
@@ -1143,6 +1208,7 @@ export async function adminRefund(paymentId: string) {
         booking: {
           select: {
             tripId: true,
+            segmentId: true,
             seatsBooked: true,
             codeUsed: true,
             status: true,
@@ -1200,6 +1266,7 @@ export async function adminRefund(paymentId: string) {
     return {
       refund,
       tripId: payment.booking.tripId,
+      segmentId: payment.booking.segmentId,
       passengerPhone: payment.passenger.phone,
       paymentMethod: payment.paymentMethod,
       seatsBooked: payment.booking.seatsBooked,
@@ -1244,10 +1311,14 @@ export async function adminRefund(paymentId: string) {
       where: { id: pendingRefund.refund.bookingId },
       data: { status: "cancelled", paymentStatus: "refunded", rawSecretCode: null },
     }),
-    prisma.trip.update({
-      where: { id: pendingRefund.tripId },
-      data: { availableSeats: { increment: pendingRefund.seatsBooked } },
-    }),
+    ...(pendingRefund.segmentId
+      ? []
+      : [
+          prisma.trip.update({
+            where: { id: pendingRefund.tripId },
+            data: { availableSeats: { increment: pendingRefund.seatsBooked } },
+          }),
+        ]),
   ]);
 
   return {

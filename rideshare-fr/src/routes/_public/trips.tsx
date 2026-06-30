@@ -117,7 +117,7 @@ function PublicTripsPage() {
   });
 
   const book = useMutation({
-    mutationFn: (t: Trip) => paymentService.initiateRide({ tripId: t.id, boardingPoint: t.pickupPoint || t.originName, dropOffPoint: t.dropOffPoint || t.destinationName, phone: paymentPhone, seatsBooked, travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean) }),
+    mutationFn: (t: Trip) => paymentService.initiateRide({ tripId: t.id, segmentId: t.segmentId ?? undefined, boardingPoint: t.pickupPoint || t.originName, dropOffPoint: t.dropOffPoint || t.destinationName, phone: paymentPhone, seatsBooked, travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean) }),
     onSuccess: (p: PendingPayment & { checkoutUrl?: string | null }) => {
       toast.success("Opening secure payment.");
       setViewTrip(null);
@@ -215,6 +215,11 @@ function PublicTripsPage() {
                     <span className="truncate font-display text-base font-semibold">{trip.dropOffPoint || trip.destinationName}</span>
                   </div>
                 </div>
+                {trip.parentOriginName && trip.parentDestinationName && (
+                  <div className="mb-3 text-xs text-muted-foreground">
+                    Part of {trip.parentOriginName} to {trip.parentDestinationName}
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mb-4">
                   <span className="flex items-center gap-1"><Calendar className="h-3 w-3 text-gold" />{formatDateTime(trip.departureTime)}</span>
                   <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-route" />{formatDistanceKm(trip.distanceKm)}</span>

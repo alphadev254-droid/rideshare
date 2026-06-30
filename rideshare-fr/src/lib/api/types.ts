@@ -109,6 +109,7 @@ export interface Vehicle {
 
 export interface Trip {
   id: string;
+  segmentId?: string | null;
   driverId?: string;
   vehicleId?: string;
   status: TripStatus;
@@ -116,6 +117,9 @@ export interface Trip {
   pickupPoint?: string | null;
   destinationName: string;
   dropOffPoint?: string | null;
+  parentOriginName?: string;
+  parentDestinationName?: string;
+  arrivalTime?: string | null;
   originLat?: number;
   originLng?: number;
   destinationLat?: number;
@@ -145,6 +149,24 @@ export interface Trip {
   _count?: { bookings?: number };
 }
 
+export interface TripStopInput {
+  name: string;
+  pickupPoint?: string;
+  dropOffPoint?: string;
+  arrivalOffsetMinutes?: number;
+  departureOffsetMinutes?: number;
+}
+
+export interface TripSegmentInput {
+  fromStopIndex: number;
+  toStopIndex: number;
+  farePerSeatMwk: number;
+  maxSeats?: number;
+  distanceKm?: number;
+  estimatedDurationMinutes?: number;
+  isEnabled?: boolean;
+}
+
 export interface TripLocation {
   tripId: string;
   status: TripStatus;
@@ -168,9 +190,18 @@ export interface BookingTraveler {
 export interface Booking {
   id: string;
   tripId: string;
+  segmentId?: string | null;
   passengerId: string;
   seatsBooked: number;
   travelers?: BookingTraveler[];
+  segment?: {
+    id: string;
+    fareMwk?: string;
+    fromOrder?: number;
+    toOrder?: number;
+    fromStop?: { name: string; pickupPoint?: string | null; departureOffsetMinutes?: number | null };
+    toStop?: { name: string; dropOffPoint?: string | null; arrivalOffsetMinutes?: number | null };
+  } | null;
   boardingPoint: string;
   dropOffPoint?: string;
   status: BookingStatus;
@@ -259,6 +290,7 @@ export interface PendingPayment {
   id: string;
   bookingId?: string | null;
   tripId?: string | null;
+  segmentId?: string | null;
   passengerId: string;
   seatsBooked: number;
   travelerNames?: string[];

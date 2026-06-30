@@ -11,6 +11,7 @@ import type { CreateBookingInput } from "./bookings.schemas.js";
 const bookingDetailSelect = {
   id: true,
   tripId: true,
+  segmentId: true,
   passengerId: true,
   seatsBooked: true,
   travelers: { orderBy: { seatOrder: "asc" }, select: { id: true, fullName: true, phone: true, seatOrder: true, isPrimary: true } },
@@ -25,6 +26,16 @@ const bookingDetailSelect = {
   ratedDriver: true,
   createdAt: true,
   passenger: { select: { id: true, fullName: true, phone: true, email: true, rating: true } },
+  segment: {
+    select: {
+      id: true,
+      fareMwk: true,
+      fromOrder: true,
+      toOrder: true,
+      fromStop: { select: { name: true, pickupPoint: true, departureOffsetMinutes: true } },
+      toStop: { select: { name: true, dropOffPoint: true, arrivalOffsetMinutes: true } },
+    },
+  },
   trip: {
     select: {
       id: true,
@@ -128,6 +139,7 @@ function formatRefund(refund: {
 /** Leaner include for list queries — no payment/transaction data. */
 const bookingAdminListSelect = {
   id: true,
+  segmentId: true,
   boardingPoint: true,
   dropOffPoint: true,
   seatsBooked: true,
@@ -137,6 +149,13 @@ const bookingAdminListSelect = {
   travelers: { orderBy: { seatOrder: "asc" }, select: { id: true, fullName: true, phone: true, seatOrder: true, isPrimary: true } },
   createdAt: true,
   passenger: { select: { fullName: true, phone: true } },
+  segment: {
+    select: {
+      id: true,
+      fromStop: { select: { name: true } },
+      toStop: { select: { name: true } },
+    },
+  },
   trip: {
     select: {
       originName: true,
@@ -168,6 +187,12 @@ function formatBooking(
     fareMwk: toMoney(booking.fareMwk),
     codeAvailable: Boolean(booking.rawSecretCode && !booking.codeUsed),
     boardingCode: options.showBoardingCode && !booking.codeUsed ? booking.rawSecretCode : null,
+    segment: booking.segment
+      ? {
+          ...booking.segment,
+          fareMwk: toMoney(booking.segment.fareMwk),
+        }
+      : null,
     passenger: booking.passenger
       ? {
           ...booking.passenger,
@@ -199,6 +224,9 @@ function formatAdminBookingList(booking: AdminBookingListRow) {
     paymentStatus: booking.paymentStatus,
     createdAt: booking.createdAt,
     fareMwk: toMoney(booking.fareMwk),
+    seatsBooked: booking.seatsBooked,
+    travelers: booking.travelers,
+    segment: booking.segment,
     passenger: booking.passenger,
     trip: booking.trip
       ? {
@@ -283,7 +311,9 @@ export async function cancelBooking(bookingId: string, userId: string) {
   if (!booking) throw new AppError(404, "Booking not found or cannot be cancelled");
 
   const updated = await prisma.$transaction(async (tx) => {
-    await tx.trip.update({ where: { id: booking.tripId }, data: { availableSeats: { increment: booking.seatsBooked } } });
+    if (!booking.segmentId) {
+      await tx.trip.update({ where: { id: booking.tripId }, data: { availableSeats: { increment: booking.seatsBooked } } });
+    }
 
     if (booking.paymentStatus === "held_in_escrow") {
       await tx.payment.updateMany({
@@ -363,6 +393,7 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
       select: {
         id: true,
         tripId: true,
+        segmentId: true,
         seatsBooked: true,
         status: true,
         paymentStatus: true,
@@ -442,6 +473,7 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
     return {
       refund: created,
       tripId: booking.tripId,
+      segmentId: booking.segmentId,
       driverId: booking.payment.driverId,
       passengerPhone: booking.payment.passenger.phone,
       paymentMethod: booking.payment.paymentMethod,
@@ -530,10 +562,12 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
       where: { id: current.bookingId },
       data: { status: "cancelled", paymentStatus: "refunded", rawSecretCode: null },
     });
-    await tx.trip.update({
-      where: { id: pendingRefund.tripId },
-      data: { availableSeats: { increment: pendingRefund.seatsBooked } },
-    });
+    if (!pendingRefund.segmentId) {
+      await tx.trip.update({
+        where: { id: pendingRefund.tripId },
+        data: { availableSeats: { increment: pendingRefund.seatsBooked } },
+      });
+    }
 
     if (current.driverConvenienceShareMwk > 0n) {
       await creditRefundConvenienceShare(tx, {

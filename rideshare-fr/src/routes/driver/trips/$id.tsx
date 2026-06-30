@@ -7,7 +7,7 @@ import { LoadingState } from "@/components/loading-state";
 import { StatusPill } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatDateTime, formatMwk, formatDistanceKm } from "@/lib/format";
+import { formatDateTime, formatMwk, formatDistanceKm, formatDuration } from "@/lib/format";
 import { API_CONFIG } from "@/lib/api/config";
 import { createAuthedSocket } from "@/lib/socket";
 import { ArrowLeft, CheckCircle2, Copy, ExternalLink, KeyRound, MapPin, Maximize2, Navigation, Pencil, Play, Share2, Users, XCircle } from "lucide-react";
@@ -544,10 +544,3 @@ function DriverTripDetail() {
   );
 }
 
-function formatDuration(minutes: number) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (!hours) return `${mins} min`;
-  if (!mins) return `${hours} hr`;
-  return `${hours} hr ${mins} min`;
-}

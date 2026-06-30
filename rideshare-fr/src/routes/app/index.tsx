@@ -32,7 +32,7 @@ import {
   type User,
   locationService,
 } from "@/lib/api";
-import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
+import { formatMwk, formatDateTime, formatDistanceKm, formatDuration } from "@/lib/format";
 import { StatusPill } from "@/components/status-pill";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -188,6 +188,7 @@ function PassengerHome() {
     mutationFn: async (trip: Trip) => {
       return paymentService.initiateRide({
         tripId: trip.id,
+        segmentId: trip.segmentId ?? undefined,
         boardingPoint: trip.pickupPoint || trip.originName,
         dropOffPoint: trip.dropOffPoint || trip.destinationName,
         seatsBooked,
@@ -422,6 +423,11 @@ function PassengerHome() {
                       <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <span className="truncate">{trip.dropOffPoint || trip.destinationName}</span>
                     </div>
+                    {trip.parentOriginName && trip.parentDestinationName && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Part of {trip.parentOriginName} to {trip.parentDestinationName}
+                      </div>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1.5">
                         <Clock className="h-3 w-3" />
@@ -691,13 +697,6 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatDuration(minutes: number) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (!hours) return `${mins} min`;
-  if (!mins) return `${hours} hr`;
-  return `${hours} hr ${mins} min`;
-}
 
 function DistrictSearch({
   selectedValue,
@@ -723,10 +722,21 @@ function DistrictSearch({
   return (
     <div className="relative">
       {selectedValue ? (
-        <div className="flex items-center gap-1 rounded-md border border-border bg-surface-2 px-3 py-2">
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-          <span className="flex-1 text-sm">{selectedValue}</span>
-          <button type="button" onClick={onClear} className="text-muted-foreground hover:text-foreground">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => onOpenChange(true)}
+            className="flex w-full items-center gap-1 rounded-md border border-border bg-surface-2 px-3 py-2 pr-9 text-left"
+          >
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+            <span className="flex-1 text-sm">{selectedValue}</span>
+          </button>
+          <button
+            type="button"
+            onClick={onClear}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label="Clear"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -755,6 +765,21 @@ function DistrictSearch({
               ))}
             </div>
           )}
+        </div>
+      )}
+      {selectedValue && open && districts.length > 0 && (
+        <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg">
+          {districts.map((d) => (
+            <button
+              key={d}
+              type="button"
+              className="w-full px-3 py-2 text-left text-sm hover:bg-surface-2"
+              onClick={() => onSelect(d)}
+            >
+              <MapPin className="mr-2 inline h-3.5 w-3.5 text-muted-foreground" />
+              {d}
+            </button>
+          ))}
         </div>
       )}
     </div>

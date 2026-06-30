@@ -51,7 +51,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDateTime, formatMwk, formatDistanceKm } from "@/lib/format";
+import { formatDateTime, formatMwk, formatDistanceKm, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Edit3, Eye, MapPin, Plus, Search, Trash2, X, XCircle, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -653,13 +653,6 @@ function toDateTimeLocal(value: string) {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
-function formatDuration(minutes: number) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (!hours) return `${mins} min`;
-  if (!mins) return `${hours} hr`;
-  return `${hours} hr ${mins} min`;
-}
 
 function showError(error: Error) {
   toast.error(error instanceof Error ? error.message : "Request failed");
@@ -702,10 +695,21 @@ function DistrictSearch({
   return (
     <div className="relative" ref={containerRef}>
       {value ? (
-        <div className="flex items-center gap-1 rounded-md border border-border bg-surface-2 px-3 py-2">
-          <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="flex-1 text-sm">{value}</span>
-          <button type="button" onClick={onClear} className="text-muted-foreground hover:text-foreground" aria-label="Clear">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="flex w-full items-center gap-1 rounded-md border border-border bg-surface-2 px-3 py-2 pr-9 text-left"
+          >
+            <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="flex-1 text-sm">{value}</span>
+          </button>
+          <button
+            type="button"
+            onClick={onClear}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label="Clear"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -735,6 +739,22 @@ function DistrictSearch({
               ))}
             </div>
           )}
+        </div>
+      )}
+      {value && open && districts.length > 0 && (
+        // z-[200] so it clears the Dialog overlay (z-50)
+        <div className="absolute z-[200] mt-1 max-h-52 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg">
+          {districts.map((d) => (
+            <button
+              key={d}
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-2"
+              onMouseDown={(e) => { e.preventDefault(); onPick(d); }}
+            >
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              {d}
+            </button>
+          ))}
         </div>
       )}
     </div>

@@ -27,6 +27,157 @@ const DRIVER_TRIP_STATUS_TRANSITIONS: Record<string, readonly string[]> = {
   cancelled: [],
 };
 
+type TripRouteInput = Pick<
+  CreateTripInput,
+  | "originName"
+  | "pickupPoint"
+  | "destinationName"
+  | "dropOffPoint"
+  | "departureTime"
+  | "estimatedDurationMinutes"
+  | "distanceKm"
+  | "farePerSeatMwk"
+  | "totalSeats"
+  | "stops"
+  | "segments"
+>;
+
+function minutesAfter(base: Date, minutes: number | null | undefined) {
+  if (minutes === null || minutes === undefined) return null;
+  return new Date(base.getTime() + minutes * 60_000);
+}
+
+function normalizeRouteStops(input: TripRouteInput) {
+  return [
+    {
+      name: input.originName.trim(),
+      pickupPoint: input.pickupPoint?.trim() || null,
+      dropOffPoint: null,
+      arrivalOffsetMinutes: null,
+      departureOffsetMinutes: 0,
+    },
+    ...(input.stops ?? []).map((stop) => ({
+      name: stop.name.trim(),
+      pickupPoint: stop.pickupPoint?.trim() || null,
+      dropOffPoint: stop.dropOffPoint?.trim() || null,
+      arrivalOffsetMinutes: stop.arrivalOffsetMinutes ?? null,
+      departureOffsetMinutes: stop.departureOffsetMinutes ?? stop.arrivalOffsetMinutes ?? null,
+    })),
+    {
+      name: input.destinationName.trim(),
+      pickupPoint: null,
+      dropOffPoint: input.dropOffPoint?.trim() || null,
+      arrivalOffsetMinutes: input.estimatedDurationMinutes,
+      departureOffsetMinutes: null,
+    },
+  ];
+}
+
+function normalizeRouteSegments(input: TripRouteInput, stopCount: number) {
+  const explicit = (input.segments ?? [])
+    .filter((segment) => segment.isEnabled !== false)
+    .filter((segment) => segment.fromStopIndex >= 0 && segment.toStopIndex < stopCount)
+    .filter((segment) => segment.fromStopIndex < segment.toStopIndex);
+
+  const segments = explicit.length
+    ? explicit
+    : [
+        {
+          fromStopIndex: 0,
+          toStopIndex: stopCount - 1,
+          farePerSeatMwk: input.farePerSeatMwk,
+          maxSeats: input.totalSeats,
+          distanceKm: input.distanceKm,
+          estimatedDurationMinutes: input.estimatedDurationMinutes,
+          isEnabled: true,
+        },
+      ];
+
+  const directKey = `0:${stopCount - 1}`;
+  if (!segments.some((segment) => `${segment.fromStopIndex}:${segment.toStopIndex}` === directKey)) {
+    segments.push({
+      fromStopIndex: 0,
+      toStopIndex: stopCount - 1,
+      farePerSeatMwk: input.farePerSeatMwk,
+      maxSeats: input.totalSeats,
+      distanceKm: input.distanceKm,
+      estimatedDurationMinutes: input.estimatedDurationMinutes,
+      isEnabled: true,
+    });
+  }
+
+  return segments;
+}
+
+async function createRoutePlan(
+  db: Prisma.TransactionClient,
+  tripId: string,
+  input: TripRouteInput,
+) {
+  const stops = normalizeRouteStops(input);
+  await db.tripStop.createMany({
+    data: stops.map((stop, index) => ({
+      tripId,
+      stopOrder: index,
+      name: stop.name,
+      pickupPoint: stop.pickupPoint,
+      dropOffPoint: stop.dropOffPoint,
+      arrivalOffsetMinutes: stop.arrivalOffsetMinutes,
+      departureOffsetMinutes: stop.departureOffsetMinutes,
+    })),
+  });
+
+  const createdStops = await db.tripStop.findMany({
+    where: { tripId },
+    orderBy: { stopOrder: "asc" },
+  });
+  const stopByOrder = new Map(createdStops.map((stop) => [stop.stopOrder, stop]));
+  const segments = normalizeRouteSegments(input, createdStops.length);
+
+  await db.tripSegment.createMany({
+    data: segments.map((segment) => {
+      const fromStop = stopByOrder.get(segment.fromStopIndex);
+      const toStop = stopByOrder.get(segment.toStopIndex);
+      if (!fromStop || !toStop) {
+        throw new AppError(400, "Trip segment references an invalid stop");
+      }
+      return {
+        tripId,
+        fromStopId: fromStop.id,
+        toStopId: toStop.id,
+        fromOrder: segment.fromStopIndex,
+        toOrder: segment.toStopIndex,
+        fareMwk: BigInt(segment.farePerSeatMwk),
+        maxSeats: Math.min(Math.max(1, segment.maxSeats ?? input.totalSeats), input.totalSeats),
+        distanceKm: segment.distanceKm,
+        estimatedDurationMinutes: segment.estimatedDurationMinutes,
+        isEnabled: segment.isEnabled !== false,
+      };
+    }),
+    skipDuplicates: true,
+  });
+}
+
+function segmentDepartureTime(tripDeparture: Date, offset?: number | null) {
+  return minutesAfter(tripDeparture, offset) ?? tripDeparture;
+}
+
+function segmentArrivalTime(tripDeparture: Date, offset?: number | null) {
+  return minutesAfter(tripDeparture, offset);
+}
+
+function overlappingSeats(
+  bookings: Array<{ seatsBooked: number; segment: { fromOrder: number; toOrder: number } | null }>,
+  fromOrder: number,
+  toOrder: number,
+) {
+  return bookings.reduce((total, booking) => {
+    if (!booking.segment) return total;
+    const overlaps = booking.segment.fromOrder < toOrder && booking.segment.toOrder > fromOrder;
+    return overlaps ? total + booking.seatsBooked : total;
+  }, 0);
+}
+
 export async function createTrip(userId: string, input: CreateTripInput) {
   const driver = await prisma.driverProfile.findFirst({
     where: { userId, isApproved: true },
@@ -77,27 +228,32 @@ export async function createTrip(userId: string, input: CreateTripInput) {
     status: string;
   };
 
-  const rows = await prisma.$queryRaw<TripRow[]>`
-    INSERT INTO trips (
-      driver_id, vehicle_id, origin_name, pickup_point, origin_point, destination_name, drop_off_point,
-      destination_point, departure_time, total_seats, available_seats,
-      comfort_class, distance_km, base_fare_mwk, estimated_duration_minutes
-    ) VALUES (
-      ${driver.id}::uuid, ${input.vehicleId}::uuid,
-      ${input.originName},
-      ${input.pickupPoint ?? null},
-      ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
-      ${input.destinationName},
-      ${input.dropOffPoint ?? null},
-      ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
-      ${departureTime},
-      ${input.totalSeats}, ${input.totalSeats},
-      ${comfortClass}::"ComfortClass",
-      ${distanceKm}, ${BigInt(baseFareMwk)}, ${input.estimatedDurationMinutes}
-    )
-    RETURNING id, origin_name, pickup_point, destination_name, drop_off_point, departure_time,
-              available_seats, comfort_class, base_fare_mwk, distance_km,
-              estimated_duration_minutes, status`;
+  const rows = await prisma.$transaction(async (tx) => {
+    const created = await tx.$queryRaw<TripRow[]>`
+      INSERT INTO trips (
+        driver_id, vehicle_id, origin_name, pickup_point, origin_point, destination_name, drop_off_point,
+        destination_point, departure_time, total_seats, available_seats,
+        comfort_class, distance_km, base_fare_mwk, estimated_duration_minutes
+      ) VALUES (
+        ${driver.id}::uuid, ${input.vehicleId}::uuid,
+        ${input.originName},
+        ${input.pickupPoint ?? null},
+        ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
+        ${input.destinationName},
+        ${input.dropOffPoint ?? null},
+        ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
+        ${departureTime},
+        ${input.totalSeats}, ${input.totalSeats},
+        ${comfortClass}::"ComfortClass",
+        ${distanceKm}, ${BigInt(baseFareMwk)}, ${input.estimatedDurationMinutes}
+      )
+      RETURNING id, origin_name, pickup_point, destination_name, drop_off_point, departure_time,
+                available_seats, comfort_class, base_fare_mwk, distance_km,
+                estimated_duration_minutes, status`;
+
+    await createRoutePlan(tx, created[0].id, input);
+    return created;
+  });
 
   const r = rows[0];
   return {
@@ -495,18 +651,7 @@ export async function listPublicTrips(
   const where: Prisma.TripWhereInput = {
     status: "scheduled",
     departureTime: { gte: today },
-    // Never show fully-booked trips in public listing
     availableSeats: { gt: 0 },
-  };
-  if (filters.originName?.trim()) {
-    where.originName = { contains: filters.originName.trim(), mode: "insensitive" };
-  }
-  if (filters.destName?.trim()) {
-    const destQuery = filters.destName.trim();
-    where.OR = [
-      { destinationName: { contains: destQuery, mode: "insensitive" } },
-      { dropOffPoint: { contains: destQuery, mode: "insensitive" } },
-    ];
   }
   if (filters.date) {
     const selected = new Date(filters.date);
@@ -526,46 +671,113 @@ export async function listPublicTrips(
     where.driverId = filters.driverId;
   }
 
-  const [total, trips] = await prisma.$transaction([
-    prisma.trip.count({ where }),
-    prisma.trip.findMany({
-      where,
-      orderBy: [{ departureTime: "asc" }, { createdAt: "desc" }],
-      skip: (safePage - 1) * safeLimit,
-      take: safeLimit,
-      include: {
-        driver: {
-          select: {
-            id: true,
-            user: { select: { fullName: true, profilePhotoUrl: true, rating: true } },
-          },
-        },
-        vehicle: {
-          select: {
-            make: true,
-            model: true,
-            plateNumber: true,
-            year: true,
-            color: true,
-            images: { select: { url: true }, orderBy: { createdAt: "asc" } },
-          },
+  const trips = await prisma.trip.findMany({
+    where,
+    orderBy: [{ departureTime: "asc" }, { createdAt: "desc" }],
+    take: 500,
+    include: {
+      driver: {
+        select: {
+          id: true,
+          user: { select: { fullName: true, profilePhotoUrl: true, rating: true } },
         },
       },
-    }),
-  ]);
-
-  return {
-    items: trips.map(({ baseFareMwk, distanceKm, vehicle, ...trip }) => ({
-      ...trip,
       vehicle: {
-        ...vehicle,
-        imageUrls: vehicle.images.map((row) => row.url),
-        images: undefined,
+        select: {
+          make: true,
+          model: true,
+          plateNumber: true,
+          year: true,
+          color: true,
+          images: { select: { url: true }, orderBy: { createdAt: "asc" } },
+        },
       },
-      farePerSeatMwk: baseFareMwk?.toString() ?? "0",
-      distanceKm: distanceKm ? Number(distanceKm) : 0,
-    })),
-    total,
+      segments: {
+        where: { isEnabled: true },
+        include: {
+          fromStop: true,
+          toStop: true,
+        },
+        orderBy: [{ fromOrder: "asc" }, { toOrder: "asc" }],
+      },
+      bookings: {
+        where: { status: { notIn: ["cancelled", "no_show"] } },
+        select: {
+          seatsBooked: true,
+          segment: { select: { fromOrder: true, toOrder: true } },
+        },
+      },
+    },
+  });
+
+  const originQuery = filters.originName?.trim().toLowerCase();
+  const destQuery = filters.destName?.trim().toLowerCase();
+  const matches = (value: string | null | undefined, query: string | undefined) =>
+    !query || (value ?? "").toLowerCase().includes(query);
+
+  const offers: Array<Record<string, unknown>> = trips.flatMap(({ baseFareMwk, distanceKm, vehicle, segments, bookings, ...trip }) => {
+    const formattedVehicle = {
+      ...vehicle,
+      imageUrls: vehicle.images.map((row) => row.url),
+      images: undefined,
+    };
+
+    if (segments.length === 0) {
+      if (!matches(trip.originName, originQuery)) return [];
+      if (!matches(trip.dropOffPoint ?? trip.destinationName, destQuery)) return [];
+      const availableSeats = trip.availableSeats;
+      if (filters.seats && availableSeats < filters.seats) return [];
+      return [{
+        ...trip,
+        vehicle: formattedVehicle,
+        segmentId: null,
+        parentOriginName: trip.originName,
+        parentDestinationName: trip.destinationName,
+        originName: trip.originName,
+        destinationName: trip.destinationName,
+        dropOffPoint: trip.dropOffPoint,
+        arrivalTime: null,
+        farePerSeatMwk: baseFareMwk?.toString() ?? "0",
+        distanceKm: distanceKm ? Number(distanceKm) : 0,
+        availableSeats,
+      }] as Array<Record<string, unknown>>;
+    }
+
+    return segments.flatMap((segment) => {
+      const displayOrigin = segment.fromStop.name;
+      const displayDestination = segment.toStop.name;
+      if (!matches(displayOrigin, originQuery)) return [];
+      if (!matches(displayDestination, destQuery)) return [];
+
+      const occupiedSeats = overlappingSeats(bookings, segment.fromOrder, segment.toOrder);
+      const availableSeats = Math.max(0, Math.min(trip.totalSeats, segment.maxSeats) - occupiedSeats);
+      if (availableSeats <= 0) return [];
+      if (filters.seats && availableSeats < filters.seats) return [];
+
+      return [{
+        ...trip,
+        vehicle: formattedVehicle,
+        segmentId: segment.id,
+        parentOriginName: trip.originName,
+        parentDestinationName: trip.destinationName,
+        originName: displayOrigin,
+        pickupPoint: segment.fromStop.pickupPoint ?? trip.pickupPoint ?? displayOrigin,
+        destinationName: displayDestination,
+        dropOffPoint: segment.toStop.dropOffPoint ?? displayDestination,
+        departureTime: segmentDepartureTime(trip.departureTime, segment.fromStop.departureOffsetMinutes),
+        arrivalTime: segmentArrivalTime(trip.departureTime, segment.toStop.arrivalOffsetMinutes),
+        availableSeats,
+        farePerSeatMwk: segment.fareMwk.toString(),
+        distanceKm: segment.distanceKm ? Number(segment.distanceKm) : distanceKm ? Number(distanceKm) : 0,
+        estimatedDurationMinutes: segment.estimatedDurationMinutes ?? trip.estimatedDurationMinutes,
+      }] as Array<Record<string, unknown>>;
+    });
+  });
+
+  const start = (safePage - 1) * safeLimit;
+  return {
+    items: offers.slice(start, start + safeLimit),
+    total: offers.length,
     page: safePage,
     limit: safeLimit,
   };

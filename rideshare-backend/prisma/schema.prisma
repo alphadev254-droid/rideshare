@@ -273,13 +273,65 @@ model Trip {
   vehicle         Vehicle          @relation(fields: [vehicleId], references: [id])
   bookings        Booking[]
   pendingPayments PendingPayment[]
+  stops           TripStop[]
+  segments        TripSegment[]
 
   @@map("trips")
+}
+
+model TripStop {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId                 String   @map("trip_id") @db.Uuid
+  stopOrder              Int      @map("stop_order") @db.SmallInt
+  name                   String   @db.VarChar(255)
+  pickupPoint            String?  @map("pickup_point") @db.VarChar(255)
+  dropOffPoint           String?  @map("drop_off_point") @db.VarChar(255)
+  arrivalOffsetMinutes   Int?     @map("arrival_offset_minutes") @db.SmallInt
+  departureOffsetMinutes Int?     @map("departure_offset_minutes") @db.SmallInt
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  trip         Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  fromSegments TripSegment[] @relation("SegmentFromStop")
+  toSegments   TripSegment[] @relation("SegmentToStop")
+
+  @@unique([tripId, stopOrder])
+  @@index([tripId])
+  @@map("trip_stops")
+}
+
+model TripSegment {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId                   String   @map("trip_id") @db.Uuid
+  fromStopId               String   @map("from_stop_id") @db.Uuid
+  toStopId                 String   @map("to_stop_id") @db.Uuid
+  fromOrder                Int      @map("from_order") @db.SmallInt
+  toOrder                  Int      @map("to_order") @db.SmallInt
+  fareMwk                  BigInt   @map("fare_mwk")
+  maxSeats                 Int      @map("max_seats") @db.SmallInt
+  distanceKm               Decimal? @map("distance_km") @db.Decimal(8, 2)
+  estimatedDurationMinutes Int?     @map("estimated_duration_minutes")
+  isEnabled                Boolean  @default(true) @map("is_enabled")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt                DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  trip            Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  fromStop        TripStop         @relation("SegmentFromStop", fields: [fromStopId], references: [id], onDelete: Cascade)
+  toStop          TripStop         @relation("SegmentToStop", fields: [toStopId], references: [id], onDelete: Cascade)
+  bookings        Booking[]
+  pendingPayments PendingPayment[]
+
+  @@unique([tripId, fromOrder, toOrder])
+  @@index([tripId, isEnabled])
+  @@index([fromStopId])
+  @@index([toStopId])
+  @@map("trip_segments")
 }
 
 model Booking {
   id                       String                                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tripId                   String                                @map("trip_id") @db.Uuid
+  segmentId                String?                               @map("segment_id") @db.Uuid
   passengerId              String                                @map("passenger_id") @db.Uuid
   seatsBooked              Int                                   @default(1) @map("seats_booked") @db.SmallInt
   boardingPoint            String                                @map("boarding_point") @db.VarChar(255)
@@ -299,6 +351,7 @@ model Booking {
   updatedAt                DateTime                              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
 
   trip           Trip                 @relation(fields: [tripId], references: [id])
+  segment        TripSegment?         @relation(fields: [segmentId], references: [id])
   passenger      User                 @relation(fields: [passengerId], references: [id])
   payment        Payment?
   pendingPayment PendingPayment?
@@ -419,6 +472,7 @@ model PendingPayment {
   id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   bookingId         String?       @unique @map("booking_id") @db.Uuid
   tripId            String?       @map("trip_id") @db.Uuid
+  segmentId         String?       @map("segment_id") @db.Uuid
   passengerId       String        @map("passenger_id") @db.Uuid
   driverId          String        @map("driver_id") @db.Uuid
   txRef             String        @unique @map("tx_ref") @db.VarChar(255)
@@ -447,6 +501,7 @@ model PendingPayment {
 
   booking   Booking?      @relation(fields: [bookingId], references: [id])
   trip      Trip?         @relation(fields: [tripId], references: [id])
+  segment   TripSegment?  @relation(fields: [segmentId], references: [id])
   passenger User          @relation(fields: [passengerId], references: [id])
   driver    DriverProfile @relation(fields: [driverId], references: [id])
 

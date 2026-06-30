@@ -13,7 +13,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModal } from "@/lib/auth-modal-context";
 import { setPendingTripId, clearPendingTripId } from "@/lib/pending-trip";
-import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
+import { formatMwk, formatDateTime, formatDistanceKm, formatDuration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,6 +98,7 @@ function TripSharePage() {
       }
       return paymentService.initiateRide({
         tripId: t.id,
+        segmentId: t.segmentId ?? undefined,
         boardingPoint: t.pickupPoint || t.originName,
         dropOffPoint: t.dropOffPoint || t.destinationName,
         phone: paymentPhone,
@@ -455,14 +456,6 @@ function TripSharePage() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatDuration(minutes: number) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (!h) return `${m} min`;
-  if (!m) return `${h} hr`;
-  return `${h} hr ${m} min`;
-}
 
 function Tile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (

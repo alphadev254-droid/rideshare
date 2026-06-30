@@ -11,6 +11,7 @@ export const initiatePaymentSchema = z.object({
 
 export const initiateRidePaymentSchema = z.object({
   tripId: z.string().uuid(),
+  segmentId: z.string().uuid().optional(),
   boardingPoint: z.string().min(2),
   dropOffPoint: z.string().min(2).optional(),
   method: z.enum(["airtel_money", "tnm_mpamba", "visa", "mastercard", "bank_transfer"]).default("airtel_money"),

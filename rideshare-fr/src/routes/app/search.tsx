@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
 import { EmptyState } from "@/components/empty-state";
 import { StatusPill } from "@/components/status-pill";
-import { formatMwk, formatTime, formatDate, formatDistanceKm } from "@/lib/format";
+import { formatMwk, formatTime, formatDate, formatDistanceKm, formatDuration } from "@/lib/format";
 import { ArrowRight, Car, Clock, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -159,11 +159,4 @@ function SearchPage() {
   );
 }
 
-function formatDuration(minutes: number) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (!hours) return `${mins} min`;
-  if (!mins) return `${hours} hr`;
-  return `${hours} hr ${mins} min`;
-}
 

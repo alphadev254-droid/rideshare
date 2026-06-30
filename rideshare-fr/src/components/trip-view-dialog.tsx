@@ -1,5 +1,5 @@
 import { useIsMobile } from "@/hooks/use-mobile";
-import { formatDateTime, formatMwk, formatDate, formatTime, formatDistanceKm } from "@/lib/format";
+import { formatDateTime, formatMwk, formatDate, formatTime, formatDistanceKm, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Trip } from "@/lib/api";
 import { StatusPill } from "@/components/status-pill";
@@ -359,10 +359,3 @@ function InfoCard({
   );
 }
 
-function formatDuration(minutes: number) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (!hours) return `${mins} min`;
-  if (!mins) return `${hours} hr`;
-  return `${hours} hr ${mins} min`;
-}

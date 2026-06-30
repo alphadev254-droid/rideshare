@@ -1,5 +1,23 @@
 import { z } from "zod";
 
+const tripStopInputSchema = z.object({
+  name: z.string().trim().min(2).max(255),
+  pickupPoint: z.string().trim().max(255).optional(),
+  dropOffPoint: z.string().trim().max(255).optional(),
+  arrivalOffsetMinutes: z.coerce.number().int().min(0).max(4320).optional(),
+  departureOffsetMinutes: z.coerce.number().int().min(0).max(4320).optional(),
+});
+
+const tripSegmentInputSchema = z.object({
+  fromStopIndex: z.coerce.number().int().min(0).max(50),
+  toStopIndex: z.coerce.number().int().min(1).max(51),
+  farePerSeatMwk: z.coerce.number().int().min(1).max(10_000_000),
+  maxSeats: z.coerce.number().int().min(1).max(50).optional(),
+  distanceKm: z.coerce.number().min(0).optional(),
+  estimatedDurationMinutes: z.coerce.number().int().min(1).max(4320).optional(),
+  isEnabled: z.coerce.boolean().optional().default(true),
+});
+
 export const createTripSchema = z.object({
   vehicleId: z.string().uuid(),
   originName: z.string().min(2).max(255),
@@ -16,6 +34,8 @@ export const createTripSchema = z.object({
   distanceKm: z.coerce.number().optional(),
   estimatedDurationMinutes: z.coerce.number().int().min(1).max(4320),
   farePerSeatMwk: z.coerce.number().int().min(1).max(10_000_000),
+  stops: z.array(tripStopInputSchema).max(20).optional().default([]),
+  segments: z.array(tripSegmentInputSchema).max(231).optional().default([]),
 });
 
 export const updateTripSchema = createTripSchema;

@@ -20,7 +20,9 @@ import type {
   RefundPreview,
   Review,
   Trip,
+  TripSegmentInput,
   TripLocation,
+  TripStopInput,
   TripStatus,
   User,
   Vehicle,
@@ -181,6 +183,8 @@ export interface TripCreateBody {
   distanceKm?: number;
   estimatedDurationMinutes: number;
   farePerSeatMwk: number;
+  stops?: TripStopInput[];
+  segments?: TripSegmentInput[];
 }
 
 export interface TripSearchQuery {
@@ -265,6 +269,7 @@ export const paymentService = {
     ),
   initiateRide: (body: {
     tripId: string;
+    segmentId?: string | null;
     boardingPoint: string;
     dropOffPoint?: string;
     method?: PaymentMethod;

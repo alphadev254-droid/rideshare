@@ -1,5 +1,9 @@
 /** Format helpers used across the dashboard. */
 
+import { format, isValid, parseISO } from "date-fns";
+
+const EMPTY_VALUE = "-";
+
 export function formatMwk(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === "") return "MK 0";
   const num = typeof value === "string" ? Number(value) : value;
@@ -8,20 +12,22 @@ export function formatMwk(value: string | number | null | undefined): string {
 }
 
 export function formatDate(iso?: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  if (!iso) return EMPTY_VALUE;
+  const date = parseISO(iso);
+  if (!isValid(date)) return EMPTY_VALUE;
+  return format(date, "dd MMM yyyy");
 }
 
 export function formatTime(iso?: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  if (!iso) return EMPTY_VALUE;
+  const date = parseISO(iso);
+  if (!isValid(date)) return EMPTY_VALUE;
+  return format(date, "HH:mm");
 }
 
 export function formatDateTime(iso?: string | null): string {
-  if (!iso) return "—";
-  return `${formatDate(iso)} · ${formatTime(iso)}`;
+  if (!iso) return EMPTY_VALUE;
+  return `${formatDate(iso)} - ${formatTime(iso)}`;
 }
 
 export function initials(name?: string | null): string {
@@ -39,4 +45,14 @@ export function formatDistanceKm(value: number | null | undefined): string {
     return "Not provided";
   }
   return `${Number(value).toLocaleString("en-MW", { maximumFractionDigits: 1 })} km`;
+}
+
+export function formatDuration(minutes: number | null | undefined): string {
+  const totalMinutes = Number(minutes);
+  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return "Not set";
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  if (!hours) return `${mins} min`;
+  if (!mins) return `${hours} hr`;
+  return `${hours} hr ${mins} min`;
 }
