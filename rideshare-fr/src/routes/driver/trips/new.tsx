@@ -146,7 +146,7 @@ function NewTrip() {
   function publish() {
     const nextErrors = {
       ...validateMain(form, selectedVehicle),
-      ...validateRoute(segments, Number(form.totalSeats || 0)),
+      ...validateRoute(form, segments, Number(form.totalSeats || 0)),
     };
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
@@ -243,9 +243,15 @@ function validateMain(form: MainTripDraft, vehicle?: Vehicle) {
   return errors;
 }
 
-function validateRoute(segments: RouteSegmentDraft[], bookableSeats: number) {
+function validateRoute(form: MainTripDraft, segments: RouteSegmentDraft[], bookableSeats: number) {
   const errors: Record<string, string> = {};
-  const enabled = segments.filter((segment) => segment.enabled);
+  const enabled = segments
+    .filter((segment) => segment.enabled)
+    .map((segment, index) => ({
+      ...segment,
+      from: index === 0 ? form.originName : segment.from,
+      to: index === 0 ? form.destinationName : segment.to,
+    }));
   if (enabled.length === 0) {
     errors.route = "Enable at least one route row.";
     return errors;
@@ -284,11 +290,18 @@ function buildTripPayload(
   const firstLeg = enabled[0];
   const lastLeg = enabled[enabled.length - 1];
   if (!firstLeg || !lastLeg) throw new Error("Enable at least one route row");
+  const publishRows = enabled.map((segment, index) => ({
+    ...segment,
+    from: index === 0 ? form.originName : segment.from,
+    to: index === 0 ? form.destinationName : segment.to,
+  }));
+  const firstPublishRow = publishRows[0];
+  const lastPublishRow = publishRows[publishRows.length - 1];
 
-  const tripStart = dateTimeFromParts(form.departureDate, firstLeg.departureTime);
-  const tripEnd = addDayIfNeeded(tripStart, dateTimeFromParts(form.departureDate, lastLeg.arrivalTime));
-  const stopInputs = enabled.slice(0, -1).map((segment, index) => {
-    const nextSegment = enabled[index + 1];
+  const tripStart = dateTimeFromParts(form.departureDate, firstPublishRow.departureTime);
+  const tripEnd = addDayIfNeeded(tripStart, dateTimeFromParts(form.departureDate, lastPublishRow.arrivalTime));
+  const stopInputs = publishRows.slice(0, -1).map((segment, index) => {
+    const nextSegment = publishRows[index + 1];
     const arrival = addDayIfNeeded(tripStart, dateTimeFromParts(form.departureDate, segment.arrivalTime));
     const departure = nextSegment?.departureTime
       ? addDayIfNeeded(tripStart, dateTimeFromParts(form.departureDate, nextSegment.departureTime))
@@ -300,7 +313,7 @@ function buildTripPayload(
     };
   });
 
-  const segmentInputs = enabled.map((segment, index) => {
+  const segmentInputs = publishRows.map((segment, index) => {
     const start = dateTimeFromParts(form.departureDate, segment.departureTime);
     const end = addDayIfNeeded(start, dateTimeFromParts(form.departureDate, segment.arrivalTime));
     return {
@@ -319,8 +332,8 @@ function buildTripPayload(
 
   return {
     vehicleId: form.vehicleId,
-    originName: firstLeg.from.trim(),
-    destinationName: lastLeg.to.trim(),
+    originName: firstPublishRow.from.trim(),
+    destinationName: lastPublishRow.to.trim(),
     departureTime: tripStart.toISOString(),
     totalSeats: Number(form.totalSeats),
     comfortClass: vehicle.comfortClass,

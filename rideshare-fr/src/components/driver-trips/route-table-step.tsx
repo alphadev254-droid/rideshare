@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Clock, MapPin, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,7 @@ export function RouteTableStep({
           </Button>
         </div>
 
-        <div className="overflow-x-auto rounded-md border border-border">
+        <div className="overflow-x-auto overflow-y-visible rounded-md border border-border pb-56">
           <table className="w-full min-w-[980px] text-sm">
             <thead className="bg-surface-2 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -60,21 +60,33 @@ export function RouteTableStep({
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-card">
-              {segments.map((segment) => (
+              {segments.map((segment, index) => (
                 <tr key={segment.key}>
                   <td className="px-3 py-2">
-                    <RoutePlaceInput
-                      districts={districts}
-                      value={segment.from}
-                      onChange={(value) => onUpdateSegment(segment.key, { from: value })}
-                    />
+                    {index === 0 ? (
+                      <div className="flex h-9 items-center rounded-md border border-border bg-surface-2 px-3 text-sm font-medium">
+                        {form.originName}
+                      </div>
+                    ) : (
+                      <RoutePlaceInput
+                        districts={districts}
+                        value={segment.from}
+                        onChange={(value) => onUpdateSegment(segment.key, { from: value })}
+                      />
+                    )}
                   </td>
                   <td className="px-3 py-2">
-                    <RoutePlaceInput
-                      districts={districts}
-                      value={segment.to}
-                      onChange={(value) => onUpdateSegment(segment.key, { to: value })}
-                    />
+                    {index === 0 ? (
+                      <div className="flex h-9 items-center rounded-md border border-border bg-surface-2 px-3 text-sm font-medium">
+                        {form.destinationName}
+                      </div>
+                    ) : (
+                      <RoutePlaceInput
+                        districts={districts}
+                        value={segment.to}
+                        onChange={(value) => onUpdateSegment(segment.key, { to: value })}
+                      />
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <RouteTimeInput
@@ -159,11 +171,23 @@ function RoutePlaceInput({
   onChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>();
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const filtered = useMemo(() => {
     const q = value.toLowerCase().trim();
     return q ? districts.filter((district) => district.toLowerCase().includes(q)) : districts;
   }, [districts, value]);
+
+  function updateDropdownPosition() {
+    const rect = inputRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setDropdownStyle({
+      left: rect.left,
+      top: rect.bottom + 4,
+      width: rect.width,
+    });
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -172,25 +196,46 @@ function RoutePlaceInput({
         setOpen(false);
       }
     }
+    function handleMove() {
+      updateDropdownPosition();
+    }
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    window.addEventListener("resize", handleMove);
+    window.addEventListener("scroll", handleMove, true);
+    updateDropdownPosition();
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("resize", handleMove);
+      window.removeEventListener("scroll", handleMove, true);
+    };
   }, [open]);
 
   return (
     <div className="relative" ref={containerRef}>
       <Input
+        ref={inputRef}
         value={value}
         onChange={(event) => {
           onChange(event.target.value);
+          updateDropdownPosition();
           setOpen(true);
         }}
-        onFocus={() => setOpen(true)}
-        onClick={() => setOpen(true)}
+        onFocus={() => {
+          updateDropdownPosition();
+          setOpen(true);
+        }}
+        onClick={() => {
+          updateDropdownPosition();
+          setOpen(true);
+        }}
         className="pl-9"
       />
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       {open && filtered.length > 0 && (
-        <div className="absolute z-[80] mt-1 max-h-52 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg">
+        <div
+          className="fixed z-[300] max-h-52 overflow-y-auto rounded-md border border-border bg-card shadow-lg"
+          style={dropdownStyle}
+        >
           {filtered.map((district) => (
             <button
               key={district}
