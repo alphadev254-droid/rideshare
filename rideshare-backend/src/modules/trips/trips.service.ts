@@ -858,6 +858,8 @@ export async function authenticatePassenger(
       authAttemptCount: true,
       status: true,
       paymentStatus: true,
+    seatsBooked: true,
+      travelers: { orderBy: { seatOrder: "asc" }, select: { id: true, fullName: true, phone: true, seatOrder: true, isPrimary: true } },
     },
   });
 
@@ -900,7 +902,7 @@ export async function authenticatePassenger(
   });
   await logCodeAttempt(booking.id, driverId, input.code, "success", clientIp);
 
-  return { authenticated: true, bookingId: input.bookingId };
+  return { authenticated: true, bookingId: input.bookingId, seatsBooked: booking.seatsBooked, travelers: booking.travelers };
 }
 
 async function logCodeAttempt(

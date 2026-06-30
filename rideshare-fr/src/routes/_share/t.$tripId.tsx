@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusPill, ComfortBadge } from "@/components/status-pill";
+import { BookingSeatsFields } from "@/components/booking-seats-fields";
 import { SecureImage } from "@/components/secure-image";
 import { toast } from "sonner";
 import {
@@ -62,6 +63,8 @@ function TripSharePage() {
   const [paymentPhone, setPaymentPhone] = useState("");
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
+  const [seatsBooked, setSeatsBooked] = useState(1);
+  const [travelerNames, setTravelerNames] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -98,6 +101,8 @@ function TripSharePage() {
         boardingPoint: t.pickupPoint || t.originName,
         dropOffPoint: t.dropOffPoint || t.destinationName,
         phone: paymentPhone,
+        seatsBooked,
+        travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean),
       });
     },
     onSuccess: (payment: PendingPayment & { checkoutUrl?: string | null }) => {
@@ -160,6 +165,7 @@ function TripSharePage() {
   const isCancelled = trip.status === "cancelled";
   const isCompleted = trip.status === "completed";
   const canBook = !fullyBooked && !isCancelled && !isCompleted;
+  const totalFareMwk = Number(trip.farePerSeatMwk) * seatsBooked;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:py-12">
@@ -411,6 +417,7 @@ function TripSharePage() {
                         </div>
                       </div>
                     )}
+                    <BookingSeatsFields availableSeats={trip.availableSeats} seatsBooked={seatsBooked} onSeatsBookedChange={setSeatsBooked} travelerNames={travelerNames} onTravelerNamesChange={setTravelerNames} primaryName={user.fullName ?? "You"} />
                     <div className="space-y-1">
                       <Label className="label-eyebrow">Mobile money number</Label>
                       <Input
@@ -422,7 +429,7 @@ function TripSharePage() {
                     <div className="rounded-lg border border-border bg-surface-2 p-3 text-xs text-muted-foreground">
                       You will pay{" "}
                       <span className="font-semibold text-foreground">
-                        {formatMwk(trip.farePerSeatMwk)}
+                        {formatMwk(totalFareMwk)}
                       </span>{" "}
                       + a small processing fee. Booking is created only after payment is confirmed.
                     </div>
@@ -433,7 +440,7 @@ function TripSharePage() {
                     >
                       {book.isPending || saveEmergency.isPending
                         ? "Opening payment..."
-                        : `Pay ${formatMwk(trip.farePerSeatMwk)} — Book now`}
+                        : `Pay ${formatMwk(totalFareMwk)} - Book ${seatsBooked} seat${seatsBooked === 1 ? "" : "s"}`}
                       {!book.isPending && <ArrowRight className="ml-2 h-4 w-4" />}
                     </Button>
                   </div>

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
+import { BookingSeatsFields } from "@/components/booking-seats-fields";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -113,6 +114,8 @@ function PassengerHome() {
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [paymentPhone, setPaymentPhone] = useState("");
+  const [seatsBooked, setSeatsBooked] = useState(1);
+  const [travelerNames, setTravelerNames] = useState<string[]>([]);
   const date = dateValue(dateYear, dateMonth, dateDay);
   const years = Array.from({ length: 3 }, (_, index) => String(new Date().getFullYear() + index));
   const dayOptions = availableDays(dateYear, dateMonth);
@@ -187,6 +190,8 @@ function PassengerHome() {
         tripId: trip.id,
         boardingPoint: trip.pickupPoint || trip.originName,
         dropOffPoint: trip.dropOffPoint || trip.destinationName,
+        seatsBooked,
+        travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean),
         phone: paymentPhone,
       });
     },
@@ -486,11 +491,20 @@ function PassengerHome() {
         emergencyName={emergencyName}
         emergencyPhone={emergencyPhone}
         paymentPhone={paymentPhone}
+        seatsBooked={seatsBooked}
+        travelerNames={travelerNames}
+        primaryName={user?.fullName ?? "You"}
+        onSeatsBookedChange={setSeatsBooked}
+        onTravelerNamesChange={setTravelerNames}
         onEmergencyNameChange={setEmergencyName}
         onEmergencyPhoneChange={setEmergencyPhone}
         onPaymentPhoneChange={setPaymentPhone}
         onOpenChange={(open) => {
-          if (!open) setSelectedTrip(null);
+          if (!open) {
+            setSelectedTrip(null);
+            setSeatsBooked(1);
+            setTravelerNames([]);
+          }
         }}
         onReserve={reserveSelectedTrip}
       />
@@ -508,6 +522,11 @@ function RideDetailsDialog({
   emergencyName,
   emergencyPhone,
   paymentPhone,
+  seatsBooked,
+  travelerNames,
+  primaryName,
+  onSeatsBookedChange,
+  onTravelerNamesChange,
   onEmergencyNameChange,
   onEmergencyPhoneChange,
   onPaymentPhoneChange,
@@ -523,6 +542,11 @@ function RideDetailsDialog({
   emergencyName: string;
   emergencyPhone: string;
   paymentPhone: string;
+  seatsBooked: number;
+  travelerNames: string[];
+  primaryName: string;
+  onSeatsBookedChange: (value: number) => void;
+  onTravelerNamesChange: (value: string[]) => void;
   onEmergencyNameChange: (value: string) => void;
   onEmergencyPhoneChange: (value: string) => void;
   onPaymentPhoneChange: (value: string) => void;
@@ -530,6 +554,7 @@ function RideDetailsDialog({
   onReserve: () => Promise<void> | void;
 }) {
   if (!trip) return null;
+  const totalFareMwk = Number(trip.farePerSeatMwk) * seatsBooked;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -608,7 +633,15 @@ function RideDetailsDialog({
             <p className="mt-1 text-xs text-muted-foreground">
               Your booking is created only after payment is confirmed.
             </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="mt-3 space-y-3">
+              <BookingSeatsFields
+                availableSeats={trip.availableSeats}
+                seatsBooked={seatsBooked}
+                onSeatsBookedChange={onSeatsBookedChange}
+                travelerNames={travelerNames}
+                onTravelerNamesChange={onTravelerNamesChange}
+                primaryName={primaryName}
+              />
               <div className="space-y-1.5">
                 <Label className="label-eyebrow">Payment phone</Label>
                 <Input value={paymentPhone} onChange={(e) => onPaymentPhoneChange(e.target.value)} />
@@ -625,7 +658,7 @@ function RideDetailsDialog({
               ? "Fully booked"
               : isBooking || isSavingEmergency
                 ? "Opening payment..."
-                : "Pay to book"}
+                : `Pay ${formatMwk(totalFareMwk)} and book ${seatsBooked} seat${seatsBooked === 1 ? "" : "s"}`}
           </Button>
 
           {(trip.vehicle?.imageUrls?.length ?? 0) > 0 && (
@@ -727,10 +760,3 @@ function DistrictSearch({
     </div>
   );
 }
-
-
-
-
-
-
-

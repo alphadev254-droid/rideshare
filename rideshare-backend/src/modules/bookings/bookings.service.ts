@@ -12,6 +12,8 @@ const bookingDetailSelect = {
   id: true,
   tripId: true,
   passengerId: true,
+  seatsBooked: true,
+  travelers: { orderBy: { seatOrder: "asc" }, select: { id: true, fullName: true, phone: true, seatOrder: true, isPrimary: true } },
   boardingPoint: true,
   dropOffPoint: true,
   rawSecretCode: true,
@@ -128,9 +130,11 @@ const bookingAdminListSelect = {
   id: true,
   boardingPoint: true,
   dropOffPoint: true,
+  seatsBooked: true,
   status: true,
   paymentStatus: true,
   fareMwk: true,
+  travelers: { orderBy: { seatOrder: "asc" }, select: { id: true, fullName: true, phone: true, seatOrder: true, isPrimary: true } },
   createdAt: true,
   passenger: { select: { fullName: true, phone: true } },
   trip: {
@@ -279,7 +283,7 @@ export async function cancelBooking(bookingId: string, userId: string) {
   if (!booking) throw new AppError(404, "Booking not found or cannot be cancelled");
 
   const updated = await prisma.$transaction(async (tx) => {
-    await tx.trip.update({ where: { id: booking.tripId }, data: { availableSeats: { increment: 1 } } });
+    await tx.trip.update({ where: { id: booking.tripId }, data: { availableSeats: { increment: booking.seatsBooked } } });
 
     if (booking.paymentStatus === "held_in_escrow") {
       await tx.payment.updateMany({
@@ -359,6 +363,7 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
       select: {
         id: true,
         tripId: true,
+        seatsBooked: true,
         status: true,
         paymentStatus: true,
         codeUsed: true,
@@ -440,6 +445,7 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
       driverId: booking.payment.driverId,
       passengerPhone: booking.payment.passenger.phone,
       paymentMethod: booking.payment.paymentMethod,
+      seatsBooked: booking.seatsBooked,
     };
   });
 
@@ -526,7 +532,7 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
     });
     await tx.trip.update({
       where: { id: pendingRefund.tripId },
-      data: { availableSeats: { increment: 1 } },
+      data: { availableSeats: { increment: pendingRefund.seatsBooked } },
     });
 
     if (current.driverConvenienceShareMwk > 0n) {
@@ -650,7 +656,7 @@ export async function verifyBoardingCode(bookingId: string, driverUserId: string
       id: bookingId,
       trip: { driver: { userId: driverUserId } },
     },
-    select: { id: true, secretCode: true, codeUsed: true, status: true, paymentStatus: true },
+    select: { id: true, secretCode: true, codeUsed: true, status: true, paymentStatus: true, seatsBooked: true, travelers: { orderBy: { seatOrder: "asc" }, select: { id: true, fullName: true, phone: true, seatOrder: true, isPrimary: true } } },
   });
   if (!booking) throw new AppError(404, "Booking not found");
   if (booking.paymentStatus !== "held_in_escrow" && booking.paymentStatus !== "released") {
@@ -672,5 +678,5 @@ export async function verifyBoardingCode(bookingId: string, driverUserId: string
     data: { codeUsed: true, rawSecretCode: null, status: "authenticated" },
   });
 
-  return { verified: true, bookingId };
+  return { verified: true, bookingId, seatsBooked: booking.seatsBooked, travelers: booking.travelers };
 }

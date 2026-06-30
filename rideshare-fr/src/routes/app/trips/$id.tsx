@@ -12,6 +12,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
 import { StatusPill } from "@/components/status-pill";
+import { BookingSeatsFields } from "@/components/booking-seats-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,8 @@ function TripDetail() {
   const [payPhone, setPayPhone] = useState(user?.phone ?? "");
   const [emergencyName, setEmergencyName] = useState(user?.emergencyContactName ?? "");
   const [emergencyPhone, setEmergencyPhone] = useState(user?.emergencyContactPhone ?? "");
+  const [seatsBooked, setSeatsBooked] = useState(1);
+  const [travelerNames, setTravelerNames] = useState<string[]>([]);
   const {
     data: trip,
     isLoading,
@@ -70,6 +73,8 @@ function TripDetail() {
         tripId: id,
         boardingPoint: trip.pickupPoint || trip.originName,
         dropOffPoint: trip.dropOffPoint || trip.destinationName,
+        seatsBooked,
+        travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean),
         phone: payPhone,
       });
     },
@@ -90,6 +95,7 @@ function TripDetail() {
   }
 
   const fullyBooked = trip.availableSeats <= 0;
+  const totalFareMwk = Number(trip.farePerSeatMwk) * seatsBooked;
 
   return (
     <div className="space-y-6">
@@ -209,6 +215,14 @@ function TripDetail() {
                   </div>
                 </div>
               )}
+              <BookingSeatsFields
+                availableSeats={trip.availableSeats}
+                seatsBooked={seatsBooked}
+                onSeatsBookedChange={setSeatsBooked}
+                travelerNames={travelerNames}
+                onTravelerNamesChange={setTravelerNames}
+                primaryName={user?.fullName ?? "You"}
+              />
               <div className="space-y-1.5">
                 <Label className="label-eyebrow">Payment phone</Label>
                 <Input value={payPhone} onChange={(e) => setPayPhone(e.target.value)} />
@@ -219,7 +233,7 @@ function TripDetail() {
                 disabled={fullyBooked || book.isPending || saveEmergencyContact.isPending || !payPhone.trim()}
                 onClick={() => book.mutate()}
               >
-                {fullyBooked ? "Fully booked" : book.isPending ? "Opening payment..." : "Pay to book"}
+                {fullyBooked ? "Fully booked" : book.isPending ? "Opening payment..." : `Pay ${formatMwk(totalFareMwk)} and book ${seatsBooked} seat${seatsBooked === 1 ? "" : "s"}`}
               </Button>
               <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <User className="h-3 w-3" /> Booking is created only after payment is confirmed.
@@ -244,6 +258,3 @@ function formatDuration(minutes: number) {
   if (!mins) return `${hours} hr`;
   return `${hours} hr ${mins} min`;
 }
-
-
-

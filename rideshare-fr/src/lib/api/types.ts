@@ -157,10 +157,20 @@ export interface TripLocation {
   updatedAt: string;
 }
 
+export interface BookingTraveler {
+  id: string;
+  fullName: string;
+  phone?: string | null;
+  seatOrder: number;
+  isPrimary: boolean;
+}
+
 export interface Booking {
   id: string;
   tripId: string;
   passengerId: string;
+  seatsBooked: number;
+  travelers?: BookingTraveler[];
   boardingPoint: string;
   dropOffPoint?: string;
   status: BookingStatus;
@@ -250,6 +260,9 @@ export interface PendingPayment {
   bookingId?: string | null;
   tripId?: string | null;
   passengerId: string;
+  seatsBooked: number;
+  travelerNames?: string[];
+  travelers?: BookingTraveler[];
   driverId: string;
   txRef: string;
   paymentMethod: PaymentMethod;
@@ -332,5 +345,3 @@ export interface Review {
   comment?: string;
   createdAt: string;
 }
-
-

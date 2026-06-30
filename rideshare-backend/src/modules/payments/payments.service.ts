@@ -23,6 +23,8 @@ type PendingPaymentRow = {
   driverId: string;
   txRef: string;
   paymentMethod: PaymentMethod;
+  seatsBooked: number;
+  travelerNames: Prisma.JsonValue | null;
   fareAmountMwk: bigint;
   providerFeeMwk: bigint;
   providerFeeRate: RateValue;
@@ -142,6 +144,8 @@ function formatPending(row: PendingPaymentRow) {
     driverId: row.driverId,
     txRef: row.txRef,
     paymentMethod: row.paymentMethod,
+    seatsBooked: row.seatsBooked,
+    travelerNames: travelerNamesFromJson(row.travelerNames),
     fareAmountMwk: row.fareAmountMwk.toString(),
     providerFeeMwk: row.providerFeeMwk.toString(),
     providerFeeRate: toRate(row.providerFeeRate),
@@ -366,6 +370,23 @@ async function sendSuccessfulPaymentEmailsInline(row: PaymentRow) {
   }
 
   await Promise.allSettled(tasks);
+}
+
+function normalizeTravelerNames(input: string[] | undefined, seatCount: number, primaryName: string) {
+  const cleaned = (input ?? [])
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0)
+    .slice(0, seatCount);
+
+  if (cleaned.length === 0) cleaned.push(primaryName);
+  if (cleaned[0].toLowerCase() !== primaryName.trim().toLowerCase()) cleaned.unshift(primaryName);
+
+  return cleaned.slice(0, seatCount);
+}
+
+function travelerNamesFromJson(value: Prisma.JsonValue | null): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
 
 function calculatePaymentBreakdown(fareAmountMwk: number) {
@@ -602,7 +623,7 @@ export async function initiateRidePayment(
   });
   if (!trip) throw new AppError(404, "Trip not found");
   if (trip.status !== "scheduled") throw new AppError(400, "Trip is not accepting bookings");
-  if (trip.availableSeats < 1) throw new AppError(400, "No seats available");
+  if (trip.availableSeats < input.seatsBooked) throw new AppError(400, "Not enough seats available");
 
   const existingBooking = await prisma.booking.findFirst({
     where: {
@@ -613,7 +634,9 @@ export async function initiateRidePayment(
   });
   if (existingBooking) throw new AppError(409, "You already have a booking for this trip");
 
-  const fareAmount = Number(trip.baseFareMwk ?? BigInt(0));
+  const farePerSeat = Number(trip.baseFareMwk ?? BigInt(0));
+  const fareAmount = farePerSeat * input.seatsBooked;
+  const travelerNames = normalizeTravelerNames(input.travelerNames, input.seatsBooked, user.fullName ?? "Passenger");
   const breakdown = calculatePaymentBreakdown(fareAmount);
   assertPaychanguMinimum(breakdown.customerAmountMwk);
   const txRef = `RS-${randomUUID()}`;
@@ -647,6 +670,8 @@ export async function initiateRidePayment(
       driverId: trip.driverId,
       txRef,
       paymentMethod: input.method,
+      seatsBooked: input.seatsBooked,
+      travelerNames: travelerNames as Prisma.InputJsonValue,
       boardingPoint: input.boardingPoint,
       dropOffPoint: input.dropOffPoint ?? trip.destinationName,
       fareAmountMwk: BigInt(breakdown.fareAmountMwk),
@@ -721,8 +746,8 @@ async function finalizeVerifiedPayment(
       }
 
       const seatUpdate = await tx.trip.updateMany({
-        where: { id: pending.tripId, status: "scheduled", availableSeats: { gt: 0 } },
-        data: { availableSeats: { decrement: 1 } },
+        where: { id: pending.tripId, status: "scheduled", availableSeats: { gte: pending.seatsBooked } },
+        data: { availableSeats: { decrement: pending.seatsBooked } },
       });
       if (seatUpdate.count === 0) {
         await tx.pendingPayment.update({
@@ -740,6 +765,7 @@ async function finalizeVerifiedPayment(
         data: {
           tripId: pending.tripId,
           passengerId: pending.passengerId,
+          seatsBooked: pending.seatsBooked,
           boardingPoint: pending.boardingPoint,
           dropOffPoint: pending.dropOffPoint,
           secretCode: hashedCode!,
@@ -751,6 +777,7 @@ async function finalizeVerifiedPayment(
         },
         select: {
           id: true,
+          seatsBooked: true,
           passenger: {
             select: {
               phone: true,
@@ -768,6 +795,19 @@ async function finalizeVerifiedPayment(
           },
         },
       });
+
+      const travelerNames = travelerNamesFromJson(pending.travelerNames);
+      if (travelerNames.length > 0) {
+        await tx.bookingTraveler.createMany({
+          data: travelerNames.slice(0, pending.seatsBooked).map((fullName, index) => ({
+            bookingId: createdBooking.id,
+            fullName,
+            phone: index === 0 ? createdBooking.passenger.phone : null,
+            seatOrder: index + 1,
+            isPrimary: index === 0,
+          })),
+        });
+      }
 
       bookingId = createdBooking.id;
       notification = {
@@ -1103,6 +1143,7 @@ export async function adminRefund(paymentId: string) {
         booking: {
           select: {
             tripId: true,
+            seatsBooked: true,
             codeUsed: true,
             status: true,
             paymentStatus: true,
@@ -1161,6 +1202,7 @@ export async function adminRefund(paymentId: string) {
       tripId: payment.booking.tripId,
       passengerPhone: payment.passenger.phone,
       paymentMethod: payment.paymentMethod,
+      seatsBooked: payment.booking.seatsBooked,
     };
   });
 
@@ -1204,7 +1246,7 @@ export async function adminRefund(paymentId: string) {
     }),
     prisma.trip.update({
       where: { id: pendingRefund.tripId },
-      data: { availableSeats: { increment: 1 } },
+      data: { availableSeats: { increment: pendingRefund.seatsBooked } },
     }),
   ]);
 

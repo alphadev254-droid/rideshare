@@ -7,6 +7,7 @@ import type {
   AdminUser,
   AuthTokens,
   Booking,
+  BookingTraveler,
   ComfortClass,
   DriverDashboardStats,
   DriverProfile,
@@ -249,7 +250,7 @@ export const bookingService = {
     api.post<PaymentRefund>(`/bookings/${id}/refund`, body),
   resendCode: (id: string) => api.post<{ message: string }>(`/bookings/${id}/resend-code`),
   verifyCode: (id: string, code: string) =>
-    api.post<{ verified: boolean; bookingId: string }>(`/bookings/${id}/verify-code`, { code }),
+    api.post<{ verified: boolean; bookingId: string; seatsBooked: number; travelers?: BookingTraveler[] }>(`/bookings/${id}/verify-code`, { code }),
   cancel: (id: string) => api.patch<Booking>(`/bookings/${id}/cancel`),
 };
 
@@ -268,6 +269,8 @@ export const paymentService = {
     dropOffPoint?: string;
     method?: PaymentMethod;
     phone: string;
+    seatsBooked?: number;
+    travelerNames?: string[];
   }) =>
     api.post<PendingPayment & { paymentUrl: string; checkoutUrl: string }>(
       "/payments/initiate-ride",

@@ -10,6 +10,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { ApiError, paymentService, tripService, userService, locationService, type ComfortClass, type PendingPayment, type Trip, type User } from "@/lib/api";
 import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
 import { StatusPill, ComfortBadge } from "@/components/status-pill";
+import { BookingSeatsFields } from "@/components/booking-seats-fields";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModal } from "@/lib/auth-modal-context";
 import { setPendingTripId } from "@/lib/pending-trip";
@@ -60,6 +61,8 @@ function PublicTripsPage() {
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [paymentPhone, setPaymentPhone] = useState("");
+  const [seatsBooked, setSeatsBooked] = useState(1);
+  const [travelerNames, setTravelerNames] = useState<string[]>([]);
   const date = dateStr(dateYear, dateMonth, dateDay);
   const years = Array.from({ length: 3 }, (_, i) => String(new Date().getFullYear() + i));
 
@@ -114,7 +117,7 @@ function PublicTripsPage() {
   });
 
   const book = useMutation({
-    mutationFn: (t: Trip) => paymentService.initiateRide({ tripId: t.id, boardingPoint: t.pickupPoint || t.originName, dropOffPoint: t.dropOffPoint || t.destinationName, phone: paymentPhone }),
+    mutationFn: (t: Trip) => paymentService.initiateRide({ tripId: t.id, boardingPoint: t.pickupPoint || t.originName, dropOffPoint: t.dropOffPoint || t.destinationName, phone: paymentPhone, seatsBooked, travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean) }),
     onSuccess: (p: PendingPayment & { checkoutUrl?: string | null }) => {
       toast.success("Opening secure payment.");
       setViewTrip(null);
@@ -139,6 +142,8 @@ function PublicTripsPage() {
   }
 
   function handleView(trip: Trip) {
+    setSeatsBooked(1);
+    setTravelerNames([]);
     setViewTrip(trip);
   }
 
@@ -246,11 +251,16 @@ function PublicTripsPage() {
         open={!!viewTrip}
         emergencyName={emergencyName} emergencyPhone={emergencyPhone}
         paymentPhone={paymentPhone}
+        seatsBooked={seatsBooked}
+        travelerNames={travelerNames}
+        primaryName={user?.fullName ?? "You"}
         needsEmergency={needsEmergency}
         isAuthenticated={!!user}
         isBooking={book.isPending} isSavingEmergency={saveEmergency.isPending}
         onEmergencyNameChange={setEmergencyName} onEmergencyPhoneChange={setEmergencyPhone}
         onPaymentPhoneChange={setPaymentPhone}
+        onSeatsBookedChange={setSeatsBooked}
+        onTravelerNamesChange={setTravelerNames}
         onClose={() => setViewTrip(null)}
         onReserve={reserve}
       />
@@ -258,15 +268,18 @@ function PublicTripsPage() {
   );
 }
 
-function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentPhone, needsEmergency, isAuthenticated, isBooking, isSavingEmergency, onEmergencyNameChange, onEmergencyPhoneChange, onPaymentPhoneChange, onClose, onReserve }: {
+function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentPhone, seatsBooked, travelerNames, primaryName, needsEmergency, isAuthenticated, isBooking, isSavingEmergency, onEmergencyNameChange, onEmergencyPhoneChange, onPaymentPhoneChange, onSeatsBookedChange, onTravelerNamesChange, onClose, onReserve }: {
   trip: Trip | null; open: boolean; emergencyName: string; emergencyPhone: string; paymentPhone: string;
+  seatsBooked: number; travelerNames: string[]; primaryName: string;
   needsEmergency: boolean; isAuthenticated: boolean; isBooking: boolean; isSavingEmergency: boolean;
   onEmergencyNameChange: (v: string) => void; onEmergencyPhoneChange: (v: string) => void;
  onPaymentPhoneChange: (v: string) => void;
+  onSeatsBookedChange: (v: number) => void; onTravelerNamesChange: (v: string[]) => void;
   onClose: () => void; onReserve: () => void;
 }) {
   if (!trip) return null;
   const fullyBooked = trip.availableSeats <= 0;
+  const totalFareMwk = Number(trip.farePerSeatMwk) * seatsBooked;
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-h-[92svh] overflow-y-auto p-0 sm:max-w-lg">
@@ -314,12 +327,13 @@ function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentPho
               <div className="rounded-md border border-border bg-card p-4">
                 <div className="label-eyebrow">Payment</div>
                 <p className="mt-1 text-xs text-muted-foreground">Your booking is created only after payment is confirmed.</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="mt-3 space-y-3">
+                  <BookingSeatsFields availableSeats={trip.availableSeats} seatsBooked={seatsBooked} onSeatsBookedChange={onSeatsBookedChange} travelerNames={travelerNames} onTravelerNamesChange={onTravelerNamesChange} primaryName={primaryName} />
                   <div className="space-y-1.5"><Label className="label-eyebrow">Payment phone</Label><Input value={paymentPhone} onChange={(e) => onPaymentPhoneChange(e.target.value)} /></div>
                 </div>
               </div>
               <Button className="h-11 w-full" disabled={fullyBooked || isBooking || isSavingEmergency || !paymentPhone.trim()} onClick={onReserve}>
-                {fullyBooked ? "Fully booked" : isBooking || isSavingEmergency ? "Processing payment..." : `Pay ${formatMwk(trip.farePerSeatMwk)} - Book now`}
+                {fullyBooked ? "Fully booked" : isBooking || isSavingEmergency ? "Processing payment..." : `Pay ${formatMwk(totalFareMwk)} - Book ${seatsBooked} seat${seatsBooked === 1 ? "" : "s"}`}
               </Button>
             </>
           ) : (

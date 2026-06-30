@@ -178,6 +178,10 @@ function BookingDetail() {
                 </dd>
               </div>
               <div>
+                <dt className="text-xs text-muted-foreground">Seats</dt>
+                <dd className="mt-0.5 font-medium">{booking.seatsBooked ?? 1} passenger{(booking.seatsBooked ?? 1) === 1 ? "" : "s"}</dd>
+              </div>
+              <div>
                 <dt className="text-xs text-muted-foreground">Booked</dt>
                 <dd className="mt-0.5">{formatDateTime(booking.createdAt)}</dd>
               </div>
@@ -192,6 +196,19 @@ function BookingDetail() {
             </dl>
           </div>
 
+          {booking.travelers && booking.travelers.length > 0 && (
+            <div className="rounded-md border border-border bg-card p-5">
+              <h3 className="label-eyebrow mb-3">Traveler manifest</h3>
+              <div className="space-y-2 text-sm">
+                {booking.travelers.map((traveler) => (
+                  <div key={traveler.id} className="flex items-center justify-between rounded-md bg-surface-2 px-3 py-2">
+                    <span>{traveler.fullName}</span>
+                    {traveler.isPrimary && <span className="text-xs text-muted-foreground">Primary</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Trip info */}
           {booking.trip && (
             <div className="rounded-md border border-border bg-card p-5">

@@ -137,6 +137,11 @@ function BookingDetailContent({
           value={<span className="font-semibold tabular-nums">{formatMwk(booking.fareMwk)}</span>}
         />
         <InfoCard
+          label="Seats"
+          icon={<User className="h-4 w-4 text-muted-foreground" />}
+          value={`${booking.seatsBooked ?? 1} passenger${(booking.seatsBooked ?? 1) === 1 ? "" : "s"}`}
+        />
+        <InfoCard
           label="Boarding Code"
           icon={<KeyRound className="h-4 w-4 text-muted-foreground" />}
           value={
@@ -198,6 +203,25 @@ function BookingDetailContent({
         </div>
       </div>
 
+      {booking.travelers && booking.travelers.length > 0 && (
+        <>
+          <Separator />
+          <div>
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <User className="h-4 w-4 text-muted-foreground" />
+              Traveler Manifest
+            </h3>
+            <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+              {booking.travelers.map((traveler) => (
+                <div key={traveler.id} className="flex items-center justify-between gap-3 text-sm">
+                  <span>{traveler.fullName}</span>
+                  {traveler.isPrimary && <Badge variant="outline">Primary</Badge>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
       {/* Driver Section */}
       {driver && (
         <>

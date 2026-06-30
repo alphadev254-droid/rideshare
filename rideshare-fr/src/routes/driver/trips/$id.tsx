@@ -74,8 +74,8 @@ function DriverTripDetail() {
   const verify = useMutation({
     mutationFn: ({ bookingId, code }: { bookingId: string; code: string }) =>
       bookingService.verifyCode(bookingId, code),
-    onSuccess: () => {
-      toast.success("Passenger authenticated");
+    onSuccess: (res) => {
+      toast.success(`${res.seatsBooked} passenger${res.seatsBooked === 1 ? "" : "s"} checked in`);
       qc.invalidateQueries({ queryKey: ["bookings", "trip", id] });
     },
   });
@@ -484,36 +484,58 @@ function DriverTripDetail() {
             <p className="mt-3 text-sm text-muted-foreground">No bookings yet.</p>
           ) : (
             <ul className="mt-3 divide-y divide-border">
-              {(bookings ?? []).map((b) => (
-                <li key={b.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="font-medium">{b.passenger?.fullName}</div>
-                    <div className="font-mono text-xs text-muted-foreground">{b.passenger?.phone}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">Boarding: {b.boardingPoint}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <StatusPill status={b.status} />
-                    {b.status === "confirmed" && (
-                      <>
-                        <Input
-                          placeholder="Code"
-                          value={codes[b.id] ?? ""}
-                          onChange={(e) => setCodes((c) => ({ ...c, [b.id]: e.target.value.toUpperCase() }))}
-                          className="h-8 w-24 font-mono uppercase"
-                          maxLength={6}
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => verify.mutate({ bookingId: b.id, code: codes[b.id] ?? "" })}
-                          disabled={!codes[b.id]}
-                        >
-                          Verify
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </li>
-              ))}
+              {(bookings ?? []).map((b) => {
+                const seats = b.seatsBooked ?? 1;
+                const travelers = b.travelers ?? [];
+                return (
+                  <li key={b.id} className="flex flex-col gap-4 py-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="font-medium">{b.passenger?.fullName}</div>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                          <Users className="h-3 w-3" /> {seats} seat{seats === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                      <div className="font-mono text-xs text-muted-foreground">{b.passenger?.phone}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">Boarding: {b.boardingPoint}</div>
+                      {travelers.length > 0 && (
+                        <div className="mt-3 rounded-md border border-border/70 bg-muted/30 p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Travelers</div>
+                          <ol className="mt-2 space-y-1 text-sm">
+                            {travelers.map((traveler) => (
+                              <li key={traveler.id} className="flex items-center justify-between gap-3">
+                                <span className="truncate">{traveler.fullName}</span>
+                                {traveler.isPrimary && <span className="text-xs text-muted-foreground">Primary</span>}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <StatusPill status={b.status} />
+                      {b.status === "confirmed" && (
+                        <>
+                          <Input
+                            placeholder="Code"
+                            value={codes[b.id] ?? ""}
+                            onChange={(e) => setCodes((c) => ({ ...c, [b.id]: e.target.value.toUpperCase() }))}
+                            className="h-8 w-24 font-mono uppercase"
+                            maxLength={6}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => verify.mutate({ bookingId: b.id, code: codes[b.id] ?? "" })}
+                            disabled={!codes[b.id] || verify.isPending}
+                          >
+                            Verify group
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
