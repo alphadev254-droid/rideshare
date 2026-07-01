@@ -10,13 +10,14 @@ function normalizeUploadPath(path: string): string {
   return path.startsWith("/uploads/") ? path : `/uploads/${path.replace(/^\/+/, "")}`;
 }
 
-async function fetchProtectedUpload(path: string): Promise<string | null> {
+async function fetchProtectedUpload(path: string, access: "auto" | "public" = "auto"): Promise<string | null> {
   const token = tokenStorage.getAccess();
   const uploadPath = normalizeUploadPath(path);
-  const endpoint = token ? "/uploads/file" : "/uploads/public-file";
+  const usePublic = access === "public" || !token;
+  const endpoint = usePublic ? "/uploads/public-file" : "/uploads/file";
   const res = await fetch(
     `${API_CONFIG.baseUrl}${endpoint}?path=${encodeURIComponent(uploadPath)}`,
-    token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+    !usePublic && token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
   );
   if (!res.ok) return null;
 
@@ -28,10 +29,12 @@ export function SecureImage({
   src,
   alt,
   className,
+  access = "auto",
 }: {
   src?: string | null;
   alt: string;
   className?: string;
+  access?: "auto" | "public";
 }) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
@@ -44,7 +47,7 @@ export function SecureImage({
     let active = true;
     let objectUrl: string | null = null;
 
-    fetchProtectedUpload(src)
+    fetchProtectedUpload(src, access)
       .then((url) => {
         if (!active) {
           if (url) URL.revokeObjectURL(url);
@@ -61,7 +64,7 @@ export function SecureImage({
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [src]);
+  }, [src, access]);
 
   if (!src) return null;
   if (!blobUrl) {

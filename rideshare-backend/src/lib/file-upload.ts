@@ -2,8 +2,11 @@ import multer from "multer";
 import path from "path";
 import { randomUUID } from "crypto";
 import fs from "fs";
+import { fileURLToPath } from "url";
 
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+const backendRoot = path.resolve(moduleDir, "../..");
+const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR ?? path.join(backendRoot, "uploads"));
 
 // Ensure upload directories exist
 const DOCS_DIR = path.join(UPLOAD_DIR, "documents");

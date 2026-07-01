@@ -1,7 +1,8 @@
-import { Car, Check, Star } from "lucide-react";
+import { Car, Clock, MapPin, ShieldCheck, Star, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SecureImage } from "@/components/secure-image";
 import type { Trip } from "@/lib/api";
-import { formatMwk } from "@/lib/format";
+import { formatDateTime, formatDistanceKm, formatMwk } from "@/lib/format";
 
 type TripOfferCardProps = {
   trip: Trip;
@@ -11,7 +12,6 @@ type TripOfferCardProps = {
 
 export function TripOfferCard({ trip, actionLabel = "Book Ride", onAction }: TripOfferCardProps) {
   const stops = getTimelineStops(trip);
-  const selectedFrom = trip.segmentFromOrder ?? stops.find((stop) => stop.name === trip.originName)?.stopOrder ?? 0;
   const selectedTo =
     trip.segmentToOrder ??
     stops.find((stop) => stop.name === (trip.dropOffPoint || trip.destinationName))?.stopOrder ??
@@ -21,94 +21,87 @@ export function TripOfferCard({ trip, actionLabel = "Book Ride", onAction }: Tri
   const vehicle = trip.vehicle
     ? `${trip.vehicle.color ? `${trip.vehicle.color} ` : ""}${trip.vehicle.make} ${trip.vehicle.model}${trip.vehicle.plateNumber ? ` - ${trip.vehicle.plateNumber}` : ""}`
     : "Approved vehicle";
-  const selectedSegmentIndex = Math.max(1, stops.findIndex((stop) => stop.stopOrder === selectedFrom) + 1);
+  const selectedSegmentIndex = Math.max(1, stops.findIndex((stop) => stop.stopOrder === (trip.segmentFromOrder ?? 0)) + 1);
   const segmentCount = Math.max(1, stops.length - 1);
   const arrivalTime = formatClock(trip.arrivalTime ?? selectedArrivalTime(trip, stops, selectedTo));
-  const tripMeta = (
-    <>
-      <span>
-        Depart <span className="font-semibold text-foreground">{formatClock(trip.departureTime)}</span>
-      </span>
-      <span>.</span>
-      <span>
-        Arrive <span className="font-semibold text-foreground">{arrivalTime || "Not set"}</span>
-      </span>
-      {trip.estimatedDurationMinutes ? (
-        <>
-          <span>.</span>
-          <span>{formatMinutes(trip.estimatedDurationMinutes)} journey</span>
-        </>
-      ) : null}
-      <span>.</span>
-      <span>
-        Segment {selectedSegmentIndex} of {segmentCount}
-      </span>
-      {trip.parentOriginName && trip.parentDestinationName && (
-        <>
-          <span>.</span>
-          <span className="truncate">
-            Part of longer trip: <span className="font-medium text-foreground">{trip.parentOriginName} to {trip.parentDestinationName}</span>
-          </span>
-        </>
-      )}
-    </>
-  );
 
   return (
-    <article className="grid overflow-hidden rounded-md border border-border bg-card shadow-sm transition-colors hover:border-primary/45 lg:grid-cols-[minmax(0,1fr)_150px]">
-      <div className="min-w-0 px-3 py-2.5 sm:px-4 sm:py-3">
-        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(170px,auto)_minmax(0,1fr)_auto] sm:items-start">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <DriverAvatar name={driverName} imageUrl={trip.driver?.user.profilePhotoUrl} />
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold">{driverName}</div>
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-muted-foreground">
-                {rating && (
-                  <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                    <Star className="h-3 w-3 fill-gold text-gold" />
-                    {Number(rating).toFixed(1)}
-                  </span>
-                )}
-                <span className="inline-flex min-w-0 items-center gap-1">
-                  <Car className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{vehicle}</span>
+    <article className="public-card flex h-full flex-col rounded-xl p-4 transition-colors hover:border-primary/45 sm:p-5">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <DriverAvatar name={driverName} imageUrl={trip.driver?.user.profilePhotoUrl} />
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold">{driverName}</div>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-muted-foreground">
+              {rating && (
+                <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                  <Star className="h-3 w-3 fill-gold text-gold" />
+                  {Number(rating).toFixed(1)}
                 </span>
-              </div>
+              )}
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <Car className="h-3 w-3 shrink-0" />
+                <span className="truncate">{vehicle}</span>
+              </span>
             </div>
           </div>
-          <div className="hidden min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-2 pt-1 text-[10px] text-muted-foreground sm:flex">
-            {tripMeta}
-          </div>
-          <span className="hidden shrink-0 items-center gap-1 rounded-sm border border-border bg-surface-2 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground sm:inline-flex">
-            <Check className="h-3 w-3 text-primary" />
-            Verified
-          </span>
         </div>
+        <span className="trust-chip shrink-0 px-2 py-1 text-[10px]">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Verified
+        </span>
+      </div>
 
-        <div className="mt-3 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:mt-4">
-          <h3 className="min-w-0 truncate font-display text-xl font-semibold leading-tight text-foreground sm:text-2xl">
-            {trip.originName}
-          </h3>
-          <span className="text-sm font-medium text-muted-foreground">to</span>
-          <h3 className="min-w-0 truncate font-display text-xl font-semibold leading-tight text-foreground sm:text-2xl">
-            {trip.dropOffPoint || trip.destinationName}
-          </h3>
+      <div className="route-rail mt-4 space-y-3 pl-6">
+        <div className="relative flex items-center gap-2">
+          <span className="route-dot absolute -left-6" />
+          <span className="truncate font-display text-lg font-semibold">{trip.originName}</span>
         </div>
-
-        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground sm:hidden">
-          {tripMeta}
+        <div className="relative flex items-center gap-2">
+          <span className="route-dot absolute -left-6 bg-primary" />
+          <span className="truncate font-display text-lg font-semibold">{trip.dropOffPoint || trip.destinationName}</span>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 border-t border-border bg-surface-2/60 px-3 py-2 lg:block lg:border-l lg:border-t-0 lg:px-4 lg:py-3 lg:text-left">
+      <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <Clock className="h-3 w-3 text-gold" />
+          Depart {formatDateTime(trip.departureTime)}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Clock className="h-3 w-3 text-route" />
+          Arrive {arrivalTime || "Not set"}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <MapPin className="h-3 w-3 text-route" />
+          {formatDistanceKm(trip.distanceKm)}
+        </span>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <span className="route-chip">
+          Segment {selectedSegmentIndex} of {segmentCount}
+        </span>
+        <span className="route-chip">
+          <Wallet className="h-3.5 w-3.5" />
+          Mobile money
+        </span>
+      </div>
+
+      {trip.parentOriginName && trip.parentDestinationName && (
+        <div className="mt-3 truncate text-xs text-muted-foreground">
+          Part of {trip.parentOriginName} to {trip.parentDestinationName}
+        </div>
+      )}
+
+      <div className="mt-auto flex items-end justify-between gap-3 pt-4">
         <div className="min-w-0">
-          <div className="text-[8px] font-semibold uppercase tracking-[0.16em] text-muted-foreground lg:text-[9px]">Total price</div>
-          <div className="mt-0.5 font-display text-lg font-semibold tabular-nums text-primary lg:text-2xl">{formatMwk(trip.farePerSeatMwk)}</div>
-          <div className="mt-0.5 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-semibold text-primary lg:mt-1 lg:text-[10px]">
-            {trip.availableSeats} seat{trip.availableSeats === 1 ? "" : "s"} left
+          <div className="font-display text-xl font-semibold tabular-nums text-gold">{formatMwk(trip.farePerSeatMwk)}</div>
+          <div className="text-xs text-muted-foreground">
+            {trip.availableSeats} seat{trip.availableSeats === 1 ? "" : "s"} available
           </div>
         </div>
-        <Button size="sm" onClick={() => onAction(trip)} className="h-8 shrink-0 px-4 text-[11px] font-semibold uppercase tracking-wide lg:mt-5 lg:h-9 lg:w-full lg:px-5 lg:text-xs">
+        <Button size="sm" onClick={() => onAction(trip)} className="shrink-0">
           {actionLabel}
         </Button>
       </div>
@@ -118,7 +111,14 @@ export function TripOfferCard({ trip, actionLabel = "Book Ride", onAction }: Tri
 
 function DriverAvatar({ name, imageUrl }: { name: string; imageUrl?: string | null }) {
   if (imageUrl) {
-    return <img src={imageUrl} alt="" className="h-8 w-8 shrink-0 rounded-full border border-border object-cover" />;
+    return (
+      <SecureImage
+        src={imageUrl}
+        alt={name}
+        className="h-8 w-8 shrink-0 rounded-full border border-border object-cover"
+        access="public"
+      />
+    );
   }
   return (
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-surface-2 text-[8px] uppercase text-muted-foreground">
@@ -154,12 +154,4 @@ function selectedArrivalTime(trip: Trip, stops: ReturnType<typeof getTimelineSto
   const offset = stop.arrivalOffsetMinutes ?? stop.departureOffsetMinutes;
   if (offset === null || offset === undefined) return null;
   return new Date(new Date(trip.departureTime).getTime() + offset * 60_000);
-}
-
-function formatMinutes(minutes: number) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (!hours) return `${mins}m`;
-  if (!mins) return `${hours}h`;
-  return `${hours}h ${mins}m`;
 }

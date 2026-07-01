@@ -400,7 +400,7 @@ function PassengerHome() {
             No scheduled trips are available right now.
           </div>
         ) : (
-          <ul className="space-y-3">
+          <ul className="grid justify-start gap-4 sm:grid-cols-[repeat(auto-fit,minmax(320px,420px))]">
             {trips.map((trip) => (
               <li key={`${trip.id}-${trip.segmentId ?? "main"}`}>
                 <TripOfferCard trip={trip} onAction={setSelectedTrip} />
