@@ -1,59 +1,26 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { driverService, locationService, tripService, type Trip, type Vehicle } from "@/lib/api";
+import { driverService, locationService, tripService, type Trip } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
 import { MainTripStep } from "@/components/driver-trips/main-trip-step";
 import { RouteTableStep } from "@/components/driver-trips/route-table-step";
 import { ArrowLeft } from "lucide-react";
-import { addDays, format, isAfter } from "date-fns";
 import {
-  dateTimeFromParts,
-  minutesBetween,
-  minutesOffset,
+  buildTripPayload,
+  emptyMainDraft,
+  makeRouteRow,
   type MainTripDraft,
   type RouteSegmentDraft,
+  validateMainTrip,
+  validateRouteManifest,
 } from "@/components/driver-trips/trip-create-types";
 
 export const Route = createFileRoute("/driver/trips/new")({
   component: NewTrip,
 });
-
-function defaultDate() {
-  return format(new Date(), "yyyy-MM-dd");
-}
-
-function emptyMainDraft(): MainTripDraft {
-  return {
-    vehicleId: "",
-    originName: "",
-    destinationName: "",
-    departureDate: defaultDate(),
-    totalSeats: "1",
-  };
-}
-
-function addDayIfNeeded(start: Date, end: Date) {
-  return isAfter(end, start) ? end : addDays(end, 1);
-}
-
-function makeRouteRow(from: string, to: string, bookableSeats: string): RouteSegmentDraft {
-  return {
-    key: crypto.randomUUID(),
-    fromIndex: 0,
-    toIndex: 1,
-    from,
-    to,
-    departureTime: "",
-    arrivalTime: "",
-    seats: bookableSeats || "1",
-    distanceKm: "",
-    amountMwk: "",
-    enabled: true,
-  };
-}
 
 function NewTrip() {
   const navigate = useNavigate();
@@ -114,14 +81,35 @@ function NewTrip() {
   }
 
   function goNext() {
-    const nextErrors = validateMain(form, selectedVehicle);
+    const nextErrors = validateMainTrip(form, selectedVehicle);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       toast.error("Please complete the main trip details");
       return;
     }
     if (segments.length === 0) {
-      setSegments([makeRouteRow(form.originName, form.destinationName, form.totalSeats)]);
+      setSegments([
+        {
+          ...makeRouteRow(form.originName, form.destinationName, form.totalSeats),
+          departureTime: form.departureTime,
+          arrivalTime: form.arrivalTime,
+        },
+      ]);
+    } else {
+      setSegments((current) =>
+        current.map((segment, index) =>
+          index === 0
+            ? {
+                ...segment,
+                from: form.originName,
+                to: form.destinationName,
+                departureTime: form.departureTime,
+                arrivalTime: form.arrivalTime,
+                seats: form.totalSeats,
+              }
+            : segment,
+        ),
+      );
     }
     setStep(2);
   }
@@ -145,8 +133,8 @@ function NewTrip() {
 
   function publish() {
     const nextErrors = {
-      ...validateMain(form, selectedVehicle),
-      ...validateRoute(form, segments, Number(form.totalSeats || 0)),
+      ...validateMainTrip(form, selectedVehicle),
+      ...validateRouteManifest(form, segments, Number(form.totalSeats || 0)),
     };
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
@@ -168,7 +156,7 @@ function NewTrip() {
       <PageHeader
         eyebrow="My trips"
         title="Publish a trip"
-        description="Start with the main journey, then set the route rows passengers can book."
+        description="Start with the main journey, then build the routes passengers can book."
       />
 
       {approvedVehicles.length === 0 && (
@@ -183,7 +171,7 @@ function NewTrip() {
 
       <div className="flex gap-2 text-xs">
         <StepPill active={step === 1} label="1. Main trip" />
-        <StepPill active={step === 2} label="2. Route table" />
+        <StepPill active={step === 2} label="2. Route manifest" />
       </div>
 
       {step === 1 ? (
@@ -226,123 +214,6 @@ function NewTrip() {
 function filterDistricts(districts: string[], query: string) {
   const q = query.toLowerCase().trim();
   return q ? districts.filter((district) => district.toLowerCase().includes(q)) : districts;
-}
-
-function validateMain(form: MainTripDraft, vehicle?: Vehicle) {
-  const errors: Record<string, string> = {};
-  const seats = Number(form.totalSeats);
-  if (!form.originName.trim()) errors.originName = "Choose the trip origin.";
-  if (!form.destinationName.trim()) errors.destinationName = "Choose the trip destination.";
-  if (!form.departureDate) errors.departureDate = "Choose the trip date.";
-  if (!form.vehicleId) errors.vehicleId = "Choose the vehicle for this trip.";
-  if (!Number.isFinite(seats) || seats < 1) {
-    errors.totalSeats = "Enter at least 1 bookable seat.";
-  } else if (vehicle && seats > vehicle.seatCapacity) {
-    errors.totalSeats = `Bookable seats cannot exceed this vehicle capacity of ${vehicle.seatCapacity}.`;
-  }
-  return errors;
-}
-
-function validateRoute(form: MainTripDraft, segments: RouteSegmentDraft[], bookableSeats: number) {
-  const errors: Record<string, string> = {};
-  const enabled = segments
-    .filter((segment) => segment.enabled)
-    .map((segment, index) => ({
-      ...segment,
-      from: index === 0 ? form.originName : segment.from,
-      to: index === 0 ? form.destinationName : segment.to,
-    }));
-  if (enabled.length === 0) {
-    errors.route = "Enable at least one route row.";
-    return errors;
-  }
-  if (enabled.some((segment) => !segment.from.trim() || !segment.to.trim())) {
-    errors.route = "Every enabled row needs From and To.";
-    return errors;
-  }
-  if (enabled.some((segment) => !segment.departureTime || !segment.arrivalTime)) {
-    errors.route = "Every enabled row needs a departure time and arrival time.";
-    return errors;
-  }
-  const invalid = enabled.find((segment) => {
-    const seats = Number(segment.seats);
-    const amount = Number(segment.amountMwk);
-    return (
-      !Number.isFinite(seats) ||
-      seats < 1 ||
-      seats > bookableSeats ||
-      !Number.isFinite(amount) ||
-      amount < 1
-    );
-  });
-  if (invalid) {
-    errors.route = "Every enabled row needs seats within bookable seats and amount.";
-  }
-  return errors;
-}
-
-function buildTripPayload(
-  form: MainTripDraft,
-  vehicle: Vehicle,
-  segments: RouteSegmentDraft[],
-) {
-  const enabled = segments.filter((segment) => segment.enabled);
-  const firstLeg = enabled[0];
-  const lastLeg = enabled[enabled.length - 1];
-  if (!firstLeg || !lastLeg) throw new Error("Enable at least one route row");
-  const publishRows = enabled.map((segment, index) => ({
-    ...segment,
-    from: index === 0 ? form.originName : segment.from,
-    to: index === 0 ? form.destinationName : segment.to,
-  }));
-  const firstPublishRow = publishRows[0];
-  const lastPublishRow = publishRows[publishRows.length - 1];
-
-  const tripStart = dateTimeFromParts(form.departureDate, firstPublishRow.departureTime);
-  const tripEnd = addDayIfNeeded(tripStart, dateTimeFromParts(form.departureDate, lastPublishRow.arrivalTime));
-  const stopInputs = publishRows.slice(0, -1).map((segment, index) => {
-    const nextSegment = publishRows[index + 1];
-    const arrival = addDayIfNeeded(tripStart, dateTimeFromParts(form.departureDate, segment.arrivalTime));
-    const departure = nextSegment?.departureTime
-      ? addDayIfNeeded(tripStart, dateTimeFromParts(form.departureDate, nextSegment.departureTime))
-      : arrival;
-    return {
-      name: segment.to.trim(),
-      arrivalOffsetMinutes: minutesOffset(tripStart, arrival),
-      departureOffsetMinutes: minutesOffset(tripStart, departure),
-    };
-  });
-
-  const segmentInputs = publishRows.map((segment, index) => {
-    const start = dateTimeFromParts(form.departureDate, segment.departureTime);
-    const end = addDayIfNeeded(start, dateTimeFromParts(form.departureDate, segment.arrivalTime));
-    return {
-      fromStopIndex: index,
-      toStopIndex: index + 1,
-      farePerSeatMwk: Number(segment.amountMwk),
-      maxSeats: Math.min(Number(segment.seats), Number(form.totalSeats)),
-      distanceKm: segment.distanceKm ? Number(segment.distanceKm) : undefined,
-      estimatedDurationMinutes: minutesBetween(start, end),
-      isEnabled: true,
-    };
-  });
-
-  const distanceKm = segmentInputs.reduce((total, segment) => total + (segment.distanceKm ?? 0), 0) || undefined;
-  const farePerSeatMwk = segmentInputs.reduce((total, segment) => total + segment.farePerSeatMwk, 0);
-
-  return {
-    vehicleId: form.vehicleId,
-    originName: firstPublishRow.from.trim(),
-    destinationName: lastPublishRow.to.trim(),
-    departureTime: tripStart.toISOString(),
-    totalSeats: Number(form.totalSeats),
-    comfortClass: vehicle.comfortClass,
-    distanceKm,
-    estimatedDurationMinutes: minutesBetween(tripStart, tripEnd),
-    farePerSeatMwk,
-    stops: stopInputs,
-    segments: segmentInputs,
-  };
 }
 
 function StepPill({ active, label }: { active: boolean; label: string }) {

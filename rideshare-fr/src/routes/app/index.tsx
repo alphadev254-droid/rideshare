@@ -13,9 +13,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowRight,
-  Car,
-  Clock,
   MapPin,
   Search,
   X,
@@ -33,7 +30,6 @@ import {
   locationService,
 } from "@/lib/api";
 import { formatMwk, formatDateTime, formatDistanceKm, formatDuration } from "@/lib/format";
-import { StatusPill } from "@/components/status-pill";
 import { useAuth } from "@/lib/auth-context";
 import {
   Dialog,
@@ -46,6 +42,7 @@ import { toast } from "sonner";
 import { SecureImage } from "@/components/secure-image";
 import { useDebounce } from "@/hooks/use-debounce";
 import { clearPendingTripId, getPendingTripId } from "@/lib/pending-trip";
+import { TripOfferCard } from "@/components/trip-offer-card";
 
 export const Route = createFileRoute("/app/")({
   component: PassengerHome,
@@ -405,62 +402,8 @@ function PassengerHome() {
         ) : (
           <ul className="space-y-3">
             {trips.map((trip) => (
-              <li key={trip.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTrip(trip)}
-                  className="flex w-full flex-col gap-4 rounded-md border border-border bg-card p-4 text-left transition-colors hover:border-border-strong sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StatusPill status={trip.status} />
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {trip.comfortClass}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2 font-display text-base font-semibold">
-                      <span className="truncate">{trip.originName}</span>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{trip.dropOffPoint || trip.destinationName}</span>
-                    </div>
-                    {trip.parentOriginName && trip.parentDestinationName && (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Part of {trip.parentOriginName} to {trip.parentDestinationName}
-                      </div>
-                    )}
-                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="h-3 w-3" />
-                        {formatDateTime(trip.departureTime)}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="h-3 w-3" />
-                        {formatDistanceKm(trip.distanceKm)}
-                      </span>
-                      {trip.vehicle && (
-                        <span className="flex items-center gap-1.5">
-                          <Car className="h-3 w-3" />
-                          {trip.vehicle.make} {trip.vehicle.model}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-4 border-t border-border pt-3 sm:flex-col sm:items-end sm:border-t-0 sm:pt-0">
-                    <div className="text-right">
-                      <div className="font-display text-xl font-semibold tabular">
-                        {formatMwk(trip.farePerSeatMwk)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {trip.availableSeats} available
-                      </div>
-                    </div>
-                    <Button asChild size="sm" className="gap-1.5">
-                      <span>
-                        View ride <ArrowRight className="h-3.5 w-3.5" />
-                      </span>
-                    </Button>
-                  </div>
-                </button>
+              <li key={`${trip.id}-${trip.segmentId ?? "main"}`}>
+                <TripOfferCard trip={trip} onAction={setSelectedTrip} />
               </li>
             ))}
           </ul>

@@ -858,6 +858,12 @@ async function finalizeVerifiedPayment(
               driver: { select: { user: { select: { fullName: true } } } },
             },
           },
+          segment: {
+            select: {
+              fromStop: { select: { name: true } },
+              toStop: { select: { name: true } },
+            },
+          },
         },
       });
 
@@ -883,7 +889,9 @@ async function finalizeVerifiedPayment(
         emergencyContactPhone: createdBooking.passenger.emergencyContactPhone,
         fcmToken: createdBooking.passenger.fcmToken,
         driverName: createdBooking.trip.driver.user.fullName,
-        route: `${createdBooking.trip.originName} -> ${createdBooking.trip.destinationName}`,
+        route: createdBooking.segment
+          ? `${createdBooking.segment.fromStop.name} -> ${createdBooking.segment.toStop.name}`
+          : `${createdBooking.trip.originName} -> ${createdBooking.trip.destinationName}`,
       };
     }
 

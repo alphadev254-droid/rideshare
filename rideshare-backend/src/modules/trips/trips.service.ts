@@ -295,6 +295,18 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
   if (trip.startedAt || trip.status === "in_transit" || trip.status === "completed" || trip.status === "cancelled") {
     throw new AppError(400, "Only trips that have not started can be edited");
   }
+  const [activeBookingCount, pendingPaymentCount] = await prisma.$transaction([
+    prisma.booking.count({
+      where: { tripId, status: { notIn: ["cancelled", "no_show"] } },
+    }),
+    prisma.pendingPayment.count({ where: { tripId } }),
+  ]);
+  if (activeBookingCount > 0) {
+    throw new AppError(400, "Trips with passenger bookings cannot be edited. Cancel or complete the existing bookings first.");
+  }
+  if (pendingPaymentCount > 0) {
+    throw new AppError(400, "Trips with pending payment checkouts cannot be edited yet.");
+  }
 
   const vehicle = await prisma.vehicle.findFirst({
     where: { id: input.vehicleId, driverId: driver.id, reviewStatus: "approved" },
@@ -341,27 +353,34 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
     estimated_duration_minutes: number | null; status: string;
   };
 
-  const rows = await prisma.$queryRaw<TripRow[]>`
-    UPDATE trips
-    SET vehicle_id = ${input.vehicleId}::uuid,
-        origin_name = ${input.originName},
-        pickup_point = ${input.pickupPoint ?? null},
-        origin_point = ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
-        destination_name = ${input.destinationName},
-        drop_off_point = ${input.dropOffPoint ?? null},
-        destination_point = ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
-        departure_time = ${departureTime},
-        total_seats = ${input.totalSeats},
-        available_seats = ${availableSeats},
-        comfort_class = ${vehicle.comfortClass as ComfortClass}::"ComfortClass",
-        distance_km = ${distanceKm},
-        base_fare_mwk = ${BigInt(input.farePerSeatMwk)},
-        estimated_duration_minutes = ${input.estimatedDurationMinutes},
-        updated_at = now()
-    WHERE id = ${tripId}::uuid AND driver_id = ${driver.id}::uuid
-    RETURNING id, origin_name, pickup_point, destination_name, drop_off_point, departure_time, total_seats,
-              available_seats, comfort_class, base_fare_mwk, distance_km,
-              estimated_duration_minutes, status`;
+  const rows = await prisma.$transaction(async (tx) => {
+    const updated = await tx.$queryRaw<TripRow[]>`
+      UPDATE trips
+      SET vehicle_id = ${input.vehicleId}::uuid,
+          origin_name = ${input.originName},
+          pickup_point = ${input.pickupPoint ?? null},
+          origin_point = ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
+          destination_name = ${input.destinationName},
+          drop_off_point = ${input.dropOffPoint ?? null},
+          destination_point = ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
+          departure_time = ${departureTime},
+          total_seats = ${input.totalSeats},
+          available_seats = ${availableSeats},
+          comfort_class = ${vehicle.comfortClass as ComfortClass}::"ComfortClass",
+          distance_km = ${distanceKm},
+          base_fare_mwk = ${BigInt(input.farePerSeatMwk)},
+          estimated_duration_minutes = ${input.estimatedDurationMinutes},
+          updated_at = now()
+      WHERE id = ${tripId}::uuid AND driver_id = ${driver.id}::uuid
+      RETURNING id, origin_name, pickup_point, destination_name, drop_off_point, departure_time, total_seats,
+                available_seats, comfort_class, base_fare_mwk, distance_km,
+                estimated_duration_minutes, status`;
+
+    await tx.tripSegment.deleteMany({ where: { tripId } });
+    await tx.tripStop.deleteMany({ where: { tripId } });
+    await createRoutePlan(tx, tripId, input);
+    return updated;
+  });
 
   const r = rows[0];
   return {
@@ -700,6 +719,9 @@ export async function listPublicTrips(
         },
         orderBy: [{ fromOrder: "asc" }, { toOrder: "asc" }],
       },
+      stops: {
+        orderBy: { stopOrder: "asc" },
+      },
       bookings: {
         where: { status: { notIn: ["cancelled", "no_show"] } },
         select: {
@@ -715,12 +737,23 @@ export async function listPublicTrips(
   const matches = (value: string | null | undefined, query: string | undefined) =>
     !query || (value ?? "").toLowerCase().includes(query);
 
-  const offers: Array<Record<string, unknown>> = trips.flatMap(({ baseFareMwk, distanceKm, vehicle, segments, bookings, ...trip }) => {
+  const offers: Array<Record<string, unknown>> = trips.flatMap(({ baseFareMwk, distanceKm, vehicle, segments, stops, bookings, ...trip }) => {
     const formattedVehicle = {
       ...vehicle,
       imageUrls: vehicle.images.map((row) => row.url),
       images: undefined,
     };
+    const routeStops = stops.length > 0
+      ? stops.map((stop) => ({
+          name: stop.name,
+          stopOrder: stop.stopOrder,
+          arrivalOffsetMinutes: stop.arrivalOffsetMinutes,
+          departureOffsetMinutes: stop.departureOffsetMinutes,
+        }))
+      : [
+          { name: trip.originName, stopOrder: 0, arrivalOffsetMinutes: null, departureOffsetMinutes: 0 },
+          { name: trip.destinationName, stopOrder: 1, arrivalOffsetMinutes: null, departureOffsetMinutes: null },
+        ];
 
     if (segments.length === 0) {
       if (!matches(trip.originName, originQuery)) return [];
@@ -736,6 +769,9 @@ export async function listPublicTrips(
         originName: trip.originName,
         destinationName: trip.destinationName,
         dropOffPoint: trip.dropOffPoint,
+        routeStops,
+        segmentFromOrder: 0,
+        segmentToOrder: routeStops.length - 1,
         arrivalTime: null,
         farePerSeatMwk: baseFareMwk?.toString() ?? "0",
         distanceKm: distanceKm ? Number(distanceKm) : 0,
@@ -764,6 +800,9 @@ export async function listPublicTrips(
         pickupPoint: segment.fromStop.pickupPoint ?? trip.pickupPoint ?? displayOrigin,
         destinationName: displayDestination,
         dropOffPoint: segment.toStop.dropOffPoint ?? displayDestination,
+        routeStops,
+        segmentFromOrder: segment.fromOrder,
+        segmentToOrder: segment.toOrder,
         departureTime: segmentDepartureTime(trip.departureTime, segment.fromStop.departureOffsetMinutes),
         arrivalTime: segmentArrivalTime(trip.departureTime, segment.toStop.arrivalOffsetMinutes),
         availableSeats,
@@ -795,18 +834,31 @@ export async function getTripById(tripId: string, _userId?: string) {
       },
       vehicle: {
         select: {
+          id: true,
           make: true,
           model: true,
           plateNumber: true,
           year: true,
           color: true,
+          seatCapacity: true,
           images: { select: { url: true }, orderBy: { createdAt: "asc" } },
         },
+      },
+      stops: {
+        orderBy: { stopOrder: "asc" },
+      },
+      segments: {
+        where: { isEnabled: true },
+        include: {
+          fromStop: true,
+          toStop: true,
+        },
+        orderBy: [{ fromOrder: "asc" }, { toOrder: "asc" }],
       },
     },
   });
   if (!trip) throw new AppError(404, "Trip not found");
-  const { baseFareMwk, distanceKm, vehicle, ...rest } = trip;
+  const { baseFareMwk, distanceKm, vehicle, stops, segments, ...rest } = trip;
   return {
     ...rest,
     vehicle: {
@@ -814,6 +866,33 @@ export async function getTripById(tripId: string, _userId?: string) {
       imageUrls: vehicle.images.map((row) => row.url),
       images: undefined,
     },
+    routeStops: stops.map((stop) => ({
+      name: stop.name,
+      stopOrder: stop.stopOrder,
+      arrivalOffsetMinutes: stop.arrivalOffsetMinutes,
+      departureOffsetMinutes: stop.departureOffsetMinutes,
+    })),
+    routeSegments: segments.map((segment) => ({
+      id: segment.id,
+      fromOrder: segment.fromOrder,
+      toOrder: segment.toOrder,
+      farePerSeatMwk: segment.fareMwk.toString(),
+      maxSeats: segment.maxSeats,
+      distanceKm: segment.distanceKm ? Number(segment.distanceKm) : null,
+      estimatedDurationMinutes: segment.estimatedDurationMinutes,
+      fromStop: {
+        name: segment.fromStop.name,
+        stopOrder: segment.fromStop.stopOrder,
+        arrivalOffsetMinutes: segment.fromStop.arrivalOffsetMinutes,
+        departureOffsetMinutes: segment.fromStop.departureOffsetMinutes,
+      },
+      toStop: {
+        name: segment.toStop.name,
+        stopOrder: segment.toStop.stopOrder,
+        arrivalOffsetMinutes: segment.toStop.arrivalOffsetMinutes,
+        departureOffsetMinutes: segment.toStop.departureOffsetMinutes,
+      },
+    })),
     farePerSeatMwk: baseFareMwk?.toString() ?? "0",
     distanceKm: distanceKm ? Number(distanceKm) : 0,
     estimatedDurationMinutes: trip.estimatedDurationMinutes ?? null,

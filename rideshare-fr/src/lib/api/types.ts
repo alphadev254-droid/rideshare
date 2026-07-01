@@ -110,6 +110,8 @@ export interface Vehicle {
 export interface Trip {
   id: string;
   segmentId?: string | null;
+  segmentFromOrder?: number;
+  segmentToOrder?: number;
   driverId?: string;
   vehicleId?: string;
   status: TripStatus;
@@ -131,6 +133,33 @@ export interface Trip {
   comfortClass: ComfortClass;
   distanceKm: number;
   estimatedDurationMinutes?: number | null;
+  routeStops?: Array<{
+    name: string;
+    stopOrder: number;
+    arrivalOffsetMinutes?: number | null;
+    departureOffsetMinutes?: number | null;
+  }>;
+  routeSegments?: Array<{
+    id: string;
+    fromOrder: number;
+    toOrder: number;
+    farePerSeatMwk: string;
+    maxSeats: number;
+    distanceKm?: number | null;
+    estimatedDurationMinutes?: number | null;
+    fromStop: {
+      name: string;
+      stopOrder: number;
+      arrivalOffsetMinutes?: number | null;
+      departureOffsetMinutes?: number | null;
+    };
+    toStop: {
+      name: string;
+      stopOrder: number;
+      arrivalOffsetMinutes?: number | null;
+      departureOffsetMinutes?: number | null;
+    };
+  }>;
   gpsTrackingActive?: boolean;
   startedAt?: string | null;
   completedAt?: string | null;

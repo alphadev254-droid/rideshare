@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePickerField } from "@/components/date-picker-field";
+import { Clock } from "lucide-react";
+import { useRef } from "react";
 import { DistrictSearch } from "./district-search";
 import type { MainTripDraft } from "./trip-create-types";
 
@@ -115,6 +117,27 @@ export function MainTripStep({
           <FieldError message={errors.departureDate} />
         </div>
         <div className="space-y-1.5">
+          <Label className="label-eyebrow">Departure time</Label>
+          <TimePickerField
+            value={form.departureTime}
+            onChange={(value) => onChange("departureTime", value)}
+            invalid={!!errors.departureTime}
+          />
+          <FieldError message={errors.departureTime} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="label-eyebrow">Arrival time</Label>
+          <TimePickerField
+            value={form.arrivalTime}
+            onChange={(value) => onChange("arrivalTime", value)}
+            invalid={!!errors.arrivalTime}
+          />
+          <FieldError message={errors.arrivalTime} />
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
+        <div className="space-y-1.5">
           <Label className="label-eyebrow">Vehicle</Label>
           <Select value={form.vehicleId} onValueChange={(value) => onChange("vehicleId", value)}>
             <SelectTrigger aria-invalid={!!errors.vehicleId}>
@@ -131,7 +154,7 @@ export function MainTripStep({
           <FieldError message={errors.vehicleId} />
         </div>
         <div className="space-y-1.5">
-          <Label className="label-eyebrow">Bookable seats</Label>
+          <Label className="label-eyebrow">Trip seat capacity</Label>
           <Input
             type="number"
             min={1}
@@ -141,12 +164,15 @@ export function MainTripStep({
             aria-invalid={!!errors.totalSeats}
           />
           <FieldError message={errors.totalSeats} />
+          <p className="text-xs text-muted-foreground">
+            Maximum passenger seats available for booking across this trip.
+          </p>
         </div>
       </div>
 
       {selectedVehicle && (
         <div className="rounded-md bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
-          Vehicle capacity: {selectedVehicle.seatCapacity}. You can publish up to {selectedVehicle.seatCapacity} bookable seats for this trip.
+          Vehicle capacity: {selectedVehicle.seatCapacity}. Route vacancies cannot exceed the trip seat capacity.
         </div>
       )}
 
@@ -162,4 +188,53 @@ export function MainTripStep({
 export function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return <p className="text-xs font-medium text-destructive">{message}</p>;
+}
+
+function TimePickerField({
+  value,
+  onChange,
+  invalid,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  invalid?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function openPicker() {
+    const input = inputRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
+    try {
+      input?.showPicker?.();
+    } catch {
+      input?.focus();
+    }
+  }
+
+  return (
+    <div className="relative">
+      <Input
+        ref={inputRef}
+        type="time"
+        value={value}
+        onMouseDown={openPicker}
+        onClick={openPicker}
+        onFocus={openPicker}
+        onChange={(event) => onChange(event.target.value)}
+        aria-invalid={invalid}
+        className="cursor-pointer pr-9"
+      />
+      <button
+        type="button"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          inputRef.current?.focus();
+          openPicker();
+        }}
+        aria-label="Choose time"
+      >
+        <Clock className="h-4 w-4" />
+      </button>
+    </div>
+  );
 }

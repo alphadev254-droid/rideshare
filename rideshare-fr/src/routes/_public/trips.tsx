@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/page-header";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ApiError, paymentService, tripService, userService, locationService, type ComfortClass, type PendingPayment, type Trip, type User } from "@/lib/api";
 import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
-import { StatusPill, ComfortBadge } from "@/components/status-pill";
 import { BookingSeatsFields } from "@/components/booking-seats-fields";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModal } from "@/lib/auth-modal-context";
@@ -17,7 +16,8 @@ import { setPendingTripId } from "@/lib/pending-trip";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
 import { SecureImage } from "@/components/secure-image";
-import { ArrowRight, Calendar, Car, Clock, MapPin, Search, ShieldCheck, Users, X, Zap } from "lucide-react";
+import { TripOfferCard } from "@/components/trip-offer-card";
+import { Calendar, Car, Clock, MapPin, Search, ShieldCheck, Users, X, Zap } from "lucide-react";
 
 export const Route = createFileRoute("/_public/trips")({ component: PublicTripsPage, head: () => ({
   meta: [
@@ -42,7 +42,6 @@ function availDays(y: string, m: string) { return y && m ? Array.from({ length: 
 function PublicTripsPage() {
   const { user, setUser } = useAuth();
   const { openModal } = useAuthModal();
-  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
@@ -147,15 +146,6 @@ function PublicTripsPage() {
     setViewTrip(trip);
   }
 
-  function beginBooking(trip: Trip) {
-    setPendingTripId(trip.id);
-    if (!user) {
-      openModal({ mode: "login", role: "passenger" });
-      return;
-    }
-    navigate({ to: "/app", search: {} });
-  }
-
   return (
     <div className="public-shell min-h-screen px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-8">
@@ -198,48 +188,9 @@ function PublicTripsPage() {
             <p className="mt-1 text-xs text-muted-foreground">Try adjusting your filters or check back later.</p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4">
             {trips.map((trip) => (
-              <div key={trip.id} className="group public-card flex flex-col rounded-xl p-5 transition-colors hover:border-primary/45">
-                <div className="flex items-center gap-2 mb-3">
-                  <StatusPill status={trip.status} />
-                  <ComfortBadge value={trip.comfortClass} />
-                </div>
-                <div className="route-rail mb-4 mt-3 space-y-3 pl-6">
-                  <div className="relative flex items-center gap-2">
-                    <span className="route-dot absolute -left-6" />
-                    <span className="truncate font-display text-base font-semibold">{trip.originName}</span>
-                  </div>
-                  <div className="relative flex items-center gap-2">
-                    <span className="route-dot absolute -left-6 bg-primary" />
-                    <span className="truncate font-display text-base font-semibold">{trip.dropOffPoint || trip.destinationName}</span>
-                  </div>
-                </div>
-                {trip.parentOriginName && trip.parentDestinationName && (
-                  <div className="mb-3 text-xs text-muted-foreground">
-                    Part of {trip.parentOriginName} to {trip.parentDestinationName}
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mb-4">
-                  <span className="flex items-center gap-1"><Calendar className="h-3 w-3 text-gold" />{formatDateTime(trip.departureTime)}</span>
-                  <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-route" />{formatDistanceKm(trip.distanceKm)}</span>
-                  {trip.vehicle && <span className="flex items-center gap-1"><Car className="h-3 w-3 text-primary" />{trip.vehicle.make} {trip.vehicle.model}</span>}
-                </div>
-                <div className="mt-auto flex items-end justify-between pt-3 border-t border-border">
-                  <div>
-                    <div className="font-display text-xl font-semibold tabular text-gold">{formatMwk(trip.farePerSeatMwk)}</div>
-                    <div className="flex items-center gap-1 text-[11px] text-route"><Users className="h-3 w-3 text-route" />{trip.availableSeats} seats available</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleView(trip)}>
-                      View details
-                    </Button>
-                    <Button size="sm" className="gap-1.5" onClick={() => beginBooking(trip)}>
-                      Book <ArrowRight className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <TripOfferCard key={`${trip.id}-${trip.segmentId ?? "main"}`} trip={trip} onAction={handleView} />
             ))}
           </div>
         )}

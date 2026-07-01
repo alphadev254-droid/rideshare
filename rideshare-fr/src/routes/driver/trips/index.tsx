@@ -6,7 +6,7 @@ import { LoadingState } from "@/components/loading-state";
 import { EmptyState } from "@/components/empty-state";
 import { StatusPill } from "@/components/status-pill";
 import { formatDateTime, formatMwk, formatDistanceKm } from "@/lib/format";
-import { Eye, KeyRound, MapPin, Play, Plus, Route as RouteIcon } from "lucide-react";
+import { Eye, KeyRound, MapPin, Pencil, Play, Plus, Route as RouteIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -125,6 +125,14 @@ function TripsList() {
                             <MapPin className="h-4 w-4" />
                             <span className="sm:hidden">Location</span>
                             <span className="hidden sm:inline">View driver location</span>
+                          </Link>
+                        </Button>
+                      )}
+                      {(t.status === "scheduled" || t.status === "boarding") && !t.startedAt && (
+                        <Button asChild size="sm" variant="outline" className="gap-1.5">
+                          <Link to="/driver/trips/$id/edit" params={{ id: t.id }}>
+                            <Pencil className="h-3.5 w-3.5" />
+                            Edit
                           </Link>
                         </Button>
                       )}
