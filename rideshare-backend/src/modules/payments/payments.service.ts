@@ -81,6 +81,7 @@ type PaymentRow = {
   paymentMethod: PaymentMethod;
   gatewayRef: string | null;
   providerReference: string | null;
+  providerPayload?: Prisma.JsonValue | null;
   status: string;
   escrowHeldAt: Date | null;
   releasedAt: Date | null;
@@ -234,6 +235,7 @@ function formatPayment(row: PaymentRow) {
     netAmountMwk: row.netAmountMwk.toString(),
     driverAmountMwk: row.netAmountMwk.toString(),
     providerReference: row.providerReference,
+    providerPayload: row.providerPayload ?? null,
     passengerPhone: row.passengerPhone ?? row.passenger?.phone,
     passengerEmail: row.passenger?.email ?? null,
   };

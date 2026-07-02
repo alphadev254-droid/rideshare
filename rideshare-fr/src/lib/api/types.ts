@@ -313,6 +313,7 @@ export interface Payment {
   netAmountMwk?: string;
   gatewayRef?: string | null;
   providerReference?: string | null;
+  providerPayload?: unknown;
   status: PaymentStatus;
   passengerName?: string | null;
   passengerPhone?: string | null;

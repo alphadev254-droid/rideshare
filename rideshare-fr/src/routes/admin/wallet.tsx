@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { RefreshCw, Search, WalletCards } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Eye, RefreshCw, Search, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { LoadingState } from "@/components/loading-state";
 import { PageHeader } from "@/components/page-header";
@@ -49,6 +49,11 @@ function AdminWalletPage() {
   const [type, setType] = useState<"all" | "credit" | "withdrawal">("all");
   const [status, setStatus] = useState("all");
   const [jsonDialog, setJsonDialog] = useState<{ title: string; value: unknown } | null>(null);
+  const [rowDialog, setRowDialog] = useState<
+    | { title: string; kind: "transaction"; row: AdminWalletTransaction }
+    | { title: string; kind: "withdrawal"; row: AdminWalletWithdrawal }
+    | null
+  >(null);
 
   const transactions = useQuery({
     queryKey: ["wallet", "admin", "transactions", search, type, status],
@@ -138,6 +143,7 @@ function AdminWalletPage() {
             <WalletTransactionsTable
               rows={transactions.data?.items ?? []}
               onViewJson={(title, value) => setJsonDialog({ title, value })}
+              onViewRow={(row) => setRowDialog({ title: "Wallet transaction details", kind: "transaction", row })}
             />
           )}
         </TabsContent>
@@ -150,6 +156,7 @@ function AdminWalletPage() {
               rows={withdrawals.data?.items ?? []}
               onReconcile={(id) => reconcile.mutate(id)}
               onViewJson={(title, value) => setJsonDialog({ title, value })}
+              onViewRow={(row) => setRowDialog({ title: "Withdrawal details", kind: "withdrawal", row })}
               reconcilingId={reconcile.variables}
               isReconciling={reconcile.isPending}
             />
@@ -165,6 +172,14 @@ function AdminWalletPage() {
           if (!open) setJsonDialog(null);
         }}
       />
+      <WalletRowDetailsDialog
+        data={rowDialog}
+        open={Boolean(rowDialog)}
+        onOpenChange={(open) => {
+          if (!open) setRowDialog(null);
+        }}
+        onViewJson={(title, value) => setJsonDialog({ title, value })}
+      />
     </div>
   );
 }
@@ -172,9 +187,11 @@ function AdminWalletPage() {
 function WalletTransactionsTable({
   rows,
   onViewJson,
+  onViewRow,
 }: {
   rows: AdminWalletTransaction[];
   onViewJson: (title: string, value: unknown) => void;
+  onViewRow: (row: AdminWalletTransaction) => void;
 }) {
   if (rows.length === 0) return <EmptyWalletState label="No wallet transactions found." />;
 
@@ -202,6 +219,7 @@ function WalletTransactionsTable({
               <TableHead>Withdrawal</TableHead>
               <TableHead>Metadata</TableHead>
               <TableHead>Payload</TableHead>
+              <TableHead className="text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -235,6 +253,12 @@ function WalletTransactionsTable({
                 <TableCell>
                   <JsonCell label="View payload" value={row.providerPayload} onView={() => onViewJson("Wallet transaction provider payload", row.providerPayload)} />
                 </TableCell>
+                <TableCell className="text-right">
+                  <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => onViewRow(row)}>
+                    <Eye className="h-3.5 w-3.5" />
+                    View
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -248,12 +272,14 @@ function WithdrawalsTable({
   rows,
   onReconcile,
   onViewJson,
+  onViewRow,
   reconcilingId,
   isReconciling,
 }: {
   rows: AdminWalletWithdrawal[];
   onReconcile: (id: string) => void;
   onViewJson: (title: string, value: unknown) => void;
+  onViewRow: (row: AdminWalletWithdrawal) => void;
   reconcilingId?: string;
   isReconciling: boolean;
 }) {
@@ -313,16 +339,22 @@ function WithdrawalsTable({
                     <JsonCell label="View payload" value={row.providerPayload} onView={() => onViewJson("Withdrawal provider payload", row.providerPayload)} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant={canReconcile ? "default" : "outline"}
-                      disabled={!canReconcile || isReconciling}
-                      onClick={() => onReconcile(row.id)}
-                      className="whitespace-nowrap"
-                    >
-                      <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isCurrent ? "animate-spin" : ""}`} />
-                      Reconcile
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => onViewRow(row)}>
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={canReconcile ? "default" : "outline"}
+                        disabled={!canReconcile || isReconciling}
+                        onClick={() => onReconcile(row.id)}
+                        className="whitespace-nowrap"
+                      >
+                        <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isCurrent ? "animate-spin" : ""}`} />
+                        Reconcile
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -391,6 +423,181 @@ function JsonViewerDialog({
         </pre>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function WalletRowDetailsDialog({
+  data,
+  open,
+  onOpenChange,
+  onViewJson,
+}: {
+  data:
+    | { title: string; kind: "transaction"; row: AdminWalletTransaction }
+    | { title: string; kind: "withdrawal"; row: AdminWalletWithdrawal }
+    | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onViewJson: (title: string, value: unknown) => void;
+}) {
+  const row = data?.row;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>{data?.title ?? "Wallet details"}</DialogTitle>
+        </DialogHeader>
+        {data?.kind === "transaction" ? (
+          <div className="max-h-[72vh] overflow-auto pr-1">
+            <DetailSection title="Driver">
+              <DetailItem label="Driver name" value={data.row.driverName} />
+              <DetailItem label="Driver phone" value={data.row.driverPhone} />
+              <DetailItem label="Driver email" value={data.row.driverEmail} />
+              <DetailItem label="Driver ID" value={data.row.driverId} wide />
+            </DetailSection>
+
+            <DetailSection title="Wallet transaction">
+              <DetailItem label="Transaction ID" value={data.row.id} wide />
+              <DetailItem label="Date" value={formatDateTime(data.row.createdAt)} />
+              <DetailItem label="Type" value={data.row.type} />
+              <DetailItem label="Kind" value={clean(data.row.kind)} />
+              <DetailItem label="Description" value={data.row.description} />
+              <DetailItem label="Amount" value={formatMwk(data.row.amountMwk)} />
+              <DetailItem label="Balance before" value={formatMwk(data.row.balanceBeforeMwk)} />
+              <DetailItem label="Balance after" value={formatMwk(data.row.balanceAfterMwk)} />
+              <DetailItem label="Status" value={data.row.withdrawal?.status ?? data.row.providerStatus ?? "-"} />
+              <DetailItem label="Reference" value={data.row.reference} wide />
+            </DetailSection>
+
+            <DetailSection title="Related records">
+              <DetailItem label="Booking ID" value={data.row.bookingId} />
+              <DetailItem label="Payment ID" value={data.row.paymentId} />
+              <DetailItem label="Refund ID" value={data.row.refundId} />
+              <DetailItem label="Withdrawal ID" value={data.row.withdrawal?.id} />
+            </DetailSection>
+
+            <DetailSection title="Gateway">
+              <DetailItem label="Charge ID" value={data.row.gatewayChargeId} wide />
+              <DetailItem label="Provider reference" value={data.row.providerReference} />
+              <DetailItem label="Provider transaction" value={data.row.providerTransactionId} />
+              <DetailItem label="Provider status" value={data.row.providerStatus} />
+              <DetailItem label="Withdrawal provider" value={data.row.withdrawal?.provider} />
+              <DetailItem label="Withdrawal phone" value={data.row.withdrawal?.phone} />
+              <DetailItem label="Gateway requested" value={formatDateTime(data.row.withdrawal?.gatewayRequestedAt)} />
+              <DetailItem label="Gateway responded" value={formatDateTime(data.row.withdrawal?.gatewayRespondedAt)} />
+              <DetailItem label="Webhook received" value={formatDateTime(data.row.withdrawal?.webhookReceivedAt)} />
+              <DetailItem label="Processed" value={formatDateTime(data.row.withdrawal?.processedAt)} />
+              <DetailItem label="Failure reason" value={data.row.withdrawal?.failureReason} wide tone="destructive" />
+            </DetailSection>
+
+            <DetailJsonActions
+              metadata={data.row.metadata}
+              payload={data.row.providerPayload}
+              onViewJson={onViewJson}
+            />
+          </div>
+        ) : data?.kind === "withdrawal" ? (
+          <div className="max-h-[72vh] overflow-auto pr-1">
+            <DetailSection title="Driver">
+              <DetailItem label="Driver name" value={data.row.driverName} />
+              <DetailItem label="Driver phone" value={data.row.driverPhone} />
+              <DetailItem label="Driver email" value={data.row.driverEmail} />
+              <DetailItem label="Driver ID" value={data.row.driverId} wide />
+            </DetailSection>
+
+            <DetailSection title="Withdrawal">
+              <DetailItem label="Withdrawal ID" value={data.row.id} wide />
+              <DetailItem label="Amount" value={formatMwk(data.row.amountMwk)} />
+              <DetailItem label="Status" value={data.row.status} />
+              <DetailItem label="Method" value={data.row.provider.replace("_", " ")} />
+              <DetailItem label="Phone/account" value={data.row.phone} />
+              <DetailItem label="Reference" value={data.row.reference} wide />
+              <DetailItem label="Wallet transaction" value={data.row.walletTransactionId} wide />
+            </DetailSection>
+
+            <DetailSection title="Gateway">
+              <DetailItem label="Charge ID" value={data.row.gatewayChargeId} wide />
+              <DetailItem label="Provider reference" value={data.row.providerReference} />
+              <DetailItem label="Provider transaction" value={data.row.providerTransactionId} />
+              <DetailItem label="Provider status" value={data.row.providerStatus} />
+              <DetailItem label="Created" value={formatDateTime(data.row.createdAt)} />
+              <DetailItem label="Gateway requested" value={formatDateTime(data.row.gatewayRequestedAt)} />
+              <DetailItem label="Gateway responded" value={formatDateTime(data.row.gatewayRespondedAt)} />
+              <DetailItem label="Webhook received" value={formatDateTime(data.row.webhookReceivedAt)} />
+              <DetailItem label="Processed" value={formatDateTime(data.row.processedAt)} />
+              <DetailItem label="Failure reason" value={data.row.failureReason} wide tone="destructive" />
+            </DetailSection>
+
+            <DetailJsonActions
+              payload={data.row.providerPayload}
+              onViewJson={onViewJson}
+            />
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DetailSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="mb-4">
+      <h3 className="label-eyebrow mb-2">{title}</h3>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+    </section>
+  );
+}
+
+function DetailItem({
+  label,
+  value,
+  wide = false,
+  tone,
+}: {
+  label: string;
+  value?: string | null;
+  wide?: boolean;
+  tone?: "destructive";
+}) {
+  return (
+    <div className={`min-w-0 rounded-md border border-border bg-surface p-2 ${wide ? "sm:col-span-2 lg:col-span-3" : ""}`}>
+      <p className="label-eyebrow">{label}</p>
+      <p className={`mt-1 break-words text-sm ${tone === "destructive" ? "text-destructive" : "text-foreground"}`}>
+        {value || "-"}
+      </p>
+    </div>
+  );
+}
+
+function DetailJsonActions({
+  metadata,
+  payload,
+  onViewJson,
+}: {
+  metadata?: unknown;
+  payload?: unknown;
+  onViewJson: (title: string, value: unknown) => void;
+}) {
+  const hasMetadata = jsonCell(metadata) !== "-";
+  const hasPayload = jsonCell(payload) !== "-";
+  if (!hasMetadata && !hasPayload) return null;
+
+  return (
+    <section>
+      <h3 className="label-eyebrow mb-2">Raw data</h3>
+      <div className="flex flex-wrap gap-2">
+        {hasMetadata ? (
+          <Button type="button" variant="outline" size="sm" onClick={() => onViewJson("Wallet transaction metadata", metadata)}>
+            View metadata JSON
+          </Button>
+        ) : null}
+        {hasPayload ? (
+          <Button type="button" variant="outline" size="sm" onClick={() => onViewJson("Provider payload", payload)}>
+            View payload JSON
+          </Button>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
