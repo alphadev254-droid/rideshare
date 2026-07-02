@@ -97,18 +97,19 @@ function NewTrip() {
       ]);
     } else {
       setSegments((current) =>
-        current.map((segment, index) =>
-          index === 0
-            ? {
-                ...segment,
-                from: form.originName,
-                to: form.destinationName,
-                departureTime: form.departureTime,
-                arrivalTime: form.arrivalTime,
-                seats: form.totalSeats,
-              }
-            : segment,
-        ),
+        current.map((segment, index) => {
+          if (index !== 0) return segment;
+          const currentSeats = Number(segment.seats || form.totalSeats);
+          const tripSeats = Number(form.totalSeats || 1);
+          return {
+            ...segment,
+            from: form.originName,
+            to: form.destinationName,
+            departureTime: form.departureTime,
+            arrivalTime: form.arrivalTime,
+            seats: String(Math.max(1, Math.min(currentSeats || tripSeats, tripSeats))),
+          };
+        }),
       );
     }
     setStep(2);

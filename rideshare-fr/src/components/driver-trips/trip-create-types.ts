@@ -248,7 +248,6 @@ function normalizedRows(form: MainTripDraft, segments: RouteSegmentDraft[]) {
       to: index === 0 ? form.destinationName : segment.to,
       departureTime: index === 0 ? form.departureTime : segment.departureTime,
       arrivalTime: index === 0 ? form.arrivalTime : segment.arrivalTime,
-      seats: index === 0 ? form.totalSeats : segment.seats,
     }));
 }
 

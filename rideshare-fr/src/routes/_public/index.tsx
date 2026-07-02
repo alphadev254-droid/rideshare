@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, MapPin, Clock, Car, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowRight, MapPin, Clock, Car, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { tripService, type Trip } from "@/lib/api";
 import { setPendingTripId } from "@/lib/pending-trip";
 import { SecureImage } from "@/components/secure-image";
 import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
+import { PwaInstallButton } from "@/components/pwa-install";
 
 const landingHeroImageUrl =
   (import.meta.env.VITE_LANDING_HERO_IMAGE_URL as string | undefined) ??
@@ -40,14 +41,30 @@ export const Route = createFileRoute("/_public/")({
   head: () => ({
     meta: [
       { title: "ChepetsaRide - Book seats on shared trips across Malawi" },
-      { name: "description", content: "Drivers publish planned trips between Malawi places, passengers book available seats and everyone shares the travel cost. Lilongwe, Blantyre, Mzuzu, Zomba and more." },
-      { name: "keywords", content: "shared rides Malawi, rideshare Malawi, affordable rides Malawi, cheap rides Malawi, shared car Lilongwe Blantyre, intercity car travel Malawi, Lilongwe to Blantyre ride, Lilongwe to Mzuzu ride, Lilongwe to Zomba ride, Blantyre to Lilongwe ride, Blantyre to Mangochi ride, Lilongwe to Salima ride, Malawi locations rides, Airtel Money rideshare, TNM Mpamba rideshare, split travel cost Malawi, driver passenger Malawi, book seat Malawi" },
+      {
+        name: "description",
+        content:
+          "Drivers publish planned trips between Malawi places, passengers book available seats and everyone shares the travel cost. Lilongwe, Blantyre, Mzuzu, Zomba and more.",
+      },
+      {
+        name: "keywords",
+        content:
+          "shared rides Malawi, rideshare Malawi, affordable rides Malawi, cheap rides Malawi, shared car Lilongwe Blantyre, intercity car travel Malawi, Lilongwe to Blantyre ride, Lilongwe to Mzuzu ride, Lilongwe to Zomba ride, Blantyre to Lilongwe ride, Blantyre to Mangochi ride, Lilongwe to Salima ride, Malawi locations rides, Airtel Money rideshare, TNM Mpamba rideshare, split travel cost Malawi, driver passenger Malawi, book seat Malawi",
+      },
       { property: "og:title", content: "ChepetsaRide - Book seats on shared trips across Malawi" },
-      { property: "og:description", content: "Drivers publish planned trips, passengers book seats and share the cost. Pay with Airtel Money or TNM Mpamba." },
+      {
+        property: "og:description",
+        content:
+          "Drivers publish planned trips, passengers book seats and share the cost. Pay with Airtel Money or TNM Mpamba.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "ChepetsaRide - Book seats on shared trips across Malawi" },
-      { name: "twitter:description", content: "A driver going your way publishes a planned trip. Book a seat, share the cost and pay with mobile money." },
+      {
+        name: "twitter:description",
+        content:
+          "A driver going your way publishes a planned trip. Book a seat, share the cost and pay with mobile money.",
+      },
     ],
   }),
   component: Landing,
@@ -121,7 +138,9 @@ function Landing() {
                   ["Anywhere", "bg-foreground text-foreground ring-foreground/10"],
                 ].map(([label, classes]) => (
                   <span key={label} className="relative flex flex-col items-center gap-3">
-                    <span className={`rounded bg-background/80 px-2 ${classes.split(" ")[1]}`}>{label}</span>
+                    <span className={`rounded bg-background/80 px-2 ${classes.split(" ")[1]}`}>
+                      {label}
+                    </span>
                     <span className={`h-3 w-3 rounded-full ring-4 ${classes}`} />
                   </span>
                 ))}
@@ -132,7 +151,9 @@ function Landing() {
               <span className="text-primary">You book a seat, share the cost.</span>
             </h1>
             <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Drivers travelling between places publish planned trips and open available seats to passengers. Book your seat, pay with Airtel Money or TNM Mpamba, and travel with people going the same way.
+              Drivers travelling between places publish planned trips and open available seats to
+              passengers. Book your seat, pay with Airtel Money or TNM Mpamba, and travel with
+              people going the same way.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link to="/trips">
@@ -143,6 +164,7 @@ function Landing() {
               <Button size="lg" variant="outline" onClick={handleCtaDrive}>
                 Publish a trip
               </Button>
+              <PwaInstallButton variant="outline" size="lg" className="gap-2" showWhenUnavailable />
             </div>
           </div>
 
@@ -203,11 +225,15 @@ function Landing() {
                       <div className="route-rail mt-4 space-y-3 pl-6">
                         <div className="relative flex items-center gap-2">
                           <span className="route-dot absolute -left-6" />
-                          <span className="truncate font-display text-base font-semibold">{trip.originName}</span>
+                          <span className="truncate font-display text-base font-semibold">
+                            {trip.originName}
+                          </span>
                         </div>
                         <div className="relative flex items-center gap-2">
                           <span className="route-dot absolute -left-6 bg-primary" />
-                          <span className="truncate font-display text-base font-semibold">{trip.dropOffPoint || trip.destinationName}</span>
+                          <span className="truncate font-display text-base font-semibold">
+                            {trip.dropOffPoint || trip.destinationName}
+                          </span>
                         </div>
                       </div>
 
@@ -229,8 +255,9 @@ function Landing() {
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <span className="trust-chip"><ShieldCheck className="h-3.5 w-3.5" /> Verified</span>
-                        <span className="route-chip"><Wallet className="h-3.5 w-3.5" /> Mobile money</span>
+                        <span className="trust-chip">
+                          <ShieldCheck className="h-3.5 w-3.5" /> Verified
+                        </span>
                       </div>
 
                       <div className="mt-auto flex items-end justify-between gap-3 pt-4">
@@ -275,9 +302,9 @@ function Landing() {
               Affordable rides between Malawi places.
             </h2>
             <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-              Search planned trips from drivers travelling between towns, areas, cities and districts
-              like Lilongwe, Blantyre, Mzuzu, Zomba, Mangochi and Salima. Book an available seat and
-              share the cost instead of paying for the whole journey alone.
+              Search planned trips from drivers travelling between towns, areas, cities and
+              districts like Lilongwe, Blantyre, Mzuzu, Zomba, Mangochi and Salima. Book an
+              available seat and share the cost instead of paying for the whole journey alone.
             </p>
           </div>
 
@@ -293,7 +320,9 @@ function Landing() {
                   <ArrowRight className="h-3.5 w-3.5 shrink-0 text-primary sm:h-4 sm:w-4" />
                   <span className="truncate">{route.to}</span>
                 </div>
-                <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-muted-foreground sm:text-xs sm:leading-5">{route.note}</p>
+                <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-muted-foreground sm:text-xs sm:leading-5">
+                  {route.note}
+                </p>
                 <span className="mt-3 inline-flex text-xs font-medium text-primary group-hover:underline">
                   Find seats
                 </span>
@@ -303,8 +332,8 @@ function Landing() {
 
           <div className="mt-6 flex flex-col gap-3 rounded-xl border border-dashed border-route/35 bg-route/5 p-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs leading-5 text-muted-foreground sm:text-sm">
-              These are some of the routes. You can search more towns, areas, districts and
-              pickup places across Malawi.
+              These are some of the routes. You can search more towns, areas, districts and pickup
+              places across Malawi.
             </p>
             <Link to="/trips" className="shrink-0">
               <Button size="sm" variant="outline" className="w-full gap-2 sm:w-auto">
@@ -378,14 +407,20 @@ function LandingTripDetailsDialog({
           <DialogTitle className="font-display text-xl">
             {trip.originName} to {trip.dropOffPoint || trip.destinationName}
           </DialogTitle>
-          <DialogDescription>Departure time: {formatDateTime(trip.departureTime)}</DialogDescription>
+          <DialogDescription>
+            Departure time: {formatDateTime(trip.departureTime)}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 rounded-md border border-border bg-surface-2 p-4 text-sm">
             <Detail label="Fare" value={formatMwk(trip.farePerSeatMwk)} sub="per passenger" />
             <Detail label="Available seats" value={String(trip.availableSeats)} sub="seats" />
-            <Detail label="Distance" value={formatDistanceKm(trip.distanceKm)} sub="route estimate" />
+            <Detail
+              label="Distance"
+              value={formatDistanceKm(trip.distanceKm)}
+              sub="route estimate"
+            />
             <Detail label="Class" value={trip.comfortClass} sub="ride comfort" />
           </div>
 
@@ -404,7 +439,8 @@ function LandingTripDetailsDialog({
                 {trip.vehicle.make} {trip.vehicle.model}
               </div>
               <div className="text-sm text-muted-foreground">
-                {[trip.vehicle.color, trip.vehicle.plateNumber].filter(Boolean).join(" - ") || "Details pending"}
+                {[trip.vehicle.color, trip.vehicle.plateNumber].filter(Boolean).join(" - ") ||
+                  "Details pending"}
               </div>
             </div>
           )}

@@ -188,7 +188,7 @@ function PublicTripsPage() {
             <p className="mt-1 text-xs text-muted-foreground">Try adjusting your filters or check back later.</p>
           </div>
         ) : (
-          <div className="grid justify-start gap-4 sm:grid-cols-[repeat(auto-fit,minmax(320px,420px))]">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {trips.map((trip) => (
               <TripOfferCard key={`${trip.id}-${trip.segmentId ?? "main"}`} trip={trip} onAction={handleView} />
             ))}

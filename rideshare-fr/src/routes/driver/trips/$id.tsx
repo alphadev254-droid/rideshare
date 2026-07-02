@@ -1,16 +1,32 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
-import { bookingService, tripService, type Trip, type TripLocation } from "@/lib/api";
+import { bookingService, tripService, type Booking, type Trip, type TripLocation } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
 import { StatusPill } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { formatDateTime, formatMwk, formatDistanceKm, formatDuration } from "@/lib/format";
 import { API_CONFIG } from "@/lib/api/config";
 import { createAuthedSocket } from "@/lib/socket";
-import { ArrowLeft, CheckCircle2, CircleDot, Copy, ExternalLink, Flag, KeyRound, MapPin, Maximize2, Navigation, Pencil, Play, Plus, Share2, Users, XCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  CircleDot,
+  Copy,
+  ExternalLink,
+  Flag,
+  KeyRound,
+  MapPin,
+  Maximize2,
+  Navigation,
+  Pencil,
+  Play,
+  Plus,
+  Share2,
+  Users,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/driver/trips/$id")({
@@ -21,7 +37,6 @@ function DriverTripDetail() {
   const { id } = Route.useParams();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const qc = useQueryClient();
-  const [codes, setCodes] = useState<Record<string, string>>({});
   const [gpsPromptOpen, setGpsPromptOpen] = useState(false);
   const [gpsAllowed, setGpsAllowed] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
@@ -67,19 +82,10 @@ function DriverTripDetail() {
   const setStatus = useMutation({
     mutationFn: (s: "boarding") => tripService.setStatus(id, s),
     onSuccess: () => {
-      toast.success("Passengers notified that you are at the boarding point");
+      toast.success("Passengers notified that you've arrived");
       qc.invalidateQueries({ queryKey: ["trip", id] });
     },
   });
-  const verify = useMutation({
-    mutationFn: ({ bookingId, code }: { bookingId: string; code: string }) =>
-      bookingService.verifyCode(bookingId, code),
-    onSuccess: (res) => {
-      toast.success(`${res.seatsBooked} passenger${res.seatsBooked === 1 ? "" : "s"} checked in`);
-      qc.invalidateQueries({ queryKey: ["bookings", "trip", id] });
-    },
-  });
-
   // ── GPS Permission ────────────────────────────────────────────
   function checkGpsPermission() {
     if (!("permissions" in navigator)) {
@@ -90,7 +96,11 @@ function DriverTripDetail() {
       );
       return;
     }
-    (navigator as Navigator & { permissions?: { query: (opts: { name: string }) => Promise<{ state: string }> } }).permissions
+    (
+      navigator as Navigator & {
+        permissions?: { query: (opts: { name: string }) => Promise<{ state: string }> };
+      }
+    ).permissions
       ?.query({ name: "geolocation" })
       .then((result: { state: string }) => {
         if (result.state === "granted") {
@@ -237,7 +247,9 @@ function DriverTripDetail() {
     }
 
     void initMap();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [hasPoint, trip?.status, mapboxAccessToken]);
 
   useEffect(() => {
@@ -264,7 +276,7 @@ function DriverTripDetail() {
   }, []);
 
   // ── Render ─────────────────────────────────────────────────────
-  if (pathname.endsWith("/edit")) return <Outlet />;
+  if (pathname.endsWith("/edit") || pathname.endsWith("/passengers")) return <Outlet />;
   if (isLoading) return <LoadingState />;
   if (!trip)
     return (
@@ -274,17 +286,23 @@ function DriverTripDetail() {
     );
 
   return (
-    <div className="space-y-5">
-      <Link
-        to="/driver/trips"
-        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" /> All trips
-      </Link>
-
+    <div className="space-y-4 sm:space-y-5">
       <PageHeader
         eyebrow={trip.comfortClass}
-        title={`${trip.originName} → ${trip.destinationName}`}
+        title={
+          <span className="flex min-w-0 items-center gap-2">
+            <Link
+              to="/driver/trips"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+              aria-label="All trips"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <span className="min-w-0 truncate">
+              {trip.originName} → {trip.destinationName}
+            </span>
+          </span>
+        }
         description={formatDateTime(trip.departureTime)}
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
@@ -303,9 +321,13 @@ function DriverTripDetail() {
               title="Copy shareable trip link"
             >
               {copiedTrip ? (
-                <><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Copied!</>
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Copied!
+                </>
               ) : (
-                <><Copy className="h-3.5 w-3.5" /> Copy trip link</>
+                <>
+                  <Copy className="h-3.5 w-3.5" /> Copy trip link
+                </>
               )}
             </button>
             {/* Share all my trips */}
@@ -324,9 +346,13 @@ function DriverTripDetail() {
               title="Copy link to all your trips"
             >
               {copiedDriver ? (
-                <><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Copied!</>
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Copied!
+                </>
               ) : (
-                <><Users className="h-3.5 w-3.5" /> Share all my trips</>
+                <>
+                  <Users className="h-3.5 w-3.5" /> Share all my trips
+                </>
               )}
             </button>
           </div>
@@ -335,7 +361,7 @@ function DriverTripDetail() {
 
       {/* ── GPS Permission Prompt ──────────────────────────── */}
       {gpsPromptOpen && (
-        <div className="rounded-md border border-gold/50 bg-gold/5 p-5">
+        <div className="rounded-md border border-gold/50 bg-gold/5 p-3 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
             <Navigation className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
             <div className="flex-1">
@@ -343,9 +369,10 @@ function DriverTripDetail() {
                 {gpsError ? "GPS Required" : "Enable Location Sharing"}
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                {gpsError ?? "Passengers need to see your live location during the trip. Allow GPS access to share your position."}
+                {gpsError ??
+                  "Passengers need to see your live location during the trip. Allow GPS access to share your position."}
               </p>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-row">
                 <Button onClick={requestGpsPermission}>
                   {gpsError ? "Try again" : "Enable GPS"}
                 </Button>
@@ -361,7 +388,7 @@ function DriverTripDetail() {
       {/* ── Live Map (in_transit) ───────────────────────────── */}
       {trip.status === "in_transit" && (
         <div className="overflow-hidden rounded-md border border-border">
-          <div className="flex items-center justify-between gap-2 border-b border-border bg-surface-2 px-4 py-2">
+          <div className="flex items-center justify-between gap-2 border-b border-border bg-surface-2 px-3 py-2 sm:px-4">
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium">
@@ -395,9 +422,22 @@ function DriverTripDetail() {
       )}
 
       {/* ── Actions ─────────────────────────────────────────── */}
-      <div className="grid gap-2 sm:flex sm:flex-wrap">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        <Button asChild variant="outline" className="order-2 w-full gap-2 sm:order-none sm:w-auto">
+          <Link to="/driver/trips/$id/passengers" params={{ id }}>
+            <Users className="h-4 w-4" />
+            View passengers
+            <span className="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-primary">
+              {bookings?.length ?? 0}
+            </span>
+          </Link>
+        </Button>
         {(trip.status === "scheduled" || trip.status === "boarding") && !trip.startedAt && (
-          <Button asChild variant="outline" className="w-full gap-2 sm:w-auto">
+          <Button
+            asChild
+            variant="outline"
+            className="order-2 w-full gap-2 sm:order-none sm:w-auto"
+          >
             <Link to="/driver/trips/$id/edit" params={{ id }}>
               <Pencil className="h-4 w-4" />
               Edit trip
@@ -408,24 +448,28 @@ function DriverTripDetail() {
           <Button
             onClick={() => setStatus.mutate("boarding")}
             disabled={setStatus.isPending}
-            className="w-full gap-2 animate-pulse sm:w-auto"
+            className="order-1 w-full gap-2 animate-pulse sm:order-none sm:w-auto"
           >
             <KeyRound className="h-4 w-4" />
-            Notify passengers you are at the boarding point
+            <span>Notify passengers you've arrived</span>
           </Button>
         )}
         {trip.status === "boarding" && (
           <Button
             onClick={() => start.mutate()}
             disabled={start.isPending}
-            className="w-full gap-2 animate-pulse sm:w-auto"
+            className="order-1 col-span-2 w-full gap-2 animate-pulse sm:order-none sm:w-auto"
           >
             <Play className="h-4 w-4" />
             Start trip and share GPS
           </Button>
         )}
         {trip.status === "in_transit" && (
-          <Button onClick={() => complete.mutate()} disabled={complete.isPending} className="w-full gap-2 sm:w-auto">
+          <Button
+            onClick={() => complete.mutate()}
+            disabled={complete.isPending}
+            className="order-1 w-full gap-2 sm:order-none sm:w-auto"
+          >
             <CheckCircle2 className="h-4 w-4" />
             Mark complete
           </Button>
@@ -433,7 +477,7 @@ function DriverTripDetail() {
         {trip.status !== "completed" && trip.status !== "cancelled" && (
           <Button
             variant="outline"
-            className="w-full gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 sm:w-auto"
+            className="order-3 w-full gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 sm:order-none sm:w-auto"
             onClick={() => cancel.mutate()}
             disabled={cancel.isPending}
           >
@@ -442,221 +486,36 @@ function DriverTripDetail() {
         )}
       </div>
 
-      {/* ── Trip info + manifest ─────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-        <div className="rounded-md border border-border bg-card p-4 sm:p-5">
-          <h3 className="label-eyebrow">Trip</h3>
-          <dl className="mt-3 space-y-2 text-sm">
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">Fare/seat</dt>
-              <dd className="tabular font-medium">{formatMwk(trip.farePerSeatMwk)}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">Seats</dt>
-              <dd className="tabular">{trip.availableSeats}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">Distance</dt>
-              <dd className="tabular">{formatDistanceKm(trip.distanceKm)}</dd>
-            </div>
-            {trip.estimatedDurationMinutes && (
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Approx. duration</dt>
-                <dd className="tabular">{formatDuration(trip.estimatedDurationMinutes)}</dd>
-              </div>
-            )}
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">Vehicle</dt>
-              <dd>{trip.vehicle?.plateNumber}</dd>
-            </div>
-            {trip.startedAt && (
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Started</dt>
-                <dd>{formatDateTime(trip.startedAt)}</dd>
-              </div>
-            )}
-          </dl>
-        </div>
-
-        <RouteManifestView trip={trip} />
-
-        <div className="rounded-md border border-border bg-card p-4 sm:p-5 lg:col-span-3">
-          <h3 className="label-eyebrow">Passenger manifest</h3>
-          {(bookings ?? []).length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">No bookings yet.</p>
-          ) : (
-            <>
-            <div className="mt-3 space-y-3 md:hidden">
-              {(bookings ?? []).map((b) => {
-                const seats = b.seatsBooked ?? 1;
-                const travelers = b.travelers ?? [];
-                const bookedRoute = b.segment
-                  ? `${b.segment.fromStop?.name ?? b.boardingPoint} to ${b.segment.toStop?.name ?? b.dropOffPoint ?? "Drop-off"}`
-                  : `${b.trip?.originName ?? trip.originName} to ${b.trip?.destinationName ?? trip.destinationName}`;
-                const travelerSummary = travelers.length > 0
-                  ? travelers.map((traveler) => traveler.fullName).join(", ")
-                  : b.passenger?.fullName ?? "Passenger";
-
-                return (
-                  <div key={b.id} className="rounded-md border border-border bg-surface-2/50 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{b.passenger?.fullName}</div>
-                        <div className="truncate font-mono text-xs text-muted-foreground">{b.passenger?.phone}</div>
-                      </div>
-                      <StatusPill status={b.status} />
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                      <MobileManifestDetail label="Route" value={bookedRoute} wide />
-                      <MobileManifestDetail label="Boarding" value={b.boardingPoint} />
-                      <MobileManifestDetail label="Drop-off" value={b.dropOffPoint ?? b.segment?.toStop?.name ?? trip.destinationName} />
-                      <MobileManifestDetail label="Seats" value={String(seats)} />
-                      <MobileManifestDetail label="Fare" value={formatMwk(b.fareMwk)} />
-                      <MobileManifestDetail label="Payment" value={b.paymentStatus} />
-                      <MobileManifestDetail label="Travelers" value={travelerSummary} wide />
-                    </div>
-                    {b.status === "confirmed" && (
-                      <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
-                        <Input
-                          placeholder="Code"
-                          value={codes[b.id] ?? ""}
-                          onChange={(e) => setCodes((c) => ({ ...c, [b.id]: e.target.value.toUpperCase() }))}
-                          className="h-9 font-mono uppercase"
-                          maxLength={6}
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => verify.mutate({ bookingId: b.id, code: codes[b.id] ?? "" })}
-                          disabled={!codes[b.id] || verify.isPending}
-                        >
-                          Verify
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-3 hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[1120px] text-left text-sm">
-                <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Passenger</th>
-                    <th className="px-3 py-2 font-medium">Booked route</th>
-                    <th className="px-3 py-2 font-medium">Boarding</th>
-                    <th className="px-3 py-2 font-medium">Drop-off</th>
-                    <th className="px-3 py-2 font-medium">Seats</th>
-                    <th className="px-3 py-2 font-medium">Travelers</th>
-                    <th className="px-3 py-2 font-medium">Fare</th>
-                    <th className="px-3 py-2 font-medium">Status</th>
-                    <th className="px-3 py-2 text-right font-medium">Verify</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {(bookings ?? []).map((b) => {
-                    const seats = b.seatsBooked ?? 1;
-                    const travelers = b.travelers ?? [];
-                    const bookedRoute = b.segment
-                      ? `${b.segment.fromStop?.name ?? b.boardingPoint} to ${b.segment.toStop?.name ?? b.dropOffPoint ?? "Drop-off"}`
-                      : `${b.trip?.originName ?? trip.originName} to ${b.trip?.destinationName ?? trip.destinationName}`;
-                    const travelerSummary = travelers.length > 0
-                      ? travelers.map((traveler) => traveler.fullName).join(", ")
-                      : b.passenger?.fullName ?? "Passenger";
-
-                    return (
-                      <tr key={b.id} className="align-middle">
-                        <td className="max-w-[190px] px-3 py-2">
-                          <div className="truncate font-medium">{b.passenger?.fullName}</div>
-                          <div className="truncate font-mono text-xs text-muted-foreground">{b.passenger?.phone}</div>
-                        </td>
-                        <td className="max-w-[210px] px-3 py-2">
-                          <div className="truncate font-medium">{bookedRoute}</div>
-                        </td>
-                        <td className="max-w-[170px] px-3 py-2">
-                          <div className="truncate text-xs text-muted-foreground">{b.boardingPoint}</div>
-                        </td>
-                        <td className="max-w-[170px] px-3 py-2">
-                          <div className="truncate text-xs text-muted-foreground">{b.dropOffPoint ?? b.segment?.toStop?.name ?? trip.destinationName}</div>
-                        </td>
-                        <td className="px-3 py-2">
-                          <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                            <Users className="h-3 w-3" /> {seats}
-                          </span>
-                        </td>
-                        <td className="max-w-[220px] px-3 py-2">
-                          <div className="truncate text-xs text-muted-foreground" title={travelerSummary}>{travelerSummary}</div>
-                        </td>
-                        <td className="px-3 py-2 font-medium tabular-nums">{formatMwk(b.fareMwk)}</td>
-                        <td className="px-3 py-2">
-                          <div className="flex flex-col gap-1">
-                            <StatusPill status={b.status} />
-                            <span className="text-[10px] text-muted-foreground">{b.paymentStatus}</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-2">
-                          <div className="flex justify-end gap-2">
-                            {b.status === "confirmed" && (
-                              <>
-                                <Input
-                                  placeholder="Code"
-                                  value={codes[b.id] ?? ""}
-                                  onChange={(e) => setCodes((c) => ({ ...c, [b.id]: e.target.value.toUpperCase() }))}
-                                  className="h-8 w-24 font-mono uppercase"
-                                  maxLength={6}
-                                />
-                                <Button
-                                  size="sm"
-                                  onClick={() => verify.mutate({ bookingId: b.id, code: codes[b.id] ?? "" })}
-                                  disabled={!codes[b.id] || verify.isPending}
-                                >
-                                  Verify
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            </>
-          )}
-        </div>
+      <div className="grid gap-4 lg:gap-6">
+        <RouteManifestView trip={trip} bookings={bookings ?? []} />
       </div>
     </div>
   );
 }
 
-function MobileManifestDetail({ label, value, wide = false }: { label: string; value?: string | null; wide?: boolean }) {
-  return (
-    <div className={wide ? "col-span-2 min-w-0" : "min-w-0"}>
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-0.5 truncate font-medium text-foreground">{value || "Not set"}</div>
-    </div>
-  );
-}
-
-function RouteManifestView({ trip }: { trip: Trip }) {
+function RouteManifestView({ trip, bookings }: { trip: Trip; bookings: Booking[] }) {
   const stops = getRouteStops(trip);
   const segments = getRouteSegments(trip);
-  const extraSegments = segments.filter((segment) => !(segment.fromOrder === 0 && segment.toOrder === stops.length - 1));
+  const mainSegment =
+    segments.find((segment) => segment.fromOrder === 0 && segment.toOrder === stops.length - 1) ??
+    getMainRouteSegment(trip, stops);
+  const extraSegments = segments.filter((segment) => segment !== mainSegment);
 
   return (
-    <div className="rounded-md border border-border bg-card lg:col-span-2">
-      <div className="flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5">
+    <div className="rounded-md border border-border bg-card">
+      <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row sm:items-start sm:justify-between sm:p-5">
         <div className="min-w-0">
           <div className="label-eyebrow text-primary">Route manifest</div>
-          <h3 className="mt-2 flex flex-wrap items-center gap-2 text-xl font-semibold tracking-normal sm:text-2xl">
+          <h3 className="mt-1.5 flex flex-wrap items-center gap-2 text-lg font-semibold tracking-normal sm:mt-2 sm:text-2xl">
             <span>{trip.originName}</span>
             <span className="text-muted-foreground">to</span>
             <span>{trip.destinationName}</span>
           </h3>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-1.5 text-xs text-muted-foreground sm:mt-2 sm:text-sm">
             Full trip: depart {formatClock(trip.departureTime)}
-            {trip.estimatedDurationMinutes ? ` - ${formatDuration(trip.estimatedDurationMinutes)}` : ""}
+            {trip.estimatedDurationMinutes
+              ? ` - ${formatDuration(trip.estimatedDurationMinutes)}`
+              : ""}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:min-w-56 sm:gap-3">
@@ -665,42 +524,36 @@ function RouteManifestView({ trip }: { trip: Trip }) {
         </div>
       </div>
 
-      <div className="p-4 sm:p-5">
-        <div className="relative space-y-4 pl-9 sm:pl-11">
+      <div className="p-3 sm:p-5">
+        <div className="relative space-y-3 pl-8 sm:space-y-4 sm:pl-11">
           <div className="absolute bottom-6 left-[13px] top-5 w-px bg-border sm:left-[17px]" />
-          <TimelineEndpoint tone="start" title={stops[0]?.name ?? trip.originName} subtitle={`Depart - ${formatClock(trip.departureTime)}`} />
+          <TimelineEndpoint
+            tone="start"
+            title={stops[0]?.name ?? trip.originName}
+            subtitle={`Depart - ${formatClock(trip.departureTime)}`}
+          />
+
+          <RouteSegmentCard
+            segment={mainSegment}
+            index={0}
+            variant="main"
+            bookedSeats={bookedSeatsForSegment(mainSegment, bookings)}
+          />
 
           {extraSegments.length > 0 ? (
             <div className="space-y-3">
               {extraSegments.map((segment, index) => (
-                <div key={segment.id ?? `${segment.fromOrder}-${segment.toOrder}-${index}`} className="relative rounded-md border border-border bg-card p-3">
-                  <span className="absolute -left-[34px] flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card text-xs font-semibold text-muted-foreground sm:-left-[38px] sm:h-8 sm:w-8">
-                    {index + 1}
-                  </span>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="font-semibold">
-                        {segment.fromStop.name} to {segment.toStop.name}
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Bookable route passengers can reserve
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
-                      <MiniMetric label="Vacancy" value={`${segment.maxSeats} seats`} />
-                      <MiniMetric label="Amount" value={formatMwk(segment.farePerSeatMwk)} />
-                      <MiniMetric label="Distance" value={segment.distanceKm ? formatDistanceKm(segment.distanceKm) : "Not set"} />
-                      <MiniMetric
-                        label="Drive"
-                        value={segment.estimatedDurationMinutes ? formatDuration(segment.estimatedDurationMinutes) : "Not set"}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <RouteSegmentCard
+                  key={segment.id ?? `${segment.fromOrder}-${segment.toOrder}-${index}`}
+                  segment={segment}
+                  index={index + 1}
+                  variant="extra"
+                  bookedSeats={bookedSeatsForSegment(segment, bookings)}
+                />
               ))}
             </div>
           ) : (
-            <div className="relative rounded-md border border-dashed border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+            <div className="relative rounded-md border border-dashed border-border bg-background px-3 py-2.5 text-xs text-muted-foreground sm:px-4 sm:py-3 sm:text-sm">
               <span className="absolute -left-[34px] flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-border bg-card text-muted-foreground sm:-left-[38px] sm:h-8 sm:w-8">
                 <Plus className="h-4 w-4" />
               </span>
@@ -719,16 +572,81 @@ function RouteManifestView({ trip }: { trip: Trip }) {
   );
 }
 
-function MiniMetric({ label, value }: { label: string; value: string }) {
+function RouteSegmentCard({
+  segment,
+  index,
+  variant,
+  bookedSeats,
+}: {
+  segment: ReturnType<typeof getRouteSegments>[number];
+  index: number;
+  variant: "main" | "extra";
+  bookedSeats: number;
+}) {
+  const isMain = variant === "main";
+
   return (
-    <div className="rounded-md border border-border bg-surface-2 px-2.5 py-2 sm:px-3">
-      <div className="label-eyebrow text-[10px]">{label}</div>
-      <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+    <div
+      className={`relative rounded-md border p-2.5 sm:p-3 ${isMain ? "border-primary/35 bg-primary/5" : "border-border bg-card"}`}
+    >
+      <span
+        className={`absolute -left-[34px] flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold sm:-left-[38px] sm:h-8 sm:w-8 ${
+          isMain
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-border bg-card text-muted-foreground"
+        }`}
+      >
+        {isMain ? <CircleDot className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : index}
+      </span>
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold sm:text-base">
+            {segment.fromStop.name} to {segment.toStop.name}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {isMain ? "Main route passengers can book" : "Bookable route passengers can reserve"}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5 text-xs sm:gap-2 md:grid-cols-5">
+          <MiniMetric label="Vacancy" value={`${segment.maxSeats} seats`} />
+          <MiniMetric label="Booked" value={`${bookedSeats} seats`} />
+          <MiniMetric label="Amount" value={formatMwk(segment.farePerSeatMwk)} />
+          <MiniMetric
+            label="Distance"
+            value={segment.distanceKm ? formatDistanceKm(segment.distanceKm) : "Not set"}
+          />
+          <MiniMetric
+            label="Drive"
+            value={
+              segment.estimatedDurationMinutes
+                ? formatDuration(segment.estimatedDurationMinutes)
+                : "Not set"
+            }
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
-function TimelineEndpoint({ tone, title, subtitle }: { tone: "start" | "end"; title: string; subtitle: string }) {
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-surface-2 px-2 py-1.5 sm:px-3 sm:py-2">
+      <div className="label-eyebrow text-[9px] sm:text-[10px]">{label}</div>
+      <div className="mt-0.5 text-xs font-semibold tabular-nums sm:mt-1 sm:text-sm">{value}</div>
+    </div>
+  );
+}
+
+function TimelineEndpoint({
+  tone,
+  title,
+  subtitle,
+}: {
+  tone: "start" | "end";
+  title: string;
+  subtitle: string;
+}) {
   const Icon = tone === "start" ? CircleDot : Flag;
   return (
     <div className="relative">
@@ -739,7 +657,7 @@ function TimelineEndpoint({ tone, title, subtitle }: { tone: "start" | "end"; ti
       >
         <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
       </span>
-      <div className="font-semibold">{title}</div>
+      <div className="text-sm font-semibold sm:text-base">{title}</div>
       <div className="mt-1 text-xs text-muted-foreground">{subtitle}</div>
     </div>
   );
@@ -751,26 +669,53 @@ function getRouteStops(trip: Trip) {
   }
   return [
     { name: trip.originName, stopOrder: 0, departureOffsetMinutes: 0, arrivalOffsetMinutes: null },
-    { name: trip.destinationName, stopOrder: 1, departureOffsetMinutes: null, arrivalOffsetMinutes: trip.estimatedDurationMinutes ?? null },
+    {
+      name: trip.destinationName,
+      stopOrder: 1,
+      departureOffsetMinutes: null,
+      arrivalOffsetMinutes: trip.estimatedDurationMinutes ?? null,
+    },
   ];
 }
 
 function getRouteSegments(trip: Trip) {
   if (trip.routeSegments && trip.routeSegments.length > 0) return trip.routeSegments;
   const stops = getRouteStops(trip);
-  return [
-    {
-      id: "main",
-      fromOrder: 0,
-      toOrder: stops.length - 1,
-      farePerSeatMwk: trip.farePerSeatMwk,
-      maxSeats: trip.totalSeats,
-      distanceKm: trip.distanceKm,
-      estimatedDurationMinutes: trip.estimatedDurationMinutes,
-      fromStop: stops[0],
-      toStop: stops.at(-1) ?? stops[0],
-    },
-  ];
+  return [getMainRouteSegment(trip, stops)];
+}
+
+function getMainRouteSegment(trip: Trip, stops: ReturnType<typeof getRouteStops>) {
+  return {
+    id: "main",
+    fromOrder: 0,
+    toOrder: stops.length - 1,
+    farePerSeatMwk: trip.farePerSeatMwk,
+    maxSeats: trip.totalSeats,
+    distanceKm: trip.distanceKm,
+    estimatedDurationMinutes: trip.estimatedDurationMinutes,
+    fromStop: stops[0],
+    toStop: stops.at(-1) ?? stops[0],
+  };
+}
+
+function bookedSeatsForSegment(
+  segment: ReturnType<typeof getRouteSegments>[number],
+  bookings: Booking[],
+) {
+  return bookings.reduce((total, booking) => {
+    if (booking.status === "cancelled" || booking.status === "no_show") return total;
+
+    const seats = booking.seatsBooked ?? 1;
+    if (booking.segmentId && segment.id && booking.segmentId === segment.id) {
+      return total + seats;
+    }
+
+    const fromOrder = booking.segment?.fromOrder;
+    const toOrder = booking.segment?.toOrder;
+    if (fromOrder === undefined || toOrder === undefined) return total;
+
+    return fromOrder === segment.fromOrder && toOrder === segment.toOrder ? total + seats : total;
+  }, 0);
 }
 
 function formatClock(value?: string | Date | null) {
@@ -783,7 +728,9 @@ function formatClock(value?: string | Date | null) {
 function formatArrival(trip: Trip, offset?: number | null) {
   if (offset === null || offset === undefined) {
     if (!trip.estimatedDurationMinutes) return "Not set";
-    return formatClock(new Date(new Date(trip.departureTime).getTime() + trip.estimatedDurationMinutes * 60_000));
+    return formatClock(
+      new Date(new Date(trip.departureTime).getTime() + trip.estimatedDurationMinutes * 60_000),
+    );
   }
   return formatClock(new Date(new Date(trip.departureTime).getTime() + offset * 60_000));
 }

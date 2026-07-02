@@ -1,14 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  Outlet,
-  Link,
-  createRootRouteWithContext,
-  useRouter,
-} from "@tanstack/react-router";
+import { Outlet, Link, createRootRouteWithContext, useRouter } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthModalProvider } from "@/lib/auth-modal-context";
 import { AuthModal } from "@/components/auth-modal";
+import { PwaInstallBanner } from "@/components/pwa-install";
+import { PwaInstallProvider } from "@/lib/pwa-install-context";
 
 import appCss from "../styles.css?url";
 
@@ -81,6 +78,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "ChepetsaRide - Book seats on shared trips across Malawi" },
+      { name: "theme-color", content: "#16a34a" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "ChepetsaRide" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       {
         name: "description",
         content:
@@ -90,7 +92,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "ChepetsaRide - Book seats on shared trips across Malawi" },
       {
         property: "og:description",
-        content: "Drivers going your way publish planned trips. You book a seat and split the travel cost across Malawi.",
+        content:
+          "Drivers going your way publish planned trips. You book a seat and split the travel cost across Malawi.",
       },
       { property: "og:type", content: "website" },
       { property: "og:image", content: siteOgImageUrl },
@@ -115,13 +118,16 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AuthModalProvider>
-          <Outlet />
-          <AuthModal />
-          <Toaster />
-        </AuthModalProvider>
-      </AuthProvider>
+      <PwaInstallProvider>
+        <AuthProvider>
+          <AuthModalProvider>
+            <Outlet />
+            <AuthModal />
+            <PwaInstallBanner />
+            <Toaster />
+          </AuthModalProvider>
+        </AuthProvider>
+      </PwaInstallProvider>
     </QueryClientProvider>
   );
 }

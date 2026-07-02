@@ -36,6 +36,7 @@ export function RouteTableStep({
   const bookableSeats = Number(form.totalSeats || 1);
   const totalDistance = segments.reduce((total, segment) => total + Number(segment.distanceKm || 0), 0);
   const fullDuration = getDurationMinutes(form.departureDate, form.departureTime, form.arrivalTime);
+  const mainRoute = segments[0];
   const routeRows = segments.slice(1);
 
   return (
@@ -78,6 +79,23 @@ export function RouteTableStep({
                 title={form.originName}
                 subtitle={`Depart - ${formatTimeLabel(form.departureTime)}`}
               />
+
+              {mainRoute && (
+                <RouteCard
+                  index={0}
+                  segment={{
+                    ...mainRoute,
+                    from: form.originName,
+                    to: form.destinationName,
+                    departureTime: form.departureTime,
+                    arrivalTime: form.arrivalTime,
+                  }}
+                  districts={districts}
+                  bookableSeats={bookableSeats}
+                  locked
+                  onUpdate={(patch) => onUpdateSegment(mainRoute.key, patch)}
+                />
+              )}
 
               {routeRows.length > 0 && (
                 <div className="space-y-4">
@@ -135,6 +153,7 @@ function RouteCard({
   segment,
   districts,
   bookableSeats,
+  locked = false,
   onRemove,
   onUpdate,
 }: {
@@ -142,46 +161,69 @@ function RouteCard({
   segment: RouteSegmentDraft;
   districts: string[];
   bookableSeats: number;
-  onRemove: () => void;
+  locked?: boolean;
+  onRemove?: () => void;
   onUpdate: (patch: Partial<RouteSegmentDraft>) => void;
 }) {
   const routeTitle = `${segment.from || "From"} to ${segment.to || "To"}`;
 
   return (
-    <div className="relative rounded-md border border-border bg-card p-3 shadow-sm">
+    <div className={`relative rounded-md border p-2.5 shadow-sm sm:p-3 xl:py-2.5 ${locked ? "border-primary/35 bg-primary/5" : "border-border bg-card"}`}>
       <span
-        className="absolute -left-[38px] flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-xs font-semibold text-muted-foreground"
+        className={`absolute -left-[38px] flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold ${
+          locked ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground"
+        }`}
       >
-        {index}
+        {locked ? <CircleDot className="h-4 w-4" /> : index}
       </span>
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="mb-2 flex items-start justify-between gap-3 xl:mb-1.5">
         <div>
-          <div className="text-sm font-semibold">{routeTitle}</div>
-          <div className="mt-1 text-xs text-muted-foreground">Additional bookable route</div>
+          <div className="text-[13px] font-semibold leading-tight sm:text-sm">{routeTitle}</div>
+          <div className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
+            {locked ? "Main route passengers can book" : "Additional bookable route"}
+          </div>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-          onClick={onRemove}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        {!locked && onRemove && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            onClick={onRemove}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(130px,1fr)_minmax(130px,1fr)_112px_112px_92px_104px_124px] xl:items-end">
-        <Field label="From">
-          <RoutePlaceInput districts={districts} value={segment.from} onChange={(value) => onUpdate({ from: value })} />
+      <div className="grid grid-cols-2 gap-2 xl:grid-cols-[minmax(120px,1fr)_minmax(120px,1fr)_104px_104px_86px_96px_116px] xl:items-start">
+        <Field label="From" className="col-span-2 sm:col-span-1">
+          {locked ? (
+            <ReadOnlyValue value={segment.from} />
+          ) : (
+            <RoutePlaceInput districts={districts} value={segment.from} onChange={(value) => onUpdate({ from: value })} />
+          )}
         </Field>
-        <Field label="To">
-          <RoutePlaceInput districts={districts} value={segment.to} onChange={(value) => onUpdate({ to: value })} />
+        <Field label="To" className="col-span-2 sm:col-span-1">
+          {locked ? (
+            <ReadOnlyValue value={segment.to} />
+          ) : (
+            <RoutePlaceInput districts={districts} value={segment.to} onChange={(value) => onUpdate({ to: value })} />
+          )}
         </Field>
         <Field label="Departure">
-          <RouteTimeInput value={segment.departureTime} onChange={(value) => onUpdate({ departureTime: value })} />
+          {locked ? (
+            <ReadOnlyValue value={formatTimeLabel(segment.departureTime)} />
+          ) : (
+            <RouteTimeInput value={segment.departureTime} onChange={(value) => onUpdate({ departureTime: value })} />
+          )}
         </Field>
         <Field label="Arrival">
-          <RouteTimeInput value={segment.arrivalTime} onChange={(value) => onUpdate({ arrivalTime: value })} />
+          {locked ? (
+            <ReadOnlyValue value={formatTimeLabel(segment.arrivalTime)} />
+          ) : (
+            <RouteTimeInput value={segment.arrivalTime} onChange={(value) => onUpdate({ arrivalTime: value })} />
+          )}
         </Field>
         <Field label="Route vacancy">
           <Input
@@ -190,9 +232,9 @@ function RouteCard({
             max={bookableSeats}
             value={segment.seats}
             onChange={(event) => onUpdate({ seats: event.target.value })}
-            className="h-8"
+            className="h-7 px-2 text-xs sm:h-8 sm:text-sm xl:h-7"
           />
-          <p className="text-[11px] text-muted-foreground xl:hidden">
+          <p className="text-[10px] leading-tight text-muted-foreground xl:hidden">
             Seats passengers can book on this route. Max {bookableSeats}.
           </p>
         </Field>
@@ -204,7 +246,7 @@ function RouteCard({
             value={segment.distanceKm}
             onChange={(event) => onUpdate({ distanceKm: event.target.value })}
             placeholder="km"
-            className="h-8"
+            className="h-7 px-2 text-xs sm:h-8 sm:text-sm xl:h-7"
           />
         </Field>
         <Field label="Amount (MWK)">
@@ -214,10 +256,18 @@ function RouteCard({
             value={segment.amountMwk}
             onChange={(event) => onUpdate({ amountMwk: event.target.value })}
             placeholder="MWK"
-            className="h-8"
+            className="h-7 px-2 text-xs sm:h-8 sm:text-sm xl:h-7"
           />
         </Field>
       </div>
+    </div>
+  );
+}
+
+function ReadOnlyValue({ value }: { value: string }) {
+  return (
+    <div className="flex h-7 items-center rounded-md border border-border bg-surface-2 px-2 text-xs font-medium text-muted-foreground sm:h-8 sm:text-sm xl:h-7">
+      <span className="truncate">{value}</span>
     </div>
   );
 }
@@ -304,9 +354,9 @@ function RoutePlaceInput({
           updateDropdownPosition();
           setOpen(true);
         }}
-        className="h-8 pl-8"
+        className="h-7 pl-7 text-xs sm:h-8 sm:pl-8 sm:text-sm xl:h-7"
       />
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+      <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground sm:left-2.5 sm:h-3.5 sm:w-3.5" />
       {open && filtered.length > 0 && (
         <div className="fixed z-[300] max-h-52 overflow-y-auto rounded-md border border-border bg-card shadow-lg" style={dropdownStyle}>
           {filtered.map((district) => (
@@ -352,11 +402,11 @@ function RouteTimeInput({ value, onChange }: { value: string; onChange: (value: 
         onClick={openPicker}
         onFocus={openPicker}
         onChange={(event) => onChange(event.target.value)}
-        className="h-8 cursor-pointer pr-8"
+        className="h-7 cursor-pointer pr-7 text-xs sm:h-8 sm:pr-8 sm:text-sm xl:h-7"
       />
       <button
         type="button"
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground sm:right-2.5"
         onMouseDown={(event) => {
           event.preventDefault();
           inputRef.current?.focus();
@@ -364,16 +414,16 @@ function RouteTimeInput({ value, onChange }: { value: string; onChange: (value: 
         }}
         aria-label="Choose time"
       >
-        <Clock className="h-3.5 w-3.5" />
+        <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
       </button>
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
   return (
-    <div className="space-y-1.5">
-      <div className="label-eyebrow text-[10px]">{label}</div>
+    <div className={`space-y-1 ${className}`}>
+      <div className="label-eyebrow text-[9px] leading-none sm:text-[10px]">{label}</div>
       {children}
     </div>
   );

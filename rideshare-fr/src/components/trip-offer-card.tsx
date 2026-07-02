@@ -1,4 +1,4 @@
-import { Car, Clock, MapPin, ShieldCheck, Star, Wallet } from "lucide-react";
+import { Car, Clock, MapPin, ShieldCheck, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SecureImage } from "@/components/secure-image";
 import type { Trip } from "@/lib/api";
@@ -21,8 +21,6 @@ export function TripOfferCard({ trip, actionLabel = "Book Ride", onAction }: Tri
   const vehicle = trip.vehicle
     ? `${trip.vehicle.color ? `${trip.vehicle.color} ` : ""}${trip.vehicle.make} ${trip.vehicle.model}${trip.vehicle.plateNumber ? ` - ${trip.vehicle.plateNumber}` : ""}`
     : "Approved vehicle";
-  const selectedSegmentIndex = Math.max(1, stops.findIndex((stop) => stop.stopOrder === (trip.segmentFromOrder ?? 0)) + 1);
-  const segmentCount = Math.max(1, stops.length - 1);
   const arrivalTime = formatClock(trip.arrivalTime ?? selectedArrivalTime(trip, stops, selectedTo));
 
   return (
@@ -59,7 +57,9 @@ export function TripOfferCard({ trip, actionLabel = "Book Ride", onAction }: Tri
         </div>
         <div className="relative flex items-center gap-2">
           <span className="route-dot absolute -left-6 bg-primary" />
-          <span className="truncate font-display text-lg font-semibold">{trip.dropOffPoint || trip.destinationName}</span>
+          <span className="truncate font-display text-lg font-semibold">
+            {trip.dropOffPoint || trip.destinationName}
+          </span>
         </div>
       </div>
 
@@ -78,16 +78,6 @@ export function TripOfferCard({ trip, actionLabel = "Book Ride", onAction }: Tri
         </span>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <span className="route-chip">
-          Segment {selectedSegmentIndex} of {segmentCount}
-        </span>
-        <span className="route-chip">
-          <Wallet className="h-3.5 w-3.5" />
-          Mobile money
-        </span>
-      </div>
-
       {trip.parentOriginName && trip.parentDestinationName && (
         <div className="mt-3 truncate text-xs text-muted-foreground">
           Part of {trip.parentOriginName} to {trip.parentDestinationName}
@@ -96,7 +86,9 @@ export function TripOfferCard({ trip, actionLabel = "Book Ride", onAction }: Tri
 
       <div className="mt-auto flex items-end justify-between gap-3 pt-4">
         <div className="min-w-0">
-          <div className="font-display text-xl font-semibold tabular-nums text-gold">{formatMwk(trip.farePerSeatMwk)}</div>
+          <div className="font-display text-xl font-semibold tabular-nums text-gold">
+            {formatMwk(trip.farePerSeatMwk)}
+          </div>
           <div className="text-xs text-muted-foreground">
             {trip.availableSeats} seat{trip.availableSeats === 1 ? "" : "s"} available
           </div>
@@ -122,7 +114,11 @@ function DriverAvatar({ name, imageUrl }: { name: string; imageUrl?: string | nu
   }
   return (
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-surface-2 text-[8px] uppercase text-muted-foreground">
-      {name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("") || "DR"}
+      {name
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("") || "DR"}
     </div>
   );
 }
@@ -132,13 +128,26 @@ function getTimelineStops(trip: Trip) {
     trip.routeStops && trip.routeStops.length >= 2
       ? trip.routeStops
       : [
-          { name: trip.parentOriginName || trip.originName, stopOrder: 0, departureOffsetMinutes: 0 },
-          { name: trip.dropOffPoint || trip.parentDestinationName || trip.destinationName, stopOrder: 1, arrivalOffsetMinutes: null },
+          {
+            name: trip.parentOriginName || trip.originName,
+            stopOrder: 0,
+            departureOffsetMinutes: 0,
+          },
+          {
+            name: trip.dropOffPoint || trip.parentDestinationName || trip.destinationName,
+            stopOrder: 1,
+            arrivalOffsetMinutes: null,
+          },
         ];
 
   return [...stops]
     .sort((a, b) => a.stopOrder - b.stopOrder)
-    .filter((stop, index, sorted) => index === 0 || stop.stopOrder !== sorted[index - 1].stopOrder || stop.name !== sorted[index - 1].name);
+    .filter(
+      (stop, index, sorted) =>
+        index === 0 ||
+        stop.stopOrder !== sorted[index - 1].stopOrder ||
+        stop.name !== sorted[index - 1].name,
+    );
 }
 
 function formatClock(value?: string | Date | null) {
@@ -148,7 +157,11 @@ function formatClock(value?: string | Date | null) {
   return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-function selectedArrivalTime(trip: Trip, stops: ReturnType<typeof getTimelineStops>, selectedTo: number) {
+function selectedArrivalTime(
+  trip: Trip,
+  stops: ReturnType<typeof getTimelineStops>,
+  selectedTo: number,
+) {
   const stop = stops.find((row) => row.stopOrder === selectedTo);
   if (!stop) return null;
   const offset = stop.arrivalOffsetMinutes ?? stop.departureOffsetMinutes;

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { LogOut, Loader2, Menu, User as UserIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { PwaInstallSidebarAction } from "@/components/pwa-install";
 
 export interface NavItem {
   to: string;
@@ -193,6 +194,7 @@ function Sidebar({
         {sidebarExtra && (
           <div className="border-t border-sidebar-border px-4 py-3">{sidebarExtra}</div>
         )}
+        <PwaInstallSidebarAction />
         <div className="border-t border-sidebar-border p-4">
           <Link
             to="/"
