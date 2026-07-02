@@ -1173,6 +1173,7 @@ export async function handlePaychanguWebhook(
     string,
     unknown
   >;
+  console.log("[PAYCHANGU] Webhook verified payload:", JSON.stringify(payload, null, 2));
   const nested =
     payload.data && typeof payload.data === "object"
       ? (payload.data as Record<string, unknown>)

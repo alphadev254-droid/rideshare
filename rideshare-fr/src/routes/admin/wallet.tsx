@@ -8,6 +8,12 @@ import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -42,6 +48,7 @@ function AdminWalletPage() {
   const [search, setSearch] = useState("");
   const [type, setType] = useState<"all" | "credit" | "withdrawal">("all");
   const [status, setStatus] = useState("all");
+  const [jsonDialog, setJsonDialog] = useState<{ title: string; value: unknown } | null>(null);
 
   const transactions = useQuery({
     queryKey: ["wallet", "admin", "transactions", search, type, status],
@@ -128,7 +135,10 @@ function AdminWalletPage() {
           {transactions.isLoading ? (
             <LoadingState />
           ) : (
-            <WalletTransactionsTable rows={transactions.data?.items ?? []} />
+            <WalletTransactionsTable
+              rows={transactions.data?.items ?? []}
+              onViewJson={(title, value) => setJsonDialog({ title, value })}
+            />
           )}
         </TabsContent>
 
@@ -139,17 +149,33 @@ function AdminWalletPage() {
             <WithdrawalsTable
               rows={withdrawals.data?.items ?? []}
               onReconcile={(id) => reconcile.mutate(id)}
+              onViewJson={(title, value) => setJsonDialog({ title, value })}
               reconcilingId={reconcile.variables}
               isReconciling={reconcile.isPending}
             />
           )}
         </TabsContent>
       </Tabs>
+
+      <JsonViewerDialog
+        title={jsonDialog?.title}
+        value={jsonDialog?.value}
+        open={Boolean(jsonDialog)}
+        onOpenChange={(open) => {
+          if (!open) setJsonDialog(null);
+        }}
+      />
     </div>
   );
 }
 
-function WalletTransactionsTable({ rows }: { rows: AdminWalletTransaction[] }) {
+function WalletTransactionsTable({
+  rows,
+  onViewJson,
+}: {
+  rows: AdminWalletTransaction[];
+  onViewJson: (title: string, value: unknown) => void;
+}) {
   if (rows.length === 0) return <EmptyWalletState label="No wallet transactions found." />;
 
   return (
@@ -203,8 +229,12 @@ function WalletTransactionsTable({ rows }: { rows: AdminWalletTransaction[] }) {
                 <TableCell className="max-w-[160px] truncate font-mono text-xs">{clean(row.paymentId)}</TableCell>
                 <TableCell className="max-w-[160px] truncate font-mono text-xs">{clean(row.refundId)}</TableCell>
                 <TableCell className="max-w-[160px] truncate font-mono text-xs">{clean(row.withdrawal?.id)}</TableCell>
-                <TableCell className="max-w-[220px] truncate font-mono text-xs">{jsonCell(row.metadata)}</TableCell>
-                <TableCell className="max-w-[220px] truncate font-mono text-xs">{jsonCell(row.providerPayload)}</TableCell>
+                <TableCell>
+                  <JsonCell label="View metadata" value={row.metadata} onView={() => onViewJson("Wallet transaction metadata", row.metadata)} />
+                </TableCell>
+                <TableCell>
+                  <JsonCell label="View payload" value={row.providerPayload} onView={() => onViewJson("Wallet transaction provider payload", row.providerPayload)} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -217,11 +247,13 @@ function WalletTransactionsTable({ rows }: { rows: AdminWalletTransaction[] }) {
 function WithdrawalsTable({
   rows,
   onReconcile,
+  onViewJson,
   reconcilingId,
   isReconciling,
 }: {
   rows: AdminWalletWithdrawal[];
   onReconcile: (id: string) => void;
+  onViewJson: (title: string, value: unknown) => void;
   reconcilingId?: string;
   isReconciling: boolean;
 }) {
@@ -277,7 +309,9 @@ function WithdrawalsTable({
                   <TableCell className="whitespace-nowrap">{formatDateTime(row.webhookReceivedAt)}</TableCell>
                   <TableCell className="whitespace-nowrap">{formatDateTime(row.processedAt)}</TableCell>
                   <TableCell className="max-w-[260px] truncate text-xs text-destructive">{clean(row.failureReason)}</TableCell>
-                  <TableCell className="max-w-[220px] truncate font-mono text-xs">{jsonCell(row.providerPayload)}</TableCell>
+                  <TableCell>
+                    <JsonCell label="View payload" value={row.providerPayload} onView={() => onViewJson("Withdrawal provider payload", row.providerPayload)} />
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button
                       size="sm"
@@ -324,6 +358,42 @@ function walletStatus(row: AdminWalletTransaction) {
   return <StatusPill status={status as never} />;
 }
 
+function JsonCell({ label, value, onView }: { label: string; value: unknown; onView: () => void }) {
+  const text = jsonCell(value);
+  if (text === "-") return <span className="text-muted-foreground">-</span>;
+
+  return (
+    <Button type="button" variant="ghost" size="sm" className="h-8 max-w-[180px] justify-start px-2" onClick={onView}>
+      <span className="truncate font-mono text-xs">{label}</span>
+    </Button>
+  );
+}
+
+function JsonViewerDialog({
+  title,
+  value,
+  open,
+  onOpenChange,
+}: {
+  title?: string;
+  value: unknown;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{title ?? "Payload"}</DialogTitle>
+        </DialogHeader>
+        <pre className="max-h-[65vh] overflow-auto rounded-md border border-border bg-surface-2 p-3 text-xs leading-relaxed text-foreground">
+          {prettyJson(value)}
+        </pre>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function clean(value?: string | null) {
   if (!value) return "-";
   return value.replaceAll("_", " ");
@@ -336,5 +406,21 @@ function jsonCell(value: unknown) {
     return JSON.stringify(value);
   } catch {
     return "-";
+  }
+}
+
+function prettyJson(value: unknown) {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "string") {
+    try {
+      return JSON.stringify(JSON.parse(value), null, 2);
+    } catch {
+      return value;
+    }
+  }
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
   }
 }

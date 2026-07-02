@@ -42,10 +42,39 @@ export async function paychanguWebhookController(
 ): Promise<void> {
   try {
     const sig = (req.headers.signature ?? req.headers["verif-hash"] ?? "") as string;
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body.toString("utf8")
+      : JSON.stringify(req.body);
+    console.log(
+      "[PAYCHANGU] Webhook HTTP hit:",
+      safeJsonStringify({
+        receivedAt: new Date().toISOString(),
+        ip: req.ip,
+        signaturePresent: Boolean(sig),
+        headers: req.headers,
+        body: parseJsonIfPossible(rawBody),
+      }),
+    );
     const data = await paymentsService.handlePaychanguWebhook(req.body, sig);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
+  }
+}
+
+function parseJsonIfPossible(value: string) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function safeJsonStringify(value: unknown) {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
   }
 }
 

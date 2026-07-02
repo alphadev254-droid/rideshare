@@ -1305,6 +1305,7 @@ export async function finalizeWithdrawalPayout(
 export async function handlePaychanguPayoutWebhook(
   payload: Record<string, unknown>,
 ) {
+  console.log("[WITHDRAW] Raw payout webhook payload:", JSON.stringify(payload, null, 2));
   const normalized = normalizePayoutWebhookPayload(payload);
   const eventType = String(normalized.eventType ?? "");
   console.log(`[WITHDRAW] Webhook received - event_type=${eventType}`);
