@@ -49,3 +49,92 @@ export async function getDriverReviews(driverId: string, page = 1, limit = 20) {
     take: limit,
   });
 }
+
+export async function listReviewsForAdmin({
+  page = 1,
+  limit = 50,
+  search,
+  rating,
+}: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  rating?: number;
+}) {
+  const safePage = Math.max(1, page);
+  const safeLimit = Math.min(Math.max(1, limit), 100);
+  const q = search?.trim();
+  const where = {
+    ...(rating ? { rating } : {}),
+    ...(q
+      ? {
+          OR: [
+            { comment: { contains: q, mode: "insensitive" as const } },
+            { passenger: { fullName: { contains: q, mode: "insensitive" as const } } },
+            { passenger: { phone: { contains: q, mode: "insensitive" as const } } },
+            { driver: { user: { fullName: { contains: q, mode: "insensitive" as const } } } },
+            { driver: { user: { phone: { contains: q, mode: "insensitive" as const } } } },
+            { booking: { trip: { originName: { contains: q, mode: "insensitive" as const } } } },
+            { booking: { trip: { destinationName: { contains: q, mode: "insensitive" as const } } } },
+          ],
+        }
+      : {}),
+  };
+
+  const [total, data] = await Promise.all([
+    prisma.review.count({ where }),
+    prisma.review.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
+      include: {
+        passenger: { select: { id: true, fullName: true, phone: true, email: true } },
+        driver: {
+          select: {
+            id: true,
+            user: { select: { id: true, fullName: true, phone: true, email: true, rating: true } },
+          },
+        },
+        booking: {
+          select: {
+            id: true,
+            tripId: true,
+            boardingPoint: true,
+            dropOffPoint: true,
+            fareMwk: true,
+            createdAt: true,
+            trip: {
+              select: {
+                id: true,
+                originName: true,
+                destinationName: true,
+                departureTime: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  return {
+    data: data.map((review) => ({
+      ...review,
+      driver: {
+        ...review.driver,
+        user: {
+          ...review.driver.user,
+          rating: review.driver.user.rating?.toString() ?? null,
+        },
+      },
+      booking: {
+        ...review.booking,
+        fareMwk: review.booking.fareMwk.toString(),
+      },
+    })),
+    total,
+    page: safePage,
+    limit: safeLimit,
+  };
+}

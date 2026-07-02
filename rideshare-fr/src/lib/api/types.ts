@@ -82,8 +82,13 @@ export interface DriverDashboardStats {
   totalTrips: number;
   totalEarningsMwk: string;
   balanceMwk: string;
-  rating: string;
+  rating: string | null;
   pendingTrips: number;
+  scheduledTrips?: number;
+  boardingTrips?: number;
+  activeTrips?: number;
+  completedTrips?: number;
+  cancelledTrips?: number;
 }
 
 export interface Vehicle {
@@ -276,6 +281,7 @@ export interface Booking {
       plateNumber: string;
       color?: string | null;
       comfortClass: ComfortClass;
+      imageUrls?: string[];
     };
   };
   payment?: {
@@ -425,6 +431,39 @@ export interface Review {
   id: string;
   bookingId: string;
   rating: number;
-  comment?: string;
+  comment?: string | null;
   createdAt: string;
+}
+
+export interface AdminReview extends Review {
+  passenger: {
+    id: string;
+    fullName: string;
+    phone: string;
+    email?: string | null;
+  };
+  driver: {
+    id: string;
+    user: {
+      id: string;
+      fullName: string;
+      phone: string;
+      email?: string | null;
+      rating?: string | null;
+    };
+  };
+  booking: {
+    id: string;
+    tripId: string;
+    boardingPoint: string;
+    dropOffPoint?: string | null;
+    fareMwk: string;
+    createdAt: string;
+    trip: {
+      id: string;
+      originName: string;
+      destinationName: string;
+      departureTime: string;
+    };
+  };
 }

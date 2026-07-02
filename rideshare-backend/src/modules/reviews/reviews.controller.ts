@@ -33,3 +33,20 @@ export async function getDriverReviewsController(
     next(err);
   }
 }
+
+export async function listReviewsForAdminController(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 50;
+    const rating = req.query.rating ? Number(req.query.rating) : undefined;
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
+    const data = await reviewsService.listReviewsForAdmin({ page, limit, search, rating });
+    res.json({ success: true, ...data });
+  } catch (err) {
+    next(err);
+  }
+}

@@ -59,6 +59,7 @@ const bookingDetailSelect = {
           plateNumber: true,
           color: true,
           comfortClass: true,
+          images: { select: { url: true }, orderBy: { createdAt: "asc" } },
         },
       },
     },
@@ -202,6 +203,13 @@ function formatBooking(
     trip: booking.trip
       ? {
           ...booking.trip,
+          vehicle: booking.trip.vehicle
+            ? {
+                ...booking.trip.vehicle,
+                imageUrls: booking.trip.vehicle.images.map((row) => row.url),
+                images: undefined,
+              }
+            : null,
           baseFareMwk: toMoney(booking.trip.baseFareMwk),
         }
       : null,

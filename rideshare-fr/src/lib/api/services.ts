@@ -19,6 +19,7 @@ import type {
   PaymentRefund,
   RefundPreview,
   Review,
+  AdminReview,
   Trip,
   TripSegmentInput,
   TripLocation,
@@ -326,6 +327,10 @@ export const reviewService = {
     api.post<Review>("/reviews", body),
   forDriver: (driverId: string) =>
     api.get<Review[]>(`/reviews/driver/${driverId}`, { auth: false }),
+  admin: (query?: { page?: number; limit?: number; search?: string; rating?: number | "all" }) =>
+    api.get<PaginatedResponse<AdminReview>>("/reviews/admin", {
+      query: query as Record<string, string | number | undefined>,
+    }),
 };
 
 // ─── Admin ────────────────────────────────────────────────────────

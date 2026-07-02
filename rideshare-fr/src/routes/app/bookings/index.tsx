@@ -6,7 +6,7 @@ import { LoadingState } from "@/components/loading-state";
 import { EmptyState } from "@/components/empty-state";
 import { StatusPill } from "@/components/status-pill";
 import { formatDateTime, formatMwk } from "@/lib/format";
-import { ArrowRight, MapPinned, MapPin, Ticket } from "lucide-react";
+import { CalendarClock, Eye, MapPinned, Ticket, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/app/bookings/")({
@@ -37,46 +37,91 @@ function BookingsList() {
       )}
       {data && data.length > 0 && (
         <ul className="space-y-3">
-          {data.map((b) => (
-            <li key={b.id}>
-              <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-card p-5">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <StatusPill status={b.status} />
-                    <StatusPill status={b.paymentStatus} />
-                  </div>
-                  <div className="mt-3 flex items-center gap-1.5 font-display text-base font-semibold">
-                    <MapPin className="h-3.5 w-3.5 text-primary" /> {b.boardingPoint}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {formatDateTime(b.createdAt)}
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  {b.trip?.status === "in_transit" && (
-                    <Link to="/trips/$id/location" params={{ id: b.tripId }}>
-                      <Button size="sm" variant="outline" className="gap-2">
-                        <MapPinned className="h-4 w-4" />
-                        View driver location
-                      </Button>
-                    </Link>
-                  )}
-                  <div className="text-right">
-                    <div className="font-display text-lg font-semibold tabular">
-                      {formatMwk(b.fareMwk)}
+          {data.map((b) => {
+            const route = bookingRoute(b);
+            return (
+              <li key={b.id}>
+                <article className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/45 sm:p-5">
+                  <div className="flex items-stretch justify-between gap-3 sm:gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusPill status={b.status} />
+                        <StatusPill status={b.paymentStatus} />
+                      </div>
+
+                      <div className="route-rail mt-4 space-y-3 pl-6">
+                        <div className="relative flex items-center gap-2">
+                          <span className="route-dot absolute -left-6" />
+                          <span className="truncate font-display text-lg font-semibold sm:text-xl">
+                            {route.from}
+                          </span>
+                        </div>
+                        <div className="relative flex items-center gap-2">
+                          <span className="route-dot absolute -left-6 bg-primary" />
+                          <span className="truncate font-display text-lg font-semibold sm:text-xl">
+                            {route.to}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1.5">
+                          <CalendarClock className="h-3.5 w-3.5 text-gold" />
+                          {formatDateTime(b.createdAt)}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-route" />
+                          {b.seatsBooked ?? 1} seat{(b.seatsBooked ?? 1) === 1 ? "" : "s"} booked
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex w-24 shrink-0 flex-col items-end justify-between gap-3 border-l border-border pl-3 sm:w-32 sm:pl-5">
+                      <div className="text-right">
+                        <div className="label-eyebrow">Fare</div>
+                        <div className="mt-1 font-display text-lg font-semibold tabular-nums text-gold sm:text-xl">
+                          {formatMwk(b.fareMwk)}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-2">
+                        {b.trip?.status === "in_transit" && (
+                          <Link to="/trips/$id/location" params={{ id: b.tripId }}>
+                            <Button size="sm" variant="outline" className="gap-2">
+                              <MapPinned className="h-4 w-4" />
+                              <span className="hidden sm:inline">Location</span>
+                            </Button>
+                          </Link>
+                        )}
+                        <Link to="/app/bookings/$id" params={{ id: b.id }}>
+                          <Button size="sm" className="gap-2">
+                            <Eye className="h-4 w-4" />
+                            View
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                  <Link to="/app/bookings/$id" params={{ id: b.id }}>
-                    <Button size="icon" variant="ghost">
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </li>
-          ))}
+                </article>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
+}
+
+function bookingRoute(booking: Awaited<ReturnType<typeof bookingService.mine>>[number]) {
+  const from =
+    booking.segment?.fromStop?.name ??
+    booking.boardingPoint ??
+    booking.trip?.originName ??
+    "Boarding";
+  const to =
+    booking.segment?.toStop?.name ??
+    booking.dropOffPoint ??
+    booking.trip?.destinationName ??
+    "Drop-off";
+  return { from, to };
 }

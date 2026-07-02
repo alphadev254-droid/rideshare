@@ -17,15 +17,16 @@ import {
 } from "@/components/ui/select";
 import { formatMwk, formatDateTime } from "@/lib/format";
 import { Wallet, ArrowUpCircle, Loader2, Mail, ShieldCheck } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { API_CONFIG } from "@/lib/api/config";
 
 export const Route = createFileRoute("/driver/wallet")({
   component: WalletPage,
 });
 
+const PAYCHANGU_MIN_PAYOUT_MWK = 50;
+
 function WalletPage() {
-  const { user } = useAuth();
   const qc = useQueryClient();
   const { data: balance, isLoading } = useQuery({
     queryKey: ["wallet", "balance"],
@@ -36,13 +37,20 @@ function WalletPage() {
     queryFn: () => walletService.withdrawals(),
   });
 
-  // ─── Withdraw form state ───────────────────────────────
+  // â”€â”€â”€ Withdraw form state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("airtel_money");
-  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
   const [activeWithdrawalId, setActiveWithdrawalId] = useState<string | null>(null);
+  const amountNumber = Number(amount);
+  const balanceNumber = Number(balance?.balanceMwk ?? 0);
+  const withdrawalFee =
+    Number.isFinite(amountNumber) && amountNumber > 0
+      ? Math.round(amountNumber * API_CONFIG.withdrawalFees.mobileMoneyRate)
+      : 0;
+  const netPayout = Math.max(0, Math.round(amountNumber || 0) - withdrawalFee);
 
   // Poll only the specific active withdrawal until it completes/fails
   const { data: activeWithdrawal } = useQuery({
@@ -78,8 +86,9 @@ function WalletPage() {
   const withdraw = useMutation({
     mutationFn: () => walletService.withdraw({ amountMwk: Number(amount), phone, method, otp }),
     onSuccess: (res: { message: string; amountMwk: string; status: string; reference: string; id: string }) => {
-      toast.success("Withdrawal submitted — waiting for processing");
+      toast.success("Withdrawal submitted â€” waiting for processing");
       setAmount("");
+      setPhone("");
       setOtp("");
       setOtpSentTo(null);
       setActiveWithdrawalId(res.id);
@@ -91,8 +100,43 @@ function WalletPage() {
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    if (otp.length !== 6) return;
+    if (!validateWithdrawalBasics()) return;
+    if (otp.length !== 6) {
+      toast.error("Enter the 6-digit verification code sent to your email");
+      return;
+    }
     withdraw.mutate();
+  }
+
+  function validateWithdrawalBasics() {
+    if (!amount.trim() || !Number.isFinite(amountNumber) || amountNumber <= 0) {
+      toast.error("Enter the amount you want to withdraw");
+      return false;
+    }
+    if (amountNumber > balanceNumber) {
+      toast.error("Withdrawal amount cannot be higher than your available balance");
+      return false;
+    }
+    if (!phone.trim()) {
+      toast.error("Enter the mobile money phone number for this withdrawal");
+      return false;
+    }
+    if (!/^(?:\+?265|0)?(?:88|98|99)\d{7}$/.test(phone.replace(/\s/g, ""))) {
+      toast.error("Enter a valid Malawi mobile money number, for example 0991234567");
+      return false;
+    }
+    if (netPayout < PAYCHANGU_MIN_PAYOUT_MWK) {
+      toast.error(
+        `After the withdrawal fee, PayChangu payout must be at least ${formatMwk(PAYCHANGU_MIN_PAYOUT_MWK)}`,
+      );
+      return false;
+    }
+    return true;
+  }
+
+  function handleRequestOtp() {
+    if (!validateWithdrawalBasics()) return;
+    requestOtp.mutate();
   }
 
   return (
@@ -119,20 +163,20 @@ function WalletPage() {
         )
       )}
 
-      {/* ─── Active withdrawal banner ────────────────────────── */}
+      {/* â”€â”€â”€ Active withdrawal banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {activeWithdrawal && (
         <div className="rounded-md border border-border bg-surface-2 p-4">
           <div className="flex items-center gap-3">
             <Loader2 className="h-4 w-4 animate-spin text-primary" />
             <div>
               <p className="text-sm font-medium">
-                Withdrawal in progress – {formatMwk(activeWithdrawal.amountMwk)} via{" "}
+                Withdrawal in progress â€“ {formatMwk(activeWithdrawal.amountMwk)} via{" "}
                 {activeWithdrawal.provider.replace("_", " ")}
               </p>
               <p className="text-xs text-muted-foreground">
                 Status: <span className="font-semibold capitalize">{activeWithdrawal.status.replace("_", " ")}</span>
                 {activeWithdrawal.failureReason ? (
-                  <span className="ml-2 text-destructive">— {activeWithdrawal.failureReason}</span>
+                  <span className="ml-2 text-destructive">â€” {activeWithdrawal.failureReason}</span>
                 ) : null}
               </p>
             </div>
@@ -147,17 +191,25 @@ function WalletPage() {
         >
           <h3 className="label-eyebrow">Withdraw to mobile money</h3>
 
-          {/* Step 1 — Amount, method, phone */}
+          {/* Step 1 â€” Amount, method, phone */}
           <div className="space-y-1.5">
             <Label className="label-eyebrow">Amount (MWK)</Label>
             <Input
               type="number"
               required
-              min={100}
+              min={PAYCHANGU_MIN_PAYOUT_MWK}
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setOtp("");
+                setOtpSentTo(null);
+              }}
+              placeholder="Example: 5000"
               disabled={withdraw.isPending}
             />
+            <p className="text-xs text-muted-foreground">
+              PayChangu minimum payout after fees: {formatMwk(PAYCHANGU_MIN_PAYOUT_MWK)}.
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label className="label-eyebrow">Method</Label>
@@ -173,17 +225,49 @@ function WalletPage() {
           </div>
           <div className="space-y-1.5">
             <Label className="label-eyebrow">Phone</Label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} required disabled={withdraw.isPending} />
+            <Input
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                setOtp("");
+                setOtpSentTo(null);
+              }}
+              required
+              disabled={withdraw.isPending}
+              placeholder="Example: 0991234567 or +265991234567"
+              inputMode="tel"
+            />
           </div>
 
-          {/* Step 2 — Request code button (only shown before code is sent, or to resend) */}
+          {amountNumber > 0 && (
+            <div className="rounded-md border border-border bg-surface-2 p-3 text-xs">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Withdrawal fee</span>
+                <span className="font-medium tabular">{formatMwk(withdrawalFee)}</span>
+              </div>
+              <div className="mt-1.5 flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Recipient receives</span>
+                <span
+                  className={
+                    netPayout >= PAYCHANGU_MIN_PAYOUT_MWK
+                      ? "font-semibold tabular text-primary"
+                      : "font-semibold tabular text-destructive"
+                  }
+                >
+                  {formatMwk(netPayout)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2 â€” Request code button (only shown before code is sent, or to resend) */}
           {!otpSentTo ? (
             <Button
               type="button"
               className="w-full"
               variant="outline"
-              onClick={() => requestOtp.mutate()}
-              disabled={requestOtp.isPending || !amount || Number(amount) < 100}
+              onClick={handleRequestOtp}
+              disabled={requestOtp.isPending || withdraw.isPending}
             >
               {requestOtp.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -199,7 +283,7 @@ function WalletPage() {
                 Code sent to {otpSentTo}
               </div>
 
-              {/* Step 3 — Enter code + Verify & Withdraw */}
+              {/* Step 3 â€” Enter code + Verify & Withdraw */}
               <div className="flex gap-2">
                 <Input
                   value={otp}
@@ -215,8 +299,8 @@ function WalletPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => requestOtp.mutate()}
-                  disabled={requestOtp.isPending}
+                  onClick={handleRequestOtp}
+                  disabled={requestOtp.isPending || withdraw.isPending}
                   className="shrink-0"
                 >
                   Resend
@@ -226,7 +310,7 @@ function WalletPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={withdraw.isPending || otp.length !== 6 || !amount}
+                disabled={withdraw.isPending}
               >
                 {withdraw.isPending ? (
                   <>
@@ -273,10 +357,10 @@ function WalletPage() {
                       </span>
                       <div className="min-w-0">
                         <div className="font-medium capitalize">
-                          {isActive && "⏳ "}{w.status.replace("_", " ")}
+                          {isActive && "â³ "}{w.status.replace("_", " ")}
                         </div>
                         <div className="truncate text-xs text-muted-foreground">
-                          {w.provider.replace("_", " ")} · {w.reference}
+                          {w.provider.replace("_", " ")} Â· {w.reference}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {formatDateTime(w.processedAt ?? w.createdAt)}

@@ -439,23 +439,38 @@ export async function requestDriverReview(userId: string) {
 export async function getDriverDashboard(userId: string) {
   const driver = await prisma.driverProfile.findUnique({
     where: { userId },
-    select: { id: true, isApproved: true, totalTrips: true, totalEarningsMwk: true, wallet: { select: { balanceMwk: true } } },
+    select: {
+      id: true,
+      isApproved: true,
+      totalTrips: true,
+      totalEarningsMwk: true,
+      wallet: { select: { balanceMwk: true, totalEarnedMwk: true } },
+    },
   });
   if (!driver || !driver.isApproved) {
     throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
   }
 
-  const [pendingTrips, rating] = await Promise.all([
+  const [scheduledTrips, boardingTrips, activeTrips, completedTrips, cancelledTrips, rating] = await Promise.all([
     prisma.trip.count({ where: { driverId: driver.id, status: { in: ["scheduled", "boarding"] } } }),
+    prisma.trip.count({ where: { driverId: driver.id, status: "boarding" } }),
+    prisma.trip.count({ where: { driverId: driver.id, status: "in_transit" } }),
+    prisma.trip.count({ where: { driverId: driver.id, status: "completed" } }),
+    prisma.trip.count({ where: { driverId: driver.id, status: "cancelled" } }),
     prisma.user.findUnique({ where: { id: userId }, select: { rating: true } }),
   ]);
 
   return {
-    totalTrips: driver.totalTrips,
-    totalEarningsMwk: driver.totalEarningsMwk.toString(),
+    totalTrips: completedTrips || driver.totalTrips,
+    totalEarningsMwk: driver.wallet?.totalEarnedMwk?.toString() ?? driver.totalEarningsMwk.toString(),
     balanceMwk: driver.wallet?.balanceMwk?.toString() ?? "0",
     rating: rating?.rating?.toString() ?? null,
-    pendingTrips,
+    pendingTrips: scheduledTrips,
+    scheduledTrips,
+    boardingTrips,
+    activeTrips,
+    completedTrips,
+    cancelledTrips,
   };
 }
 
@@ -601,7 +616,6 @@ export async function updateDriverProfileFileAdmin(
     throw new AppError(404, "Driver not found");
   }
 }
-
 
 
 

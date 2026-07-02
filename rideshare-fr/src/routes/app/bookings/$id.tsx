@@ -13,6 +13,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
 import { StatusPill } from "@/components/status-pill";
+import { SecureImage } from "@/components/secure-image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatMwk, formatDateTime } from "@/lib/format";
-import { ArrowLeft, Car, KeyRound, RefreshCw, RotateCcw, Star, User as UserIcon, Navigation, Calendar } from "lucide-react";
+import { ArrowLeft, Car, CheckCircle2, KeyRound, RefreshCw, RotateCcw, Star, User as UserIcon, Navigation, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 
@@ -51,6 +52,7 @@ function BookingDetail() {
   const [reviewed, setReviewed] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundReason, setRefundReason] = useState("");
+  const [selectedVehicleImage, setSelectedVehicleImage] = useState<string | null>(null);
   const needsEmergencyContact = !user?.emergencyContactPhone;
 
   const refundPreview = useQuery({
@@ -108,6 +110,8 @@ function BookingDetail() {
       toast.success("Thanks for the review!");
       setReviewed(true);
       setComment("");
+      qc.invalidateQueries({ queryKey: ["booking", id] });
+      qc.invalidateQueries({ queryKey: ["bookings"] });
     },
     onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : "Could not submit"),
   });
@@ -134,7 +138,9 @@ function BookingDetail() {
     );
 
   const needsPayment = booking.paymentStatus === "unpaid";
+  const boardingApproved = booking.codeUsed || booking.status === "authenticated";
   const canResendCode = !!booking.codeAvailable && booking.status !== "cancelled";
+  const showBoardingCodePanel = !needsPayment && booking.status !== "cancelled";
   const canReview = booking.status === "completed" && !booking.ratedDriver && !reviewed;
   const canRequestRefund =
     booking.paymentStatus === "held_in_escrow" &&
@@ -147,24 +153,81 @@ function BookingDetail() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-end gap-3 border-b border-border pb-6">
       <Link
         to="/app/bookings"
-        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        className="mb-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground hover:border-primary hover:text-foreground"
+        aria-label="All bookings"
       >
-        <ArrowLeft className="h-3.5 w-3.5" /> All bookings
+        <ArrowLeft className="h-4 w-4" />
       </Link>
 
       <PageHeader
         eyebrow="Booking"
         title={booking.boardingPoint}
         description={booking.dropOffPoint ? `→ ${booking.dropOffPoint}` : undefined}
+        className="min-w-0 flex-1 flex-row items-end justify-between gap-3 border-b-0 pb-0 [&>div:first-child]:min-w-0 [&>div:first-child]:flex-1 [&_h1]:truncate"
         actions={
-          <div className="flex gap-2">
+          <div className="flex shrink-0 flex-wrap justify-end gap-2">
             <StatusPill status={booking.status} />
             <StatusPill status={booking.paymentStatus} />
           </div>
         }
       />
+      </div>
+
+      {showBoardingCodePanel && (
+        <div className="rounded-md border border-primary/40 bg-primary/5 p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-primary">
+                {boardingApproved ? <CheckCircle2 className="h-4 w-4" /> : <KeyRound className="h-4 w-4" />}
+                <span className="label-eyebrow">
+                  {boardingApproved ? "Boarding approved" : "Boarding code"}
+                </span>
+              </div>
+
+              {boardingApproved ? (
+                <>
+                  {booking.boardingCode && (
+                    <div className="mt-3 font-mono text-4xl font-bold tracking-[0.35em] text-primary">
+                      {booking.boardingCode}
+                    </div>
+                  )}
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    The driver has verified your boarding code.
+                  </p>
+                </>
+              ) : booking.boardingCode ? (
+                <>
+                  <div className="mt-3 font-mono text-4xl font-bold tracking-[0.35em] text-primary">
+                    {booking.boardingCode}
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Show this code to the driver when boarding. It must be verified before you enter.
+                  </p>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Your boarding code will show here after payment confirmation.
+                </p>
+              )}
+            </div>
+
+            {canResendCode && !boardingApproved && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 gap-2"
+                onClick={() => resend.mutate()}
+                disabled={resend.isPending}
+              >
+                <RefreshCw className="h-3.5 w-3.5" /> Resend by SMS
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
@@ -292,32 +355,29 @@ function BookingDetail() {
                   </div>
                 )}
               </dl>
-            </div>
-          )}
 
-          {canResendCode && (
-            <div className="rounded-md border border-primary/40 bg-primary/5 p-6">
-              <div className="flex items-center gap-2 text-primary">
-                <KeyRound className="h-4 w-4" />
-                <span className="label-eyebrow">Boarding code</span>
-              </div>
-              {booking.boardingCode ? (
-                <div className="mt-3 font-mono text-4xl font-bold tracking-[0.35em] text-primary">
-                  {booking.boardingCode}
+              {(booking.trip.vehicle.imageUrls?.length ?? 0) > 0 && (
+                <div className="mt-4">
+                  <div className="label-eyebrow mb-2">Vehicle photos</div>
+                  <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
+                    {booking.trip.vehicle.imageUrls?.map((url, index) => (
+                      <button
+                        key={url}
+                        type="button"
+                        onClick={() => setSelectedVehicleImage(url)}
+                        className="group aspect-square overflow-hidden rounded-md border border-border bg-surface-2 ring-focus sm:h-16 sm:w-16"
+                        aria-label={`View vehicle photo ${index + 1}`}
+                      >
+                        <SecureImage
+                          src={url}
+                          alt={`${booking.trip?.vehicle?.make ?? "Vehicle"} photo ${index + 1}`}
+                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                        />
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              ) : null}
-              <p className="mt-3 text-sm text-muted-foreground">
-                Show this code to the driver at boarding only.
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-4 gap-2"
-                onClick={() => resend.mutate()}
-                disabled={resend.isPending}
-              >
-                <RefreshCw className="h-3.5 w-3.5" /> Resend by SMS
-              </Button>
+              )}
             </div>
           )}
 
@@ -420,6 +480,22 @@ function BookingDetail() {
           ) : null}
         </aside>
       </div>
+
+      <Dialog open={!!selectedVehicleImage} onOpenChange={(open) => !open && setSelectedVehicleImage(null)}>
+        <DialogContent className="max-w-3xl border-border bg-card p-3">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Vehicle photo</DialogTitle>
+            <DialogDescription>Expanded vehicle image preview.</DialogDescription>
+          </DialogHeader>
+          {selectedVehicleImage && (
+            <SecureImage
+              src={selectedVehicleImage}
+              alt="Vehicle photo"
+              className="max-h-[75vh] w-full rounded-md object-contain"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={refundOpen} onOpenChange={setRefundOpen}>
         <DialogContent>

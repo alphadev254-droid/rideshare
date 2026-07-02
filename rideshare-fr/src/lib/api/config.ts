@@ -1,3 +1,9 @@
+function numberEnv(name: string, fallback: number) {
+  const value = import.meta.env[name] as string | undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 /**
  * Centralized API configuration.
  * Change the base URL via VITE_API_BASE_URL in your .env.
@@ -6,6 +12,11 @@ export const API_CONFIG = {
   baseUrl:
     (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:5000/api/v1",
   mapboxAccessToken: (import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string | undefined) ?? "",
+  withdrawalFees: {
+    mobileMoneyRate: numberEnv("VITE_WITHDRAWAL_MOBILE_MONEY_FEE_RATE", 0.03),
+    bankRate: numberEnv("VITE_WITHDRAWAL_BANK_FEE_RATE", 0.01),
+    bankFixedFeeMwk: numberEnv("VITE_WITHDRAWAL_BANK_FIXED_FEE", 700),
+  },
   storage: {
     accessToken: "rsm.accessToken",
     refreshToken: "rsm.refreshToken",

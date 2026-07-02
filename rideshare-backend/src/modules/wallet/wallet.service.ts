@@ -453,6 +453,19 @@ export async function requestWithdrawal(
     );
 
   if (!driver.wallet) throw new AppError(404, "Driver wallet not found");
+  const { netAmountMwk } = calculateWithdrawalFee(
+    BigInt(Math.round(amountMwk)),
+    provider,
+  );
+  if (netAmountMwk <= 0n) {
+    throw new AppError(400, "Withdrawal amount is too small after deducting fees");
+  }
+  if (netAmountMwk < BigInt(env.PAYCHANGU_MIN_AMOUNT_MWK)) {
+    throw new AppError(
+      400,
+      `After fees, PayChangu payout must be at least MK ${env.PAYCHANGU_MIN_AMOUNT_MWK}`,
+    );
+  }
   // This is a fast user-facing check. The queued worker repeats the check atomically.
   if (Number(driver.wallet.balanceMwk) < amountMwk) {
     console.warn(
@@ -566,6 +579,23 @@ export async function processWithdrawalRequest(withdrawalId: string) {
       throw new AppError(
         400,
         "Withdrawal amount is too small after deducting fees",
+      );
+    }
+    if (netAmountMwk < BigInt(env.PAYCHANGU_MIN_AMOUNT_MWK)) {
+      console.warn(
+        `[WITHDRAW] Request ${withdrawalId} — net amount ${netAmountMwk} is below PayChangu minimum ${env.PAYCHANGU_MIN_AMOUNT_MWK}`,
+      );
+      await client.walletWithdrawalRequest.update({
+        where: { id: req.id },
+        data: {
+          status: "failed",
+          failureReason: `After fees, PayChangu payout must be at least MK ${env.PAYCHANGU_MIN_AMOUNT_MWK}`,
+          processedAt: new Date(),
+        },
+      });
+      throw new AppError(
+        400,
+        `After fees, PayChangu payout must be at least MK ${env.PAYCHANGU_MIN_AMOUNT_MWK}`,
       );
     }
 

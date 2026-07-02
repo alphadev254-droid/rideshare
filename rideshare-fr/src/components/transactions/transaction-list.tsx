@@ -42,8 +42,10 @@ export function TransactionList({
 
   if (variant === "admin") {
     return (
-      <div className="overflow-x-auto rounded-md border border-border bg-card">
-        <Table className="min-w-[1500px]">
+      <>
+        <TransactionCards transactions={transactions} detailBase={detailBase} viewMode={viewMode} variant={variant} />
+        <div className="hidden overflow-x-auto rounded-md border border-border bg-card lg:block">
+          <Table className="min-w-[1500px]">
           <TableHeader>
             <TableRow>
               <TableHead className="whitespace-nowrap">Passenger</TableHead>
@@ -82,15 +84,18 @@ export function TransactionList({
               </TableRow>
             ))}
           </TableBody>
-        </Table>
-      </div>
+          </Table>
+        </div>
+      </>
     );
   }
 
   if (variant === "driver") {
     return (
-      <div className="overflow-x-auto rounded-md border border-border bg-card">
-        <Table className="min-w-[1120px]">
+      <>
+        <TransactionCards transactions={transactions} detailBase={detailBase} viewMode={viewMode} variant={variant} />
+        <div className="hidden overflow-x-auto rounded-md border border-border bg-card lg:block">
+          <Table className="min-w-[1120px]">
           <TableHeader>
             <TableRow>
               <TableHead className="whitespace-nowrap">Passenger</TableHead>
@@ -121,14 +126,17 @@ export function TransactionList({
               </TableRow>
             ))}
           </TableBody>
-        </Table>
-      </div>
+          </Table>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-border bg-card">
-      <div className="divide-y divide-border">
+    <>
+      <TransactionCards transactions={transactions} detailBase={detailBase} viewMode={viewMode} variant={variant} />
+      <div className="hidden overflow-hidden rounded-md border border-border bg-card lg:block">
+        <div className="divide-y divide-border">
         {transactions.map((tx) => (
           <div key={tx.id} className="grid gap-3 p-4 text-sm sm:grid-cols-[1.4fr_1fr_1fr_auto] sm:items-center">
             <div className="min-w-0">
@@ -163,7 +171,98 @@ export function TransactionList({
             </div>
           </div>
         ))}
+        </div>
       </div>
+    </>
+  );
+}
+
+function TransactionCards({
+  transactions,
+  detailBase,
+  viewMode,
+  variant,
+}: {
+  transactions: Payment[];
+  detailBase: "/app/transactions/$id" | "/driver/transactions/$id" | "/admin/payments/$id";
+  viewMode: "link" | "dialog";
+  variant: "passenger" | "driver" | "admin";
+}) {
+  return (
+    <div className="space-y-3 lg:hidden">
+      {transactions.map((tx) => {
+        const primaryAmount = (variant === "driver" ? tx.driverAmountMwk : tx.customerAmountMwk) ?? tx.customerAmountMwk;
+        const primaryLabel = variant === "driver" ? "You get" : variant === "admin" ? "Paid" : "Amount paid";
+        const person =
+          variant === "passenger"
+            ? tx.driverName
+            : tx.passengerName;
+
+        return (
+          <article key={tx.id} className="rounded-lg border border-border bg-card p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-display text-base font-semibold">
+                  {tx.route ?? "Ride payment"}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {formatDateTime(tx.createdAt)}
+                </div>
+                <div className="mt-1.5">
+                  <StatusPill status={tx.status} />
+                </div>
+              </div>
+
+              <div className="flex shrink-0 flex-col items-end gap-2 text-right">
+                <div className="label-eyebrow">{primaryLabel}</div>
+                <div className="mt-0.5 font-display text-lg font-semibold tabular-nums text-gold">
+                  {formatMwk(primaryAmount)}
+                </div>
+                {renderView(tx, detailBase, viewMode, variant)}
+              </div>
+            </div>
+
+            <div className="-mx-3 mt-3 space-y-1.5 border-t border-border px-3 pt-3 text-xs">
+              {person && (
+                <MobileField
+                  label={variant === "passenger" ? "Driver" : "Passenger"}
+                  value={person}
+                />
+              )}
+              {variant === "driver" ? (
+                <>
+                  <MobileField label="Fare" value={formatMwk(tx.fareAmountMwk)} />
+                  <MobileField label="System fee" value={tx.systemFeeMwk ? formatMwk(tx.systemFeeMwk) : "-"} />
+                </>
+              ) : (
+                <>
+                  <MobileField label="Tx cost" value={tx.providerFeeMwk ? formatMwk(tx.providerFeeMwk) : "-"} />
+                  {tx.driverAmountMwk && <MobileField label="Driver gets" value={formatMwk(tx.driverAmountMwk)} />}
+                </>
+              )}
+              <MobileField label="Reference" value={tx.gatewayRef ?? tx.id} mono />
+            </div>
+
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function MobileField({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-3">
+      <div className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`min-w-0 truncate text-right font-medium ${mono ? "font-mono text-[11px]" : ""}`}>{value}</div>
     </div>
   );
 }
