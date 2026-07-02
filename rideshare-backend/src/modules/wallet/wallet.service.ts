@@ -107,7 +107,7 @@ export async function createWalletLedgerEntry(
     if (updated.count === 0) throw new AppError(400, "Insufficient balance");
   }
 
-  return client.walletTransaction.create({
+  const tx = await client.walletTransaction.create({
     data: {
       driverId: input.driverId,
       type: input.type,
@@ -119,14 +119,22 @@ export async function createWalletLedgerEntry(
       paymentId: input.paymentId ?? null,
       refundId: input.refundId ?? null,
       reference: input.reference ?? null,
-      gatewayChargeId: input.gatewayChargeId ?? null,
-      providerReference: input.providerReference ?? null,
-      providerTransactionId: input.providerTransactionId ?? null,
-      providerStatus: input.providerStatus ?? null,
-      providerPayload: input.providerPayload ?? Prisma.JsonNull,
       metadata: input.metadata ?? Prisma.JsonNull,
     },
   });
+
+  await client.$executeRaw`
+    UPDATE wallet_transactions
+    SET
+      gateway_charge_id = ${input.gatewayChargeId ?? null},
+      provider_reference = ${input.providerReference ?? null},
+      provider_transaction_id = ${input.providerTransactionId ?? null},
+      provider_status = ${input.providerStatus ?? null},
+      provider_payload = ${input.providerPayload === undefined ? null : JSON.stringify(input.providerPayload)}::jsonb
+    WHERE id = ${tx.id}::uuid
+  `;
+
+  return tx;
 }
 
 export async function getBalance(userId: string) {
@@ -290,45 +298,65 @@ export async function getTransactions(userId: string, page = 1, limit = 20) {
   });
   if (!driver)
     throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
-  const txs = await prisma.walletTransaction.findMany({
-    where: { driver: { userId } },
-    orderBy: { createdAt: "desc" },
-    skip: (page - 1) * limit,
-    take: limit,
-    select: {
-      id: true,
-      type: true,
-      kind: true,
-      amountMwk: true,
-      balanceBeforeMwk: true,
-      balanceAfterMwk: true,
-      bookingId: true,
-      paymentId: true,
-      refundId: true,
-      reference: true,
-      gatewayChargeId: true,
-      providerReference: true,
-      providerTransactionId: true,
-      providerStatus: true,
-      createdAt: true,
-    },
-  });
+  const offset = (Math.max(page, 1) - 1) * limit;
+  const txs = await prisma.$queryRaw<
+    Array<{
+      id: string;
+      type: "credit" | "withdrawal";
+      kind: string | null;
+      amount_mwk: bigint;
+      balance_before_mwk: bigint | null;
+      balance_after_mwk: bigint | null;
+      booking_id: string | null;
+      payment_id: string | null;
+      refund_id: string | null;
+      reference: string | null;
+      gateway_charge_id: string | null;
+      provider_reference: string | null;
+      provider_transaction_id: string | null;
+      provider_status: string | null;
+      created_at: Date;
+    }>
+  >`
+    SELECT
+      wt.id,
+      wt.type,
+      wt.kind,
+      wt.amount_mwk,
+      wt.balance_before_mwk,
+      wt.balance_after_mwk,
+      wt.booking_id,
+      wt.payment_id,
+      wt.refund_id,
+      wt.reference,
+      wt.gateway_charge_id,
+      wt.provider_reference,
+      wt.provider_transaction_id,
+      wt.provider_status,
+      wt.created_at
+    FROM wallet_transactions wt
+    INNER JOIN driver_profiles d ON d.id = wt.driver_id
+    WHERE d.user_id = ${userId}::uuid
+    ORDER BY wt.created_at DESC
+    LIMIT ${limit}
+    OFFSET ${offset}
+  `;
   return txs.map((t) => ({
     id: t.id,
     type: t.type,
     kind: t.kind,
-    amountMwk: t.amountMwk.toString(),
-    balanceBeforeMwk: t.balanceBeforeMwk?.toString() ?? null,
-    balanceAfterMwk: t.balanceAfterMwk?.toString() ?? null,
-    bookingId: t.bookingId,
-    paymentId: t.paymentId,
-    refundId: t.refundId,
+    amountMwk: t.amount_mwk.toString(),
+    balanceBeforeMwk: t.balance_before_mwk?.toString() ?? null,
+    balanceAfterMwk: t.balance_after_mwk?.toString() ?? null,
+    bookingId: t.booking_id,
+    paymentId: t.payment_id,
+    refundId: t.refund_id,
     description: describeWalletTx(t),
-    gatewayChargeId: t.gatewayChargeId,
-    providerReference: t.providerReference,
-    providerTransactionId: t.providerTransactionId,
-    providerStatus: t.providerStatus,
-    createdAt: t.createdAt,
+    gatewayChargeId: t.gateway_charge_id,
+    providerReference: t.provider_reference,
+    providerTransactionId: t.provider_transaction_id,
+    providerStatus: t.provider_status,
+    createdAt: t.created_at,
   }));
 }
 
@@ -825,7 +853,9 @@ export async function finalizeWithdrawalPayout(
         providerStatus: gateway?.providerStatus ?? req.providerStatus,
         providerPayload:
           gateway?.providerPayload ??
-          (req.providerPayload as Prisma.InputJsonValue | null),
+          (req.providerPayload === null
+            ? undefined
+            : (req.providerPayload as Prisma.InputJsonValue)),
         metadata: {
           phone: req.phone,
           provider: req.provider,

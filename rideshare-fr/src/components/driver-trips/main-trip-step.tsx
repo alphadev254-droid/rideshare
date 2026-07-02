@@ -154,7 +154,7 @@ export function MainTripStep({
           <FieldError message={errors.vehicleId} />
         </div>
         <div className="space-y-1.5">
-          <Label className="label-eyebrow">Trip seat capacity</Label>
+          <Label className="label-eyebrow">Seats to sell</Label>
           <Input
             type="number"
             min={1}
@@ -165,14 +165,14 @@ export function MainTripStep({
           />
           <FieldError message={errors.totalSeats} />
           <p className="text-xs text-muted-foreground">
-            Maximum passenger seats available for booking across this trip.
+            Passenger seats you want to make available for this trip.
           </p>
         </div>
       </div>
 
       {selectedVehicle && (
         <div className="rounded-md bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
-          Vehicle capacity: {selectedVehicle.seatCapacity}. Route vacancies cannot exceed the trip seat capacity.
+          Vehicle has {selectedVehicle.seatCapacity} passenger seats. Route vacancies cannot be higher than seats to sell.
         </div>
       )}
 

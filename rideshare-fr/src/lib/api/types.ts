@@ -136,6 +136,8 @@ export interface Trip {
   routeStops?: Array<{
     name: string;
     stopOrder: number;
+    pickupPoint?: string | null;
+    dropOffPoint?: string | null;
     arrivalOffsetMinutes?: number | null;
     departureOffsetMinutes?: number | null;
   }>;
@@ -150,12 +152,14 @@ export interface Trip {
     fromStop: {
       name: string;
       stopOrder: number;
+      pickupPoint?: string | null;
       arrivalOffsetMinutes?: number | null;
       departureOffsetMinutes?: number | null;
     };
     toStop: {
       name: string;
       stopOrder: number;
+      dropOffPoint?: string | null;
       arrivalOffsetMinutes?: number | null;
       departureOffsetMinutes?: number | null;
     };

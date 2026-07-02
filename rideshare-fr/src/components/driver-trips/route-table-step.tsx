@@ -260,6 +260,25 @@ function RouteCard({
           />
         </Field>
       </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <Field label="Pickup point">
+          <Input
+            value={segment.pickupPoint}
+            onChange={(event) => onUpdate({ pickupPoint: event.target.value })}
+            placeholder={locked ? "Origin pickup point" : "Where passengers board"}
+            className="h-7 px-2 text-xs sm:h-8 sm:text-sm xl:h-7"
+          />
+        </Field>
+        <Field label="Drop-off point">
+          <Input
+            value={segment.dropOffPoint}
+            onChange={(event) => onUpdate({ dropOffPoint: event.target.value })}
+            placeholder={locked ? "Final drop-off point" : "Where passengers leave"}
+            className="h-7 px-2 text-xs sm:h-8 sm:text-sm xl:h-7"
+          />
+        </Field>
+      </div>
     </div>
   );
 }

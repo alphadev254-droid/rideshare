@@ -869,6 +869,8 @@ export async function getTripById(tripId: string, _userId?: string) {
     routeStops: stops.map((stop) => ({
       name: stop.name,
       stopOrder: stop.stopOrder,
+      pickupPoint: stop.pickupPoint,
+      dropOffPoint: stop.dropOffPoint,
       arrivalOffsetMinutes: stop.arrivalOffsetMinutes,
       departureOffsetMinutes: stop.departureOffsetMinutes,
     })),
@@ -883,12 +885,14 @@ export async function getTripById(tripId: string, _userId?: string) {
       fromStop: {
         name: segment.fromStop.name,
         stopOrder: segment.fromStop.stopOrder,
+        pickupPoint: segment.fromStop.pickupPoint,
         arrivalOffsetMinutes: segment.fromStop.arrivalOffsetMinutes,
         departureOffsetMinutes: segment.fromStop.departureOffsetMinutes,
       },
       toStop: {
         name: segment.toStop.name,
         stopOrder: segment.toStop.stopOrder,
+        dropOffPoint: segment.toStop.dropOffPoint,
         arrivalOffsetMinutes: segment.toStop.arrivalOffsetMinutes,
         departureOffsetMinutes: segment.toStop.departureOffsetMinutes,
       },

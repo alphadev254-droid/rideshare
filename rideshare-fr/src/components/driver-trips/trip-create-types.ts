@@ -19,6 +19,8 @@ export type RouteSegmentDraft = {
   to: string;
   departureTime: string;
   arrivalTime: string;
+  pickupPoint: string;
+  dropOffPoint: string;
   seats: string;
   distanceKm: string;
   amountMwk: string;
@@ -60,6 +62,8 @@ export function makeRouteRow(from: string, to: string, bookableSeats: string): R
     to,
     departureTime: "",
     arrivalTime: "",
+    pickupPoint: "",
+    dropOffPoint: "",
     seats: bookableSeats || "1",
     distanceKm: "",
     amountMwk: "",
@@ -81,9 +85,9 @@ export function validateMainTrip(form: MainTripDraft, vehicle?: Vehicle) {
   if (!form.arrivalTime) errors.arrivalTime = "Choose the full trip arrival time.";
   if (!form.vehicleId) errors.vehicleId = "Choose the vehicle for this trip.";
   if (!Number.isFinite(seats) || seats < 1) {
-    errors.totalSeats = "Enter at least 1 trip seat.";
+    errors.totalSeats = "Enter at least 1 seat to sell.";
   } else if (vehicle && seats > vehicle.seatCapacity) {
-    errors.totalSeats = `Trip seat capacity cannot exceed this vehicle capacity of ${vehicle.seatCapacity}.`;
+    errors.totalSeats = `Seats to sell cannot exceed this vehicle's ${vehicle.seatCapacity} passenger seats.`;
   }
   return errors;
 }
@@ -148,6 +152,8 @@ export function buildTripPayload(
       : arrival;
     return {
       name: point.name,
+      pickupPoint: point.pickupPoint || undefined,
+      dropOffPoint: point.dropOffPoint || undefined,
       arrivalOffsetMinutes: minutesOffset(tripStart, arrival),
       departureOffsetMinutes: minutesOffset(tripStart, departure),
     };
@@ -174,7 +180,9 @@ export function buildTripPayload(
   return {
     vehicleId: form.vehicleId,
     originName: form.originName.trim(),
+    pickupPoint: mainRow.pickupPoint.trim() || undefined,
     destinationName: form.destinationName.trim(),
+    dropOffPoint: mainRow.dropOffPoint.trim() || undefined,
     departureTime: tripStart.toISOString(),
     totalSeats: Number(form.totalSeats),
     comfortClass: vehicle.comfortClass,
@@ -213,6 +221,8 @@ export function tripToDrafts(trip: Trip) {
   main.arrivalTime = form.arrivalTime;
   main.amountMwk = String(Math.round(Number(direct?.farePerSeatMwk ?? trip.farePerSeatMwk ?? 0)));
   main.distanceKm = direct?.distanceKm ? String(direct.distanceKm) : trip.distanceKm ? String(trip.distanceKm) : "";
+  main.pickupPoint = routeStops[0]?.pickupPoint ?? trip.pickupPoint ?? "";
+  main.dropOffPoint = routeStops.at(-1)?.dropOffPoint ?? trip.dropOffPoint ?? "";
   const segments = [
     main,
     ...extras.map((segment) => {
@@ -221,6 +231,8 @@ export function tripToDrafts(trip: Trip) {
       row.arrivalTime = formatOffsetTime(departure, segment.toStop.arrivalOffsetMinutes);
       row.amountMwk = String(Math.round(Number(segment.farePerSeatMwk)));
       row.distanceKm = segment.distanceKm ? String(segment.distanceKm) : "";
+      row.pickupPoint = segment.fromStop.pickupPoint ?? "";
+      row.dropOffPoint = segment.toStop.dropOffPoint ?? "";
       return row;
     }),
   ];
@@ -252,15 +264,32 @@ function normalizedRows(form: MainTripDraft, segments: RouteSegmentDraft[]) {
 }
 
 function buildRoutePlan(form: MainTripDraft, rows: RouteSegmentDraft[]) {
-  const points: Array<{ name: string; arrivalTime?: string; departureTime?: string }> = [
-    { name: form.originName.trim(), departureTime: form.departureTime },
+  const points: Array<{
+    name: string;
+    arrivalTime?: string;
+    departureTime?: string;
+    pickupPoint?: string;
+    dropOffPoint?: string;
+  }> = [
+    {
+      name: form.originName.trim(),
+      departureTime: form.departureTime,
+      pickupPoint: rows[0]?.pickupPoint?.trim() || undefined,
+    },
   ];
   const extraRows = rows.slice(1);
   for (const row of extraRows) {
-    appendPoint(points, row.from.trim(), undefined, row.departureTime);
-    appendPoint(points, row.to.trim(), row.arrivalTime, undefined);
+    appendPoint(points, row.from.trim(), undefined, row.departureTime, row.pickupPoint, undefined);
+    appendPoint(points, row.to.trim(), row.arrivalTime, undefined, undefined, row.dropOffPoint);
   }
-  appendPoint(points, form.destinationName.trim(), form.arrivalTime, undefined);
+  appendPoint(
+    points,
+    form.destinationName.trim(),
+    form.arrivalTime,
+    undefined,
+    undefined,
+    rows[0]?.dropOffPoint?.trim() || undefined,
+  );
 
   const pointIndex = new Map(points.map((point, index) => [point.name.toLowerCase(), index]));
   const segments = rows.map((row, index) => {
@@ -281,19 +310,37 @@ function buildRoutePlan(form: MainTripDraft, rows: RouteSegmentDraft[]) {
 }
 
 function appendPoint(
-  points: Array<{ name: string; arrivalTime?: string; departureTime?: string }>,
+  points: Array<{
+    name: string;
+    arrivalTime?: string;
+    departureTime?: string;
+    pickupPoint?: string;
+    dropOffPoint?: string;
+  }>,
   name: string,
   arrivalTime?: string,
   departureTime?: string,
+  pickupPoint?: string,
+  dropOffPoint?: string,
 ) {
   if (!name) return;
+  const nextPickup = pickupPoint?.trim();
+  const nextDropOff = dropOffPoint?.trim();
   const existing = points.find((point) => point.name.toLowerCase() === name.toLowerCase());
   if (existing) {
     existing.arrivalTime ||= arrivalTime;
     existing.departureTime ||= departureTime;
+    existing.pickupPoint ||= nextPickup || undefined;
+    existing.dropOffPoint ||= nextDropOff || undefined;
     return;
   }
-  points.push({ name, arrivalTime, departureTime });
+  points.push({
+    name,
+    arrivalTime,
+    departureTime,
+    pickupPoint: nextPickup || undefined,
+    dropOffPoint: nextDropOff || undefined,
+  });
 }
 
 function formatOffsetTime(departure: Date, offset?: number | null) {
