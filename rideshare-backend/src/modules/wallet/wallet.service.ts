@@ -401,7 +401,7 @@ export async function listWalletTransactionsForAdmin(input: {
   }
 
   const whereSql = where.length
-    ? Prisma.sql`WHERE ${Prisma.join(where, Prisma.sql` AND `)}`
+    ? Prisma.sql`WHERE ${Prisma.join(where, " AND ")}`
     : Prisma.empty;
 
   const rows = await prisma.$queryRaw<
@@ -424,6 +424,8 @@ export async function listWalletTransactionsForAdmin(input: {
       provider_reference: string | null;
       provider_transaction_id: string | null;
       provider_status: string | null;
+      provider_payload: Prisma.JsonValue | null;
+      metadata: Prisma.JsonValue | null;
       created_at: Date;
       withdrawal_id: string | null;
       withdrawal_status: string | null;
@@ -555,7 +557,7 @@ export async function listWithdrawalsForAdmin(input: {
   }
 
   const whereSql = where.length
-    ? Prisma.sql`WHERE ${Prisma.join(where, Prisma.sql` AND `)}`
+    ? Prisma.sql`WHERE ${Prisma.join(where, " AND ")}`
     : Prisma.empty;
 
   const rows = await prisma.$queryRaw<
