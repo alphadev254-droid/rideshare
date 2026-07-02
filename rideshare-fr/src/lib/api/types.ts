@@ -228,7 +228,11 @@ export interface Booking {
     fareMwk?: string;
     fromOrder?: number;
     toOrder?: number;
-    fromStop?: { name: string; pickupPoint?: string | null; departureOffsetMinutes?: number | null };
+    fromStop?: {
+      name: string;
+      pickupPoint?: string | null;
+      departureOffsetMinutes?: number | null;
+    };
     toStop?: { name: string; dropOffPoint?: string | null; arrivalOffsetMinutes?: number | null };
   } | null;
   boardingPoint: string;
@@ -356,6 +360,10 @@ export interface WalletTransaction {
   bookingId?: string | null;
   paymentId?: string | null;
   refundId?: string | null;
+  gatewayChargeId?: string | null;
+  providerReference?: string | null;
+  providerTransactionId?: string | null;
+  providerStatus?: string | null;
   description: string;
   createdAt: string;
 }
@@ -367,6 +375,13 @@ export interface WalletWithdrawal {
   provider: string;
   status: "queued" | "processing" | "completed" | "failed";
   reference: string;
+  gatewayChargeId?: string | null;
+  providerReference?: string | null;
+  providerTransactionId?: string | null;
+  providerStatus?: string | null;
+  gatewayRequestedAt?: string | null;
+  gatewayRespondedAt?: string | null;
+  webhookReceivedAt?: string | null;
   failureReason?: string | null;
   createdAt: string;
   processedAt?: string | null;
@@ -391,7 +406,10 @@ export interface RefundPreview {
   policy: string;
 }
 
-export interface PaymentRefund extends Omit<RefundPreview, "fareAmountMwk" | "providerFeeMwk" | "policy"> {
+export interface PaymentRefund extends Omit<
+  RefundPreview,
+  "fareAmountMwk" | "providerFeeMwk" | "policy"
+> {
   id: string;
   status: RefundStatus;
   reason?: string | null;

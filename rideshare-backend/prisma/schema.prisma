@@ -521,21 +521,31 @@ model DriverWallet {
 }
 
 model WalletWithdrawalRequest {
-  id            String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  driverId      String                 @map("driver_id") @db.Uuid
-  amountMwk     BigInt                 @map("amount_mwk")
-  phone         String                 @db.VarChar(30)
-  provider      String                 @db.VarChar(50)
-  status        WalletWithdrawalStatus @default(queued)
-  reference     String                 @unique
-  walletTxId    String?                @unique @map("wallet_tx_id") @db.Uuid
-  failureReason String?                @map("failure_reason")
-  createdAt     DateTime               @default(now()) @map("created_at") @db.Timestamptz()
-  processedAt   DateTime?              @map("processed_at") @db.Timestamptz()
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  driverId              String                 @map("driver_id") @db.Uuid
+  amountMwk             BigInt                 @map("amount_mwk")
+  phone                 String                 @db.VarChar(30)
+  provider              String                 @db.VarChar(50)
+  status                WalletWithdrawalStatus @default(queued)
+  reference             String                 @unique
+  walletTxId            String?                @unique @map("wallet_tx_id") @db.Uuid
+  gatewayChargeId       String?                @map("gateway_charge_id") @db.VarChar(120)
+  providerReference     String?                @map("provider_reference") @db.VarChar(255)
+  providerTransactionId String?                @map("provider_transaction_id") @db.VarChar(255)
+  providerStatus        String?                @map("provider_status") @db.VarChar(50)
+  providerPayload       Json?                  @map("provider_payload")
+  gatewayRequestedAt    DateTime?              @map("gateway_requested_at") @db.Timestamptz()
+  gatewayRespondedAt    DateTime?              @map("gateway_responded_at") @db.Timestamptz()
+  webhookReceivedAt     DateTime?              @map("webhook_received_at") @db.Timestamptz()
+  failureReason         String?                @map("failure_reason")
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz()
+  processedAt           DateTime?              @map("processed_at") @db.Timestamptz()
 
   driver   DriverProfile      @relation(fields: [driverId], references: [id])
   walletTx WalletTransaction? @relation(fields: [walletTxId], references: [id])
 
+  @@index([gatewayChargeId])
+  @@index([providerReference])
   @@index([driverId, status])
   @@map("wallet_withdrawal_requests")
 }
@@ -568,6 +578,11 @@ model WalletTransaction {
   paymentId        String?       @map("payment_id") @db.Uuid
   refundId         String?       @map("refund_id") @db.Uuid
   reference        String?
+  gatewayChargeId       String?  @map("gateway_charge_id") @db.VarChar(120)
+  providerReference     String?  @map("provider_reference") @db.VarChar(255)
+  providerTransactionId String?  @map("provider_transaction_id") @db.VarChar(255)
+  providerStatus        String?  @map("provider_status") @db.VarChar(50)
+  providerPayload       Json?    @map("provider_payload")
   metadata         Json?
   createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz()
 
@@ -582,6 +597,8 @@ model WalletTransaction {
   @@unique([reference, kind])
   @@index([paymentId])
   @@index([refundId])
+  @@index([gatewayChargeId])
+  @@index([providerReference])
   @@map("wallet_transactions")
 }
 

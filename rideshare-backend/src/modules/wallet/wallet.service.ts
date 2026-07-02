@@ -2,10 +2,21 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../middleware/error-handler.js";
-import { enqueueNotification, enqueueWithdrawal, enqueueWithdrawalTimeout } from "../../jobs/queue.js";
+import {
+  enqueueNotification,
+  enqueueWithdrawal,
+  enqueueWithdrawalTimeout,
+} from "../../jobs/queue.js";
 import { createOtpCode, verifyAndConsumeOtpCode } from "../../lib/otp.js";
-import { withdrawalCodeEmail, withdrawalCodeText } from "../../lib/email-templates.js";
-import { calculateWithdrawalFee, initiatePaychanguWithdrawalPayout } from "../../lib/paychangu.js";
+import {
+  withdrawalCodeEmail,
+  withdrawalCodeText,
+} from "../../lib/email-templates.js";
+import {
+  calculateWithdrawalFee,
+  fetchPaychanguPayoutDetails,
+  initiatePaychanguWithdrawalPayout,
+} from "../../lib/paychangu.js";
 
 type WalletLedgerInput = {
   driverId: string;
@@ -21,6 +32,11 @@ type WalletLedgerInput = {
   paymentId?: string | null;
   refundId?: string | null;
   reference?: string | null;
+  gatewayChargeId?: string | null;
+  providerReference?: string | null;
+  providerTransactionId?: string | null;
+  providerStatus?: string | null;
+  providerPayload?: Prisma.InputJsonValue;
   metadata?: Prisma.InputJsonValue;
   countAsEarnings?: boolean;
 };
@@ -41,7 +57,9 @@ function describeWalletTx(tx: {
     case "admin_adjustment_debit":
       return tx.reference ?? "Admin adjustment";
     default:
-      return tx.type === "credit" ? "Fare received" : (tx.reference ?? "Withdrawal");
+      return tx.type === "credit"
+        ? "Fare received"
+        : (tx.reference ?? "Withdrawal");
   }
 }
 
@@ -50,7 +68,10 @@ export async function createWalletLedgerEntry(
   input: WalletLedgerInput,
 ) {
   if (input.amountMwk <= 0n) {
-    throw new AppError(400, "Wallet transaction amount must be greater than zero");
+    throw new AppError(
+      400,
+      "Wallet transaction amount must be greater than zero",
+    );
   }
 
   const wallet = await client.driverWallet.upsert({
@@ -98,6 +119,11 @@ export async function createWalletLedgerEntry(
       paymentId: input.paymentId ?? null,
       refundId: input.refundId ?? null,
       reference: input.reference ?? null,
+      gatewayChargeId: input.gatewayChargeId ?? null,
+      providerReference: input.providerReference ?? null,
+      providerTransactionId: input.providerTransactionId ?? null,
+      providerStatus: input.providerStatus ?? null,
+      providerPayload: input.providerPayload ?? Prisma.JsonNull,
       metadata: input.metadata ?? Prisma.JsonNull,
     },
   });
@@ -108,7 +134,8 @@ export async function getBalance(userId: string) {
     where: { userId },
     select: { id: true },
   });
-  if (!driver) throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
+  if (!driver)
+    throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
 
   // Read from the authoritative wallet row. createWalletLedgerEntry keeps
   // balanceMwk and totalEarnedMwk in sync on every transaction, so there is
@@ -135,7 +162,8 @@ export async function getWithdrawalById(userId: string, withdrawalId: string) {
     where: { userId },
     select: { id: true },
   });
-  if (!driver) throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
+  if (!driver)
+    throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
 
   const w = await prisma.walletWithdrawalRequest.findFirst({
     where: { id: withdrawalId, driverId: driver.id },
@@ -146,6 +174,13 @@ export async function getWithdrawalById(userId: string, withdrawalId: string) {
       provider: true,
       status: true,
       reference: true,
+      gatewayChargeId: true,
+      providerReference: true,
+      providerTransactionId: true,
+      providerStatus: true,
+      gatewayRequestedAt: true,
+      gatewayRespondedAt: true,
+      webhookReceivedAt: true,
       failureReason: true,
       createdAt: true,
       processedAt: true,
@@ -168,6 +203,13 @@ export async function getWithdrawalById(userId: string, withdrawalId: string) {
     provider: w.provider,
     status: w.status,
     reference: w.reference,
+    gatewayChargeId: w.gatewayChargeId,
+    providerReference: w.providerReference,
+    providerTransactionId: w.providerTransactionId,
+    providerStatus: w.providerStatus,
+    gatewayRequestedAt: w.gatewayRequestedAt,
+    gatewayRespondedAt: w.gatewayRespondedAt,
+    webhookReceivedAt: w.webhookReceivedAt,
     failureReason: w.failureReason,
     createdAt: w.createdAt,
     processedAt: w.processedAt,
@@ -182,7 +224,8 @@ export async function getWithdrawals(userId: string, page = 1, limit = 20) {
     where: { userId },
     select: { id: true },
   });
-  if (!driver) throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
+  if (!driver)
+    throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
 
   const withdrawals = await prisma.walletWithdrawalRequest.findMany({
     where: { driverId: driver.id },
@@ -196,6 +239,13 @@ export async function getWithdrawals(userId: string, page = 1, limit = 20) {
       provider: true,
       status: true,
       reference: true,
+      gatewayChargeId: true,
+      providerReference: true,
+      providerTransactionId: true,
+      providerStatus: true,
+      gatewayRequestedAt: true,
+      gatewayRespondedAt: true,
+      webhookReceivedAt: true,
       failureReason: true,
       createdAt: true,
       processedAt: true,
@@ -217,6 +267,13 @@ export async function getWithdrawals(userId: string, page = 1, limit = 20) {
     provider: w.provider,
     status: w.status,
     reference: w.reference,
+    gatewayChargeId: w.gatewayChargeId,
+    providerReference: w.providerReference,
+    providerTransactionId: w.providerTransactionId,
+    providerStatus: w.providerStatus,
+    gatewayRequestedAt: w.gatewayRequestedAt,
+    gatewayRespondedAt: w.gatewayRespondedAt,
+    webhookReceivedAt: w.webhookReceivedAt,
     failureReason: w.failureReason,
     createdAt: w.createdAt,
     processedAt: w.processedAt,
@@ -231,7 +288,8 @@ export async function getTransactions(userId: string, page = 1, limit = 20) {
     where: { userId },
     select: { id: true },
   });
-  if (!driver) throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
+  if (!driver)
+    throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
   const txs = await prisma.walletTransaction.findMany({
     where: { driver: { userId } },
     orderBy: { createdAt: "desc" },
@@ -248,6 +306,10 @@ export async function getTransactions(userId: string, page = 1, limit = 20) {
       paymentId: true,
       refundId: true,
       reference: true,
+      gatewayChargeId: true,
+      providerReference: true,
+      providerTransactionId: true,
+      providerStatus: true,
       createdAt: true,
     },
   });
@@ -262,6 +324,10 @@ export async function getTransactions(userId: string, page = 1, limit = 20) {
     paymentId: t.paymentId,
     refundId: t.refundId,
     description: describeWalletTx(t),
+    gatewayChargeId: t.gatewayChargeId,
+    providerReference: t.providerReference,
+    providerTransactionId: t.providerTransactionId,
+    providerStatus: t.providerStatus,
     createdAt: t.createdAt,
   }));
 }
@@ -285,13 +351,21 @@ export async function requestWithdrawalOtp(userId: string) {
     },
   });
   if (!driver || !driver.isApproved) {
-    console.warn(`[WITHDRAW] OTP request denied — driver ${userId} not found or not approved`);
+    console.warn(
+      `[WITHDRAW] OTP request denied — driver ${userId} not found or not approved`,
+    );
     throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
   }
-  if (!driver.user.email) throw new AppError(400, "No email is available for withdrawal verification");
+  if (!driver.user.email)
+    throw new AppError(
+      400,
+      "No email is available for withdrawal verification",
+    );
 
   const { code, expiresAt } = await createOtpCode(driver.user.id, "withdrawal");
-  console.log(`[WITHDRAW] OTP code generated for driver ${driver.id}, expires at ${expiresAt.toISOString()}`);
+  console.log(
+    `[WITHDRAW] OTP code generated for driver ${driver.id}, expires at ${expiresAt.toISOString()}`,
+  );
 
   const ttlMinutes = Math.round(env.OTP_TTL_SECONDS / 60);
   await enqueueNotification({
@@ -318,7 +392,9 @@ export async function requestWithdrawal(
   provider: string,
   otp: string,
 ) {
-  console.log(`[WITHDRAW] Request by user ${userId} — amount=${amountMwk} MWK, provider=${provider}, phone=${phone}`);
+  console.log(
+    `[WITHDRAW] Request by user ${userId} — amount=${amountMwk} MWK, provider=${provider}, phone=${phone}`,
+  );
   if (!Number.isFinite(amountMwk) || amountMwk <= 0) {
     console.warn(`[WITHDRAW] Invalid amount ${amountMwk} from user ${userId}`);
     throw new AppError(400, "Withdrawal amount must be greater than zero");
@@ -337,15 +413,23 @@ export async function requestWithdrawal(
     },
   });
   if (!driver || !driver.isApproved) {
-    console.warn(`[WITHDRAW] Request denied — driver ${userId} not found or not approved`);
+    console.warn(
+      `[WITHDRAW] Request denied — driver ${userId} not found or not approved`,
+    );
     throw new AppError(404, "Driver profile not found", "DRIVER_NOT_ONBOARDED");
   }
-  if (!driver.user.email) throw new AppError(400, "No email is available for withdrawal verification");
+  if (!driver.user.email)
+    throw new AppError(
+      400,
+      "No email is available for withdrawal verification",
+    );
 
   if (!driver.wallet) throw new AppError(404, "Driver wallet not found");
   // This is a fast user-facing check. The queued worker repeats the check atomically.
   if (Number(driver.wallet.balanceMwk) < amountMwk) {
-    console.warn(`[WITHDRAW] Insufficient balance for driver ${driver.id}: need=${amountMwk}, available=${driver.wallet.balanceMwk}`);
+    console.warn(
+      `[WITHDRAW] Insufficient balance for driver ${driver.id}: need=${amountMwk}, available=${driver.wallet.balanceMwk}`,
+    );
     throw new AppError(400, "Insufficient balance");
   }
 
@@ -360,11 +444,20 @@ export async function requestWithdrawal(
         provider,
         reference: ref,
       },
-      select: { id: true, amountMwk: true, phone: true, provider: true, status: true, reference: true },
+      select: {
+        id: true,
+        amountMwk: true,
+        phone: true,
+        provider: true,
+        status: true,
+        reference: true,
+      },
     });
   });
 
-  console.log(`[WITHDRAW] Created request ${request.id} (ref=${ref}) for driver ${driver.id}, amount=${amountMwk} MWK, provider=${provider}`);
+  console.log(
+    `[WITHDRAW] Created request ${request.id} (ref=${ref}) for driver ${driver.id}, amount=${amountMwk} MWK, provider=${provider}`,
+  );
   await enqueueWithdrawal(request.id);
   console.log(`[WITHDRAW] Queued request ${request.id} for processing`);
 
@@ -395,6 +488,7 @@ export async function processWithdrawalRequest(withdrawalId: string) {
         status: true,
         reference: true,
         walletTxId: true,
+        gatewayChargeId: true,
       },
     });
     if (!req) {
@@ -402,24 +496,37 @@ export async function processWithdrawalRequest(withdrawalId: string) {
       throw new AppError(404, "Withdrawal request not found");
     }
     if (req.status === "completed") {
-      console.log(`[WITHDRAW] Request ${withdrawalId} already completed — skipping`);
+      console.log(
+        `[WITHDRAW] Request ${withdrawalId} already completed — skipping`,
+      );
       return req;
     }
     if (req.status === "processing") {
-      console.log(`[WITHDRAW] Request ${withdrawalId} already processing — skipping`);
-      return req; // already being processed
+      console.log(
+        `[WITHDRAW] Request ${withdrawalId} already processing — skipping`,
+      );
+      return { ...req, alreadyProcessing: true }; // already being processed
     }
     if (req.status === "failed") {
-      console.warn(`[WITHDRAW] Request ${withdrawalId} already failed — skipping silently`);
+      console.warn(
+        `[WITHDRAW] Request ${withdrawalId} already failed — skipping silently`,
+      );
       return null; // return null to exit cleanly (not throw — BullMQ would retry)
     }
 
     // Calculate fee
-    const { feeMwk, netAmountMwk } = calculateWithdrawalFee(req.amountMwk, req.provider);
-    console.log(`[WITHDRAW] Request ${withdrawalId} — fee calculation: gross=${req.amountMwk}, fee=${feeMwk}, net=${netAmountMwk}, provider=${req.provider}`);
+    const { feeMwk, netAmountMwk } = calculateWithdrawalFee(
+      req.amountMwk,
+      req.provider,
+    );
+    console.log(
+      `[WITHDRAW] Request ${withdrawalId} — fee calculation: gross=${req.amountMwk}, fee=${feeMwk}, net=${netAmountMwk}, provider=${req.provider}`,
+    );
 
     if (netAmountMwk <= 0n) {
-      console.warn(`[WITHDRAW] Request ${withdrawalId} — net amount is zero/negative after fees, failing`);
+      console.warn(
+        `[WITHDRAW] Request ${withdrawalId} — net amount is zero/negative after fees, failing`,
+      );
       await client.walletWithdrawalRequest.update({
         where: { id: req.id },
         data: {
@@ -428,7 +535,10 @@ export async function processWithdrawalRequest(withdrawalId: string) {
           processedAt: new Date(),
         },
       });
-      throw new AppError(400, "Withdrawal amount is too small after deducting fees");
+      throw new AppError(
+        400,
+        "Withdrawal amount is too small after deducting fees",
+      );
     }
 
     // Verify sufficient balance for gross amount
@@ -437,33 +547,62 @@ export async function processWithdrawalRequest(withdrawalId: string) {
       select: { balanceMwk: true },
     });
     if (!wallet || wallet.balanceMwk < req.amountMwk) {
-      console.warn(`[WITHDRAW] Request ${withdrawalId} — insufficient balance: need=${req.amountMwk}, have=${wallet?.balanceMwk ?? 'N/A'}`);
+      console.warn(
+        `[WITHDRAW] Request ${withdrawalId} — insufficient balance: need=${req.amountMwk}, have=${wallet?.balanceMwk ?? "N/A"}`,
+      );
       throw new AppError(400, "Insufficient balance");
     }
 
+    const chargeId = `PAYOUT-${req.id}`;
     await client.walletWithdrawalRequest.update({
       where: { id: req.id },
-      data: { status: "processing" },
+      data: {
+        status: "processing",
+        gatewayChargeId: chargeId,
+        gatewayRequestedAt: new Date(),
+        providerStatus: "requesting",
+        failureReason: null,
+      },
     });
-    console.log(`[WITHDRAW] Request ${withdrawalId} — status set to processing (wallet NOT debited until webhook confirms)`);
+    console.log(
+      `[WITHDRAW] Request ${withdrawalId} — status set to processing (wallet NOT debited until webhook confirms)`,
+    );
 
     // Enqueue timeout: if no webhook within N minutes, auto-fail
     const timeoutMs = env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES * 60 * 1000;
     await enqueueWithdrawalTimeout(req.id, timeoutMs);
-    console.log(`[WITHDRAW] Request ${withdrawalId} — timeout scheduled in ${env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES} minutes`);
+    console.log(
+      `[WITHDRAW] Request ${withdrawalId} — timeout scheduled in ${env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES} minutes`,
+    );
 
     return { ...req, feeMwk, netAmountMwk };
   });
 
   // Exit cleanly if already in terminal state
   if (!request) {
-    console.log(`[WITHDRAW] Request ${withdrawalId} skipped — already in terminal state`);
+    console.log(
+      `[WITHDRAW] Request ${withdrawalId} skipped — already in terminal state`,
+    );
     return { id: withdrawalId, status: "failed", skipped: true };
+  }
+  if ("alreadyProcessing" in request) {
+    console.log(
+      `[WITHDRAW] Request ${withdrawalId} skipped - already processing`,
+    );
+    return { id: withdrawalId, status: "processing", skipped: true };
+  }
+  if (!("netAmountMwk" in request)) {
+    console.log(
+      `[WITHDRAW] Request ${withdrawalId} skipped - status=${request.status}`,
+    );
+    return { id: withdrawalId, status: request.status, skipped: true };
   }
 
   // Step 2 — Call Paychangu payout API (outside transaction)
-  const chargeId = `PAYOUT-${request.id}`;
-  console.log(`[WITHDRAW] Request ${withdrawalId} — initiating Paychangu payout, chargeId=${chargeId}, netAmount=${(request as { netAmountMwk: bigint }).netAmountMwk}`);
+  const chargeId = request.gatewayChargeId ?? `PAYOUT-${request.id}`;
+  console.log(
+    `[WITHDRAW] Request ${withdrawalId} — initiating Paychangu payout, chargeId=${chargeId}, netAmount=${(request as { netAmountMwk: bigint }).netAmountMwk}`,
+  );
   try {
     const payout = await initiatePaychanguWithdrawalPayout({
       amountMwk: request.amountMwk,
@@ -474,17 +613,44 @@ export async function processWithdrawalRequest(withdrawalId: string) {
     });
 
     if (!payout.success) {
-      console.warn(`[WITHDRAW] Request ${withdrawalId} — Paychangu rejected the payout, refunding wallet`);
+      console.warn(
+        `[WITHDRAW] Request ${withdrawalId} — Paychangu rejected the payout, refunding wallet`,
+      );
+      await prisma.walletWithdrawalRequest.update({
+        where: { id: withdrawalId },
+        data: {
+          providerStatus: payout.providerStatus ?? "rejected",
+          providerReference: payout.providerReference ?? null,
+          providerTransactionId: payout.providerTransactionId ?? null,
+          providerPayload: payout.providerPayload,
+          gatewayRespondedAt: new Date(),
+        },
+      });
       await refundWithdrawal(withdrawalId);
-      return prisma.walletWithdrawalRequest.findUnique({ where: { id: withdrawalId } });
+      return prisma.walletWithdrawalRequest.findUnique({
+        where: { id: withdrawalId },
+      });
     }
 
-    console.log(`[WITHDRAW] Request ${withdrawalId} — Paychangu payout accepted, awaiting webhook confirmation`);
+    console.log(
+      `[WITHDRAW] Request ${withdrawalId} — Paychangu payout accepted, awaiting webhook confirmation`,
+    );
     // Step 3 — Store gateway response; status stays "processing" until webhook confirms
     return prisma.walletWithdrawalRequest.update({
       where: { id: withdrawalId },
       data: {
         reference: `${request.reference}|chargeId:${chargeId}`,
+        gatewayChargeId: chargeId,
+        providerReference: payout.providerReference ?? null,
+        providerTransactionId: payout.providerTransactionId ?? null,
+        providerStatus:
+          payout.providerStatus ??
+          (payout.uncertain ? "request_uncertain" : "pending"),
+        providerPayload: payout.providerPayload,
+        gatewayRespondedAt: payout.uncertain ? null : new Date(),
+        failureReason: payout.uncertain
+          ? "PayChangu request response timed out locally; awaiting webhook or reconciliation"
+          : null,
       },
       select: {
         id: true,
@@ -495,7 +661,10 @@ export async function processWithdrawalRequest(withdrawalId: string) {
       },
     });
   } catch (error) {
-    console.error(`[WITHDRAW] Request ${withdrawalId} — Paychangu payout call failed:`, (error as Error).message);
+    console.error(
+      `[WITHDRAW] Request ${withdrawalId} — Paychangu payout call failed:`,
+      (error as Error).message,
+    );
     await refundWithdrawal(withdrawalId);
     throw error;
   }
@@ -519,10 +688,19 @@ export async function refundWithdrawal(withdrawalId: string) {
   return prisma.$transaction(async (client) => {
     const req = await client.walletWithdrawalRequest.findUnique({
       where: { id: withdrawalId },
-      select: { id: true, driverId: true, amountMwk: true, status: true, reference: true, walletTxId: true },
+      select: {
+        id: true,
+        driverId: true,
+        amountMwk: true,
+        status: true,
+        reference: true,
+        walletTxId: true,
+      },
     });
     if (!req || req.status === "completed" || req.status === "failed") {
-      console.log(`[WITHDRAW] Refund skipped for ${withdrawalId} — status=${req?.status ?? 'not-found'}`);
+      console.log(
+        `[WITHDRAW] Refund skipped for ${withdrawalId} — status=${req?.status ?? "not-found"}`,
+      );
       return req;
     }
 
@@ -540,9 +718,13 @@ export async function refundWithdrawal(withdrawalId: string) {
         metadata: { withdrawalId: req.id, reason: "withdrawal_payout_failed" },
         countAsEarnings: false,
       });
-      console.log(`[WITHDRAW] Refund ${withdrawalId} — wallet credited back ${req.amountMwk} MWK (debit tx ${req.walletTxId} reversed), txId=${tx.id}`);
+      console.log(
+        `[WITHDRAW] Refund ${withdrawalId} — wallet credited back ${req.amountMwk} MWK (debit tx ${req.walletTxId} reversed), txId=${tx.id}`,
+      );
     } else {
-      console.log(`[WITHDRAW] Refund ${withdrawalId} — wallet was never debited (no walletTxId), skipping credit to avoid inflation`);
+      console.log(
+        `[WITHDRAW] Refund ${withdrawalId} — wallet was never debited (no walletTxId), skipping credit to avoid inflation`,
+      );
     }
 
     return client.walletWithdrawalRequest.update({
@@ -561,31 +743,71 @@ export async function refundWithdrawal(withdrawalId: string) {
  * Updates status from "processing" to "completed".
  * Idempotent — only transitions from "processing" to "completed".
  */
-export async function finalizeWithdrawalPayout(withdrawalId: string, success: boolean, message?: string) {
-  console.log(`[WITHDRAW] Webhook finalization for ${withdrawalId} — success=${success}${message ? `, message=${message}` : ""}`);
+export async function finalizeWithdrawalPayout(
+  withdrawalId: string,
+  success: boolean,
+  message?: string,
+  gateway?: {
+    providerStatus?: string | null;
+    providerReference?: string | null;
+    providerTransactionId?: string | null;
+    providerPayload?: Prisma.InputJsonValue;
+  },
+) {
+  console.log(
+    `[WITHDRAW] Webhook finalization for ${withdrawalId} — success=${success}${message ? `, message=${message}` : ""}`,
+  );
   const req = await prisma.walletWithdrawalRequest.findUnique({
     where: { id: withdrawalId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, walletTxId: true },
   });
   if (!req) {
     console.warn(`[WITHDRAW] Webhook for unknown withdrawal: ${withdrawalId}`);
     return null;
   }
   if (req.status === "completed") {
-    console.log(`[WITHDRAW] Withdrawal ${withdrawalId} already completed — skipping webhook`);
+    console.log(
+      `[WITHDRAW] Withdrawal ${withdrawalId} already completed — skipping webhook`,
+    );
     return req;
   }
-  if (req.status === "failed") {
-    console.log(`[WITHDRAW] Withdrawal ${withdrawalId} already failed — skipping webhook`);
+  if (req.status === "failed" && !success) {
+    console.log(
+      `[WITHDRAW] Withdrawal ${withdrawalId} already failed - skipping failure webhook`,
+    );
     return req;
   }
-
+  if (req.status === "failed" && success && req.walletTxId) {
+    console.log(
+      `[WITHDRAW] Withdrawal ${withdrawalId} already failed but has debit tx - skipping success webhook`,
+    );
+    return req;
+  }
+  if (req.status === "failed" && success) {
+    console.warn(
+      `[WITHDRAW] Withdrawal ${withdrawalId} was marked failed but PayChangu later confirmed success - reconciling to completed`,
+    );
+  }
   if (success) {
-    console.log(`[WITHDRAW] Withdrawal ${withdrawalId} — webhook confirmed success, debiting wallet and marking completed`);
+    console.log(
+      `[WITHDRAW] Withdrawal ${withdrawalId} — webhook confirmed success, debiting wallet and marking completed`,
+    );
     // Debit the wallet now that payout is confirmed
     const req = await prisma.walletWithdrawalRequest.findUnique({
       where: { id: withdrawalId },
-      select: { id: true, driverId: true, amountMwk: true, phone: true, provider: true, reference: true },
+      select: {
+        id: true,
+        driverId: true,
+        amountMwk: true,
+        phone: true,
+        provider: true,
+        reference: true,
+        gatewayChargeId: true,
+        providerReference: true,
+        providerTransactionId: true,
+        providerStatus: true,
+        providerPayload: true,
+      },
     });
     if (!req) return null;
 
@@ -596,29 +818,67 @@ export async function finalizeWithdrawalPayout(withdrawalId: string, success: bo
         kind: "withdrawal_debit",
         amountMwk: req.amountMwk,
         reference: req.reference,
-        metadata: { phone: req.phone, provider: req.provider, withdrawalId: req.id, webhookConfirmed: true },
+        gatewayChargeId: req.gatewayChargeId,
+        providerReference: gateway?.providerReference ?? req.providerReference,
+        providerTransactionId:
+          gateway?.providerTransactionId ?? req.providerTransactionId,
+        providerStatus: gateway?.providerStatus ?? req.providerStatus,
+        providerPayload:
+          gateway?.providerPayload ??
+          (req.providerPayload as Prisma.InputJsonValue | null),
+        metadata: {
+          phone: req.phone,
+          provider: req.provider,
+          withdrawalId: req.id,
+          webhookConfirmed: true,
+        },
         countAsEarnings: false,
       });
-      console.log(`[WITHDRAW] Withdrawal ${withdrawalId} — wallet debited ${req.amountMwk} MWK, txId=${tx.id}`);
+      console.log(
+        `[WITHDRAW] Withdrawal ${withdrawalId} — wallet debited ${req.amountMwk} MWK, txId=${tx.id}`,
+      );
 
       return client.walletWithdrawalRequest.update({
         where: { id: withdrawalId },
-        data: { status: "completed", walletTxId: tx.id, processedAt: new Date() },
+        data: {
+          status: "completed",
+          walletTxId: tx.id,
+          processedAt: new Date(),
+          webhookReceivedAt: new Date(),
+          providerStatus: gateway?.providerStatus ?? "success",
+          providerReference: gateway?.providerReference ?? undefined,
+          providerTransactionId: gateway?.providerTransactionId ?? undefined,
+          providerPayload: gateway?.providerPayload ?? undefined,
+          failureReason: null,
+        },
         select: { id: true, amountMwk: true, provider: true, status: true },
       });
     });
   }
 
   // Payout failed per webhook — wallet was never debited, just mark failed
-  console.warn(`[WITHDRAW] Withdrawal ${withdrawalId} — webhook reported failure (wallet was not debited), marking failed`);
+  console.warn(
+    `[WITHDRAW] Withdrawal ${withdrawalId} — webhook reported failure (wallet was not debited), marking failed`,
+  );
   return prisma.walletWithdrawalRequest.update({
     where: { id: withdrawalId },
     data: {
       status: "failed",
       failureReason: message ?? "Paychangu payout failed",
       processedAt: new Date(),
+      webhookReceivedAt: new Date(),
+      providerStatus: gateway?.providerStatus ?? "failed",
+      providerReference: gateway?.providerReference ?? undefined,
+      providerTransactionId: gateway?.providerTransactionId ?? undefined,
+      providerPayload: gateway?.providerPayload ?? undefined,
     },
-    select: { id: true, amountMwk: true, provider: true, status: true, failureReason: true },
+    select: {
+      id: true,
+      amountMwk: true,
+      provider: true,
+      status: true,
+      failureReason: true,
+    },
   });
 }
 
@@ -626,30 +886,112 @@ export async function finalizeWithdrawalPayout(withdrawalId: string, success: bo
  * Processes a Paychangu payout webhook payload.
  * Extracts withdrawalId from charge_id (format: PAYOUT-{withdrawalId}).
  */
-export async function handlePaychanguPayoutWebhook(payload: Record<string, unknown>) {
-  const eventType = String(payload.event_type ?? payload.event ?? "");
-  console.log(`[WITHDRAW] Webhook received — event_type=${eventType}`);
+export async function handlePaychanguPayoutWebhook(
+  payload: Record<string, unknown>,
+) {
+  const normalized = normalizePayoutWebhookPayload(payload);
+  const eventType = String(normalized.eventType ?? "");
+  console.log(`[WITHDRAW] Webhook received - event_type=${eventType}`);
 
   if (eventType !== "api.payout" && eventType !== "payout") {
-    console.log(`[WITHDRAW] Webhook ignored — not a payout event (event_type=${eventType})`);
+    console.log(
+      `[WITHDRAW] Webhook ignored - not a payout event (event_type=${eventType})`,
+    );
     return { handled: false, reason: "Not a payout event" };
   }
 
-  const chargeId = String(payload.charge_id ?? "");
+  const chargeId = String(normalized.chargeId ?? "");
   if (!chargeId.startsWith("PAYOUT-")) {
     console.warn(`[WITHDRAW] Webhook has invalid charge_id: ${chargeId}`);
-    return { handled: false, reason: "charge_id does not match PAYOUT- prefix" };
+    return {
+      handled: false,
+      reason: "charge_id does not match PAYOUT- prefix",
+    };
   }
 
   const withdrawalId = chargeId.replace("PAYOUT-", "");
-  const rawStatus = String(payload.status ?? "");
+  const rawStatus = String(normalized.providerStatus ?? "");
   const status = rawStatus.toLowerCase();
   const isSuccess = status === "success" || status === "successful";
-  const message = String(payload.message ?? "");
-  console.log(`[WITHDRAW] Webhook parsed — withdrawalId=${withdrawalId}, status=${rawStatus}, isSuccess=${isSuccess}`);
+  const isPending = status === "pending" || status === "processing";
+  const message = String(normalized.message ?? "");
+  console.log(
+    `[WITHDRAW] Webhook parsed - withdrawalId=${withdrawalId}, status=${rawStatus}, isSuccess=${isSuccess}`,
+  );
 
-  const result = await finalizeWithdrawalPayout(withdrawalId, isSuccess, message || undefined);
+  const providerPayload = JSON.parse(
+    JSON.stringify(payload),
+  ) as Prisma.InputJsonValue;
+  const gateway = {
+    providerStatus: normalized.providerStatus,
+    providerReference: normalized.providerReference,
+    providerTransactionId: normalized.providerTransactionId,
+    providerPayload,
+  };
+
+  if (isPending) {
+    const updated = await prisma.walletWithdrawalRequest.updateMany({
+      where: { id: withdrawalId, status: "processing" },
+      data: {
+        webhookReceivedAt: new Date(),
+        providerStatus: normalized.providerStatus,
+        providerReference: normalized.providerReference ?? undefined,
+        providerTransactionId: normalized.providerTransactionId ?? undefined,
+        providerPayload,
+        failureReason: null,
+      },
+    });
+    return {
+      handled: true,
+      withdrawalId,
+      status: "processing",
+      updated: updated.count,
+    };
+  }
+
+  const result = await finalizeWithdrawalPayout(
+    withdrawalId,
+    isSuccess,
+    message || undefined,
+    gateway,
+  );
   return { handled: true, withdrawalId, status: result?.status };
+}
+
+function normalizePayoutWebhookPayload(payload: Record<string, unknown>) {
+  const data =
+    payload.data && typeof payload.data === "object"
+      ? (payload.data as Record<string, unknown>)
+      : {};
+  const transaction =
+    data.transaction && typeof data.transaction === "object"
+      ? (data.transaction as Record<string, unknown>)
+      : data;
+
+  return {
+    eventType: stringOrNull(
+      payload.event_type ?? data.event_type ?? payload.event,
+    ),
+    chargeId: stringOrNull(
+      transaction.charge_id ?? data.charge_id ?? payload.charge_id,
+    ),
+    providerStatus: stringOrNull(
+      transaction.status ?? data.status ?? payload.status,
+    ),
+    providerReference: stringOrNull(
+      transaction.ref_id ?? data.ref_id ?? payload.ref_id,
+    ),
+    providerTransactionId: stringOrNull(
+      transaction.trans_id ?? data.trans_id ?? payload.trans_id,
+    ),
+    message: stringOrNull(payload.message ?? data.message),
+  };
+}
+
+function stringOrNull(value: unknown) {
+  if (value === null || value === undefined) return null;
+  const text = String(value);
+  return text.length > 0 ? text : null;
 }
 
 /**
@@ -661,27 +1003,98 @@ export async function handleWithdrawalTimeout(withdrawalId: string) {
   console.log(`[WITHDRAW] Timeout triggered for ${withdrawalId}`);
   const req = await prisma.walletWithdrawalRequest.findUnique({
     where: { id: withdrawalId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, gatewayChargeId: true },
   });
   if (!req) {
     console.warn(`[WITHDRAW] Timeout for unknown withdrawal: ${withdrawalId}`);
     return { id: withdrawalId, handled: false, reason: "not-found" };
   }
   if (req.status === "completed" || req.status === "failed") {
-    console.log(`[WITHDRAW] Timeout skipped for ${withdrawalId} — already ${req.status}`);
-    return { id: withdrawalId, handled: false, reason: `already-${req.status}` };
+    console.log(
+      `[WITHDRAW] Timeout skipped for ${withdrawalId} — already ${req.status}`,
+    );
+    return {
+      id: withdrawalId,
+      handled: false,
+      reason: `already-${req.status}`,
+    };
   }
   if (req.status !== "processing") {
-    console.log(`[WITHDRAW] Timeout skipped for ${withdrawalId} — status=${req.status}`);
-    return { id: withdrawalId, handled: false, reason: `unexpected-status-${req.status}` };
+    console.log(
+      `[WITHDRAW] Timeout skipped for ${withdrawalId} — status=${req.status}`,
+    );
+    return {
+      id: withdrawalId,
+      handled: false,
+      reason: `unexpected-status-${req.status}`,
+    };
   }
 
-  console.warn(`[WITHDRAW] Withdrawal ${withdrawalId} timed out after ${env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES} minutes — marking failed`);
+  if (req.gatewayChargeId) {
+    try {
+      console.log(
+        `[WITHDRAW] Timeout reconciliation for ${withdrawalId} using chargeId=${req.gatewayChargeId}`,
+      );
+      const details = await fetchPaychanguPayoutDetails(req.gatewayChargeId);
+      const status = String(details.providerStatus ?? "").toLowerCase();
+      const gateway = {
+        providerStatus: details.providerStatus,
+        providerReference: details.providerReference,
+        providerTransactionId: details.providerTransactionId,
+        providerPayload: details.providerPayload,
+      };
+
+      if (status === "success" || status === "successful") {
+        const result = await finalizeWithdrawalPayout(
+          withdrawalId,
+          true,
+          undefined,
+          gateway,
+        );
+        return {
+          handled: true,
+          id: withdrawalId,
+          status: result?.status,
+          reconciled: true,
+        };
+      }
+
+      await prisma.walletWithdrawalRequest.update({
+        where: { id: withdrawalId },
+        data: {
+          providerStatus: details.providerStatus ?? undefined,
+          providerReference: details.providerReference ?? undefined,
+          providerTransactionId: details.providerTransactionId ?? undefined,
+          providerPayload: details.providerPayload,
+        },
+      });
+
+      if (status === "pending" || status === "processing") {
+        console.log(
+          `[WITHDRAW] Timeout reconciliation for ${withdrawalId} found PayChangu status=${status}; keeping processing`,
+        );
+        return {
+          id: withdrawalId,
+          handled: false,
+          reason: `paychangu-${status}`,
+        };
+      }
+    } catch (error) {
+      console.warn(
+        `[WITHDRAW] Timeout reconciliation failed for ${withdrawalId}:`,
+        (error as Error).message,
+      );
+    }
+  }
+  console.warn(
+    `[WITHDRAW] Withdrawal ${withdrawalId} timed out after ${env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES} minutes — marking failed`,
+  );
   const updated = await prisma.walletWithdrawalRequest.update({
     where: { id: withdrawalId },
     data: {
       status: "failed",
       failureReason: `No webhook confirmation received within ${env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES} minutes`,
+      providerStatus: "timeout_waiting_for_webhook",
       processedAt: new Date(),
     },
     select: { id: true, status: true, failureReason: true },
@@ -691,7 +1104,13 @@ export async function handleWithdrawalTimeout(withdrawalId: string) {
 
 export async function creditTripPayout(
   client: Prisma.TransactionClient,
-  input: { driverId: string; bookingId: string; paymentId: string; amountMwk: bigint; reference?: string | null },
+  input: {
+    driverId: string;
+    bookingId: string;
+    paymentId: string;
+    amountMwk: bigint;
+    reference?: string | null;
+  },
 ) {
   const existing = await client.walletTransaction.findFirst({
     where: { paymentId: input.paymentId, kind: "trip_payout_credit" },
