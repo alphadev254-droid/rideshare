@@ -4,6 +4,8 @@
  */
 import { api } from "./client";
 import type {
+  AdminWalletTransaction,
+  AdminWalletWithdrawal,
   AdminUser,
   AuthTokens,
   Booking,
@@ -319,6 +321,24 @@ export const walletService = {
     api.post<{ message: string; amountMwk: string; status: string; reference: string; id: string }>("/wallet/withdraw", body),
   withdrawalById: (id: string) =>
     api.get<WalletWithdrawal>(`/wallet/withdrawals/${id}`),
+  adminTransactions: (query?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    type?: "credit" | "withdrawal" | "all";
+    status?: string;
+  }) =>
+    api.get<PaginatedResponse<AdminWalletTransaction>>("/wallet/admin/transactions", {
+      query: query as Record<string, string | number | boolean | undefined>,
+    }),
+  adminWithdrawals: (query?: { page?: number; limit?: number; search?: string; status?: string }) =>
+    api.get<PaginatedResponse<AdminWalletWithdrawal>>("/wallet/admin/withdrawals", {
+      query: query as Record<string, string | number | boolean | undefined>,
+    }),
+  reconcileWithdrawal: (id: string) =>
+    api.post<{ result: unknown; withdrawal: AdminWalletWithdrawal | null }>(
+      `/wallet/admin/withdrawals/${id}/reconcile`,
+    ),
 };
 
 // ─── Reviews ──────────────────────────────────────────────────────

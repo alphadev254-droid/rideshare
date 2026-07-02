@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { walletService, type PaymentMethod } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
-import { StatCard } from "@/components/stat-card";
 import { LoadingState } from "@/components/loading-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -147,14 +146,14 @@ function WalletPage() {
         <LoadingState />
       ) : (
         balance && (
-          <div className="grid grid-cols-2 gap-4">
-            <StatCard
+          <div className="grid grid-cols-2 gap-3">
+            <CompactWalletStat
               label="Available"
               value={formatMwk(balance.balanceMwk)}
               icon={<Wallet className="h-4 w-4" />}
-              accent="primary"
+              accent
             />
-            <StatCard
+            <CompactWalletStat
               label="Total earned"
               value={formatMwk(balance.totalEarnedMwk)}
               icon={<Wallet className="h-4 w-4" />}
@@ -165,7 +164,7 @@ function WalletPage() {
 
       {/* â”€â”€â”€ Active withdrawal banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {activeWithdrawal && (
-        <div className="rounded-md border border-border bg-surface-2 p-4">
+        <div className="rounded-md border border-border bg-surface-2 p-3">
           <div className="flex items-center gap-3">
             <Loader2 className="h-4 w-4 animate-spin text-primary" />
             <div>
@@ -184,45 +183,48 @@ function WalletPage() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-[minmax(300px,380px)_1fr]">
         <form
           onSubmit={submit}
-          className="space-y-4 rounded-md border border-border bg-card p-4 sm:p-6 lg:col-span-1"
+          className="space-y-3 rounded-md border border-border bg-card p-3 sm:p-4"
         >
           <h3 className="label-eyebrow">Withdraw to mobile money</h3>
 
           {/* Step 1 â€” Amount, method, phone */}
-          <div className="space-y-1.5">
-            <Label className="label-eyebrow">Amount (MWK)</Label>
-            <Input
-              type="number"
-              required
-              min={PAYCHANGU_MIN_PAYOUT_MWK}
-              value={amount}
-              onChange={(e) => {
-                setAmount(e.target.value);
-                setOtp("");
-                setOtpSentTo(null);
-              }}
-              placeholder="Example: 5000"
-              disabled={withdraw.isPending}
-            />
-            <p className="text-xs text-muted-foreground">
-              PayChangu minimum payout after fees: {formatMwk(PAYCHANGU_MIN_PAYOUT_MWK)}.
-            </p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label className="label-eyebrow">Amount</Label>
+              <Input
+                type="number"
+                required
+                min={PAYCHANGU_MIN_PAYOUT_MWK}
+                value={amount}
+                onChange={(e) => {
+                  setAmount(e.target.value);
+                  setOtp("");
+                  setOtpSentTo(null);
+                }}
+                placeholder="5000"
+                disabled={withdraw.isPending}
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="label-eyebrow">Method</Label>
+              <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)} disabled={withdraw.isPending}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="airtel_money">Airtel Money</SelectItem>
+                  <SelectItem value="tnm_mpamba">TNM Mpamba</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="label-eyebrow">Method</Label>
-            <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)} disabled={withdraw.isPending}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="airtel_money">Airtel Money</SelectItem>
-                <SelectItem value="tnm_mpamba">TNM Mpamba</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Minimum payout after fees: {formatMwk(PAYCHANGU_MIN_PAYOUT_MWK)}.
+          </p>
           <div className="space-y-1.5">
             <Label className="label-eyebrow">Phone</Label>
             <Input
@@ -234,13 +236,14 @@ function WalletPage() {
               }}
               required
               disabled={withdraw.isPending}
-              placeholder="Example: 0991234567 or +265991234567"
+              placeholder="0991234567 or +265991234567"
               inputMode="tel"
+              className="h-9"
             />
           </div>
 
           {amountNumber > 0 && (
-            <div className="rounded-md border border-border bg-surface-2 p-3 text-xs">
+            <div className="rounded-md border border-border bg-surface-2 p-2.5 text-xs">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">Withdrawal fee</span>
                 <span className="font-medium tabular">{formatMwk(withdrawalFee)}</span>
@@ -268,6 +271,7 @@ function WalletPage() {
               variant="outline"
               onClick={handleRequestOtp}
               disabled={requestOtp.isPending || withdraw.isPending}
+              size="sm"
             >
               {requestOtp.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -277,7 +281,7 @@ function WalletPage() {
               {requestOtp.isPending ? "Sending code..." : "Request verification code"}
             </Button>
           ) : (
-            <div className="space-y-3 rounded-md border border-border bg-surface p-3">
+            <div className="space-y-2 rounded-md border border-border bg-surface p-2.5">
               <div className="flex items-center gap-2 text-xs text-primary">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 Code sent to {otpSentTo}
@@ -293,7 +297,7 @@ function WalletPage() {
                   placeholder="6-digit code"
                   required
                   disabled={withdraw.isPending}
-                  className="text-center text-lg tracking-widest"
+                  className="h-9 text-center text-base tracking-widest"
                 />
                 <Button
                   type="button"
@@ -311,6 +315,7 @@ function WalletPage() {
                 type="submit"
                 className="w-full"
                 disabled={withdraw.isPending}
+                size="sm"
               >
                 {withdraw.isPending ? (
                   <>
@@ -325,18 +330,18 @@ function WalletPage() {
           )}
         </form>
 
-        <div className="rounded-md border border-border bg-card p-4 sm:p-5 lg:col-span-2">
+        <div className="rounded-md border border-border bg-card p-3 sm:p-4">
           <h3 className="label-eyebrow">Withdrawal history</h3>
           {wLoading ? (
             <LoadingState />
           ) : (withdrawals ?? []).length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">No withdrawals yet.</p>
           ) : (
-            <ul className="mt-3 divide-y divide-border">
+            <ul className="mt-2 divide-y divide-border">
               {withdrawals!.map((w) => {
                 const isActive = w.status === "queued" || w.status === "processing";
                 return (
-                  <li key={w.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+                  <li key={w.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                     <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                       <span
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
@@ -384,6 +389,34 @@ function WalletPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function CompactWalletStat({
+  label,
+  value,
+  icon,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  icon: ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-3">
+      <div className="min-w-0">
+        <p className="label-eyebrow truncate">{label}</p>
+        <p className={`mt-1 truncate text-xl font-semibold tabular ${accent ? "text-primary" : ""}`}>{value}</p>
+      </div>
+      <span
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
+          accent ? "bg-primary/10 text-primary" : "bg-surface-2 text-muted-foreground"
+        }`}
+      >
+        {icon}
+      </span>
     </div>
   );
 }

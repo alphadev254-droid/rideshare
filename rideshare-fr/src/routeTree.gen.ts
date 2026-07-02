@@ -32,6 +32,7 @@ import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminDriversRouteImport } from './routes/admin/drivers'
 import { Route as AdminBookingsRouteImport } from './routes/admin/bookings'
 import { Route as AdminReviewsRouteImport } from './routes/admin/reviews'
+import { Route as AdminWalletRouteImport } from './routes/admin/wallet'
 import { Route as PublicTripsRouteImport } from './routes/_public/trips'
 import { Route as PublicSafetyRouteImport } from './routes/_public/safety'
 import { Route as PublicDriversInfoRouteImport } from './routes/_public/drivers-info'
@@ -167,6 +168,11 @@ const AdminReviewsRoute = AdminReviewsRouteImport.update({
   path: '/reviews',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminWalletRoute = AdminWalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => AdminRoute,
+} as any)
 const PublicTripsRoute = PublicTripsRouteImport.update({
   id: '/trips',
   path: '/trips',
@@ -290,6 +296,7 @@ export interface FileRoutesByFullPath {
   '/admin/reviews': typeof AdminReviewsRoute
   '/admin/trips': typeof AdminTripsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
+  '/admin/wallet': typeof AdminWalletRoute
   '/app/profile': typeof AppProfileRoute
   '/app/search': typeof AppSearchRoute
   '/app/transactions': typeof AppTransactionsRouteWithChildren
@@ -331,6 +338,7 @@ export interface FileRoutesByTo {
   '/admin/reviews': typeof AdminReviewsRoute
   '/admin/trips': typeof AdminTripsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
+  '/admin/wallet': typeof AdminWalletRoute
   '/app/profile': typeof AppProfileRoute
   '/app/search': typeof AppSearchRoute
   '/app/transactions': typeof AppTransactionsRouteWithChildren
@@ -377,6 +385,7 @@ export interface FileRoutesById {
   '/admin/reviews': typeof AdminReviewsRoute
   '/admin/trips': typeof AdminTripsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
+  '/admin/wallet': typeof AdminWalletRoute
   '/app/profile': typeof AppProfileRoute
   '/app/search': typeof AppSearchRoute
   '/app/transactions': typeof AppTransactionsRouteWithChildren
@@ -424,6 +433,7 @@ export interface FileRouteTypes {
     | '/admin/reviews'
     | '/admin/trips'
     | '/admin/users'
+    | '/admin/wallet'
     | '/app/profile'
     | '/app/search'
     | '/app/transactions'
@@ -465,6 +475,7 @@ export interface FileRouteTypes {
     | '/admin/reviews'
     | '/admin/trips'
     | '/admin/users'
+    | '/admin/wallet'
     | '/app/profile'
     | '/app/search'
     | '/app/transactions'
@@ -510,6 +521,7 @@ export interface FileRouteTypes {
     | '/admin/reviews'
     | '/admin/trips'
     | '/admin/users'
+    | '/admin/wallet'
     | '/app/profile'
     | '/app/search'
     | '/app/transactions'
@@ -710,6 +722,13 @@ declare module '@tanstack/react-router' {
       path: '/reviews'
       fullPath: '/admin/reviews'
       preLoaderRoute: typeof AdminReviewsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/wallet': {
+      id: '/admin/wallet'
+      path: '/wallet'
+      fullPath: '/admin/wallet'
+      preLoaderRoute: typeof AdminWalletRouteImport
       parentRoute: typeof AdminRoute
     }
     '/_public/trips': {
@@ -926,6 +945,7 @@ interface AdminRouteChildren {
   AdminReviewsRoute: typeof AdminReviewsRoute
   AdminTripsRoute: typeof AdminTripsRoute
   AdminUsersRoute: typeof AdminUsersRouteWithChildren
+  AdminWalletRoute: typeof AdminWalletRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -936,6 +956,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminReviewsRoute: AdminReviewsRoute,
   AdminTripsRoute: AdminTripsRoute,
   AdminUsersRoute: AdminUsersRouteWithChildren,
+  AdminWalletRoute: AdminWalletRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 

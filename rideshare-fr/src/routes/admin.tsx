@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Car, Route as RouteIcon, CreditCard, Ticket, Star } from "lucide-react";
+import { LayoutDashboard, Users, Car, Route as RouteIcon, CreditCard, Ticket, Star, WalletCards } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-context";
 
@@ -25,6 +25,7 @@ function AdminShell() {
         { to: "/admin/trips", label: "Trips", icon: RouteIcon },
         { to: "/admin/bookings", label: "Bookings", icon: Ticket },
         { to: "/admin/payments", label: "Payments", icon: CreditCard },
+        { to: "/admin/wallet", label: "Wallet", icon: WalletCards },
         { to: "/admin/reviews", label: "Reviews", icon: Star },
       ]}
     />

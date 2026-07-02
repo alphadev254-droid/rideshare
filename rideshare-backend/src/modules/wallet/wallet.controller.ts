@@ -43,6 +43,59 @@ export async function getTransactionsController(
   }
 }
 
+export async function listAdminWalletTransactionsController(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const data = await walletService.listWalletTransactionsForAdmin({
+      page: Number(req.query.page) || 1,
+      limit: Number(req.query.limit) || 50,
+      search: typeof req.query.search === "string" ? req.query.search : undefined,
+      type:
+        req.query.type === "credit" || req.query.type === "withdrawal"
+          ? req.query.type
+          : "all",
+      status: typeof req.query.status === "string" ? req.query.status : undefined,
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listAdminWithdrawalsController(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const data = await walletService.listWithdrawalsForAdmin({
+      page: Number(req.query.page) || 1,
+      limit: Number(req.query.limit) || 50,
+      search: typeof req.query.search === "string" ? req.query.search : undefined,
+      status: typeof req.query.status === "string" ? req.query.status : undefined,
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reconcileWithdrawalController(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const data = await walletService.reconcileWithdrawalForAdmin(req.params.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getWithdrawalsController(
   req: AuthRequest,
   res: Response,

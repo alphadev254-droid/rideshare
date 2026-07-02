@@ -315,6 +315,8 @@ export async function getTransactions(userId: string, page = 1, limit = 20) {
       provider_reference: string | null;
       provider_transaction_id: string | null;
       provider_status: string | null;
+      provider_payload: Prisma.JsonValue | null;
+      metadata: Prisma.JsonValue | null;
       created_at: Date;
     }>
   >`
@@ -358,6 +360,358 @@ export async function getTransactions(userId: string, page = 1, limit = 20) {
     providerStatus: t.provider_status,
     createdAt: t.created_at,
   }));
+}
+
+export async function listWalletTransactionsForAdmin(input: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  type?: "credit" | "withdrawal" | "all";
+  status?: string;
+}) {
+  const page = Math.max(Number(input.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(input.limit) || 50, 1), 200);
+  const offset = (page - 1) * limit;
+  const search = input.search?.trim();
+  const type = input.type && input.type !== "all" ? input.type : undefined;
+  const status = input.status && input.status !== "all" ? input.status : undefined;
+
+  const where: Prisma.Sql[] = [];
+  if (type) where.push(Prisma.sql`wt.type = ${type}::wallet_tx_type`);
+  if (status) {
+    where.push(Prisma.sql`(
+      wr.status::text = ${status}
+      OR wr.provider_status = ${status}
+      OR wt.provider_status = ${status}
+    )`);
+  }
+  if (search) {
+    const pattern = `%${search}%`;
+    where.push(Prisma.sql`(
+      wt.reference ILIKE ${pattern}
+      OR wt.gateway_charge_id ILIKE ${pattern}
+      OR wt.provider_reference ILIKE ${pattern}
+      OR wt.provider_transaction_id ILIKE ${pattern}
+      OR wr.reference ILIKE ${pattern}
+      OR wr.gateway_charge_id ILIKE ${pattern}
+      OR u.full_name ILIKE ${pattern}
+      OR u.phone ILIKE ${pattern}
+      OR u.email ILIKE ${pattern}
+    )`);
+  }
+
+  const whereSql = where.length
+    ? Prisma.sql`WHERE ${Prisma.join(where, Prisma.sql` AND `)}`
+    : Prisma.empty;
+
+  const rows = await prisma.$queryRaw<
+    Array<{
+      id: string;
+      driver_id: string;
+      driver_name: string | null;
+      driver_phone: string | null;
+      driver_email: string | null;
+      type: "credit" | "withdrawal";
+      kind: string | null;
+      amount_mwk: bigint;
+      balance_before_mwk: bigint | null;
+      balance_after_mwk: bigint | null;
+      booking_id: string | null;
+      payment_id: string | null;
+      refund_id: string | null;
+      reference: string | null;
+      gateway_charge_id: string | null;
+      provider_reference: string | null;
+      provider_transaction_id: string | null;
+      provider_status: string | null;
+      created_at: Date;
+      withdrawal_id: string | null;
+      withdrawal_status: string | null;
+      withdrawal_provider: string | null;
+      withdrawal_phone: string | null;
+      withdrawal_failure_reason: string | null;
+      withdrawal_gateway_requested_at: Date | null;
+      withdrawal_gateway_responded_at: Date | null;
+      withdrawal_webhook_received_at: Date | null;
+      withdrawal_processed_at: Date | null;
+      total_count: bigint;
+    }>
+  >`
+    SELECT
+      wt.id,
+      wt.driver_id,
+      u.full_name AS driver_name,
+      u.phone AS driver_phone,
+      u.email AS driver_email,
+      wt.type,
+      wt.kind,
+      wt.amount_mwk,
+      wt.balance_before_mwk,
+      wt.balance_after_mwk,
+      wt.booking_id,
+      wt.payment_id,
+      wt.refund_id,
+      wt.reference,
+      wt.gateway_charge_id,
+      wt.provider_reference,
+      wt.provider_transaction_id,
+      wt.provider_status,
+      wt.provider_payload,
+      wt.metadata,
+      wt.created_at,
+      wr.id AS withdrawal_id,
+      wr.status::text AS withdrawal_status,
+      wr.provider AS withdrawal_provider,
+      wr.phone AS withdrawal_phone,
+      wr.failure_reason AS withdrawal_failure_reason,
+      wr.gateway_requested_at AS withdrawal_gateway_requested_at,
+      wr.gateway_responded_at AS withdrawal_gateway_responded_at,
+      wr.webhook_received_at AS withdrawal_webhook_received_at,
+      wr.processed_at AS withdrawal_processed_at,
+      COUNT(*) OVER() AS total_count
+    FROM wallet_transactions wt
+    INNER JOIN driver_profiles d ON d.id = wt.driver_id
+    INNER JOIN users u ON u.id = d.user_id
+    LEFT JOIN wallet_withdrawal_requests wr ON wr.wallet_tx_id = wt.id
+    ${whereSql}
+    ORDER BY wt.created_at DESC
+    LIMIT ${limit}
+    OFFSET ${offset}
+  `;
+
+  const total = Number(rows[0]?.total_count ?? 0n);
+  return {
+    items: rows.map((t) => ({
+      id: t.id,
+      driverId: t.driver_id,
+      driverName: t.driver_name,
+      driverPhone: t.driver_phone,
+      driverEmail: t.driver_email,
+      type: t.type,
+      kind: t.kind,
+      amountMwk: t.amount_mwk.toString(),
+      balanceBeforeMwk: t.balance_before_mwk?.toString() ?? null,
+      balanceAfterMwk: t.balance_after_mwk?.toString() ?? null,
+      bookingId: t.booking_id,
+      paymentId: t.payment_id,
+      refundId: t.refund_id,
+      reference: t.reference,
+      description: describeWalletTx(t),
+      gatewayChargeId: t.gateway_charge_id,
+      providerReference: t.provider_reference,
+      providerTransactionId: t.provider_transaction_id,
+      providerStatus: t.provider_status,
+      providerPayload: t.provider_payload,
+      metadata: t.metadata,
+      createdAt: t.created_at,
+      withdrawal: t.withdrawal_id
+        ? {
+            id: t.withdrawal_id,
+            status: t.withdrawal_status,
+            provider: t.withdrawal_provider,
+            phone: t.withdrawal_phone,
+            failureReason: t.withdrawal_failure_reason,
+            gatewayRequestedAt: t.withdrawal_gateway_requested_at,
+            gatewayRespondedAt: t.withdrawal_gateway_responded_at,
+            webhookReceivedAt: t.withdrawal_webhook_received_at,
+            processedAt: t.withdrawal_processed_at,
+          }
+        : null,
+    })),
+    page,
+    limit,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
+  };
+}
+
+export async function listWithdrawalsForAdmin(input: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+}) {
+  const page = Math.max(Number(input.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(input.limit) || 50, 1), 200);
+  const offset = (page - 1) * limit;
+  const search = input.search?.trim();
+  const status = input.status && input.status !== "all" ? input.status : undefined;
+
+  const where: Prisma.Sql[] = [];
+  if (status) {
+    where.push(Prisma.sql`(wr.status::text = ${status} OR wr.provider_status = ${status})`);
+  }
+  if (search) {
+    const pattern = `%${search}%`;
+    where.push(Prisma.sql`(
+      wr.reference ILIKE ${pattern}
+      OR wr.gateway_charge_id ILIKE ${pattern}
+      OR wr.provider_reference ILIKE ${pattern}
+      OR wr.provider_transaction_id ILIKE ${pattern}
+      OR u.full_name ILIKE ${pattern}
+      OR u.phone ILIKE ${pattern}
+      OR u.email ILIKE ${pattern}
+    )`);
+  }
+
+  const whereSql = where.length
+    ? Prisma.sql`WHERE ${Prisma.join(where, Prisma.sql` AND `)}`
+    : Prisma.empty;
+
+  const rows = await prisma.$queryRaw<
+    Array<{
+      id: string;
+      driver_id: string;
+      driver_name: string | null;
+      driver_phone: string | null;
+      driver_email: string | null;
+      amount_mwk: bigint;
+      phone: string;
+      provider: string;
+      status: string;
+      reference: string;
+      wallet_tx_id: string | null;
+      gateway_charge_id: string | null;
+      provider_reference: string | null;
+      provider_transaction_id: string | null;
+      provider_status: string | null;
+      provider_payload: Prisma.JsonValue | null;
+      gateway_requested_at: Date | null;
+      gateway_responded_at: Date | null;
+      webhook_received_at: Date | null;
+      failure_reason: string | null;
+      created_at: Date;
+      processed_at: Date | null;
+      total_count: bigint;
+    }>
+  >`
+    SELECT
+      wr.id,
+      wr.driver_id,
+      u.full_name AS driver_name,
+      u.phone AS driver_phone,
+      u.email AS driver_email,
+      wr.amount_mwk,
+      wr.phone,
+      wr.provider,
+      wr.status::text,
+      wr.reference,
+      wr.wallet_tx_id,
+      wr.gateway_charge_id,
+      wr.provider_reference,
+      wr.provider_transaction_id,
+      wr.provider_status,
+      wr.provider_payload,
+      wr.gateway_requested_at,
+      wr.gateway_responded_at,
+      wr.webhook_received_at,
+      wr.failure_reason,
+      wr.created_at,
+      wr.processed_at,
+      COUNT(*) OVER() AS total_count
+    FROM wallet_withdrawal_requests wr
+    INNER JOIN driver_profiles d ON d.id = wr.driver_id
+    INNER JOIN users u ON u.id = d.user_id
+    ${whereSql}
+    ORDER BY wr.created_at DESC
+    LIMIT ${limit}
+    OFFSET ${offset}
+  `;
+
+  const total = Number(rows[0]?.total_count ?? 0n);
+  return {
+    items: rows.map((w) => ({
+      id: w.id,
+      driverId: w.driver_id,
+      driverName: w.driver_name,
+      driverPhone: w.driver_phone,
+      driverEmail: w.driver_email,
+      amountMwk: w.amount_mwk.toString(),
+      phone: w.phone,
+      provider: w.provider,
+      status: w.status,
+      reference: w.reference,
+      walletTransactionId: w.wallet_tx_id,
+      gatewayChargeId: w.gateway_charge_id,
+      providerReference: w.provider_reference,
+      providerTransactionId: w.provider_transaction_id,
+      providerStatus: w.provider_status,
+      providerPayload: w.provider_payload,
+      gatewayRequestedAt: w.gateway_requested_at,
+      gatewayRespondedAt: w.gateway_responded_at,
+      webhookReceivedAt: w.webhook_received_at,
+      failureReason: w.failure_reason,
+      createdAt: w.created_at,
+      processedAt: w.processed_at,
+    })),
+    page,
+    limit,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
+  };
+}
+
+export async function reconcileWithdrawalForAdmin(withdrawalId: string) {
+  const req = await prisma.walletWithdrawalRequest.findUnique({
+    where: { id: withdrawalId },
+    select: { id: true, status: true, gatewayChargeId: true },
+  });
+  if (!req) throw new AppError(404, "Withdrawal request not found");
+  if (!req.gatewayChargeId) {
+    throw new AppError(400, "Withdrawal has no PayChangu charge ID to reconcile");
+  }
+  if (req.status !== "processing") {
+    throw new AppError(400, `Only processing withdrawals can be reconciled. Current status: ${req.status}`);
+  }
+
+  const result = await handleWithdrawalTimeout(withdrawalId);
+  const updated = await prisma.walletWithdrawalRequest.findUnique({
+    where: { id: withdrawalId },
+    select: {
+      id: true,
+      amountMwk: true,
+      phone: true,
+      provider: true,
+      status: true,
+      reference: true,
+      walletTxId: true,
+      gatewayChargeId: true,
+      providerReference: true,
+      providerTransactionId: true,
+      providerStatus: true,
+      gatewayRequestedAt: true,
+      gatewayRespondedAt: true,
+      webhookReceivedAt: true,
+      failureReason: true,
+      createdAt: true,
+      processedAt: true,
+    },
+  });
+
+  return {
+    result,
+    withdrawal: updated
+      ? {
+          id: updated.id,
+          amountMwk: updated.amountMwk.toString(),
+          phone: updated.phone,
+          provider: updated.provider,
+          status: updated.status,
+          reference: updated.reference,
+          walletTransactionId: updated.walletTxId,
+          gatewayChargeId: updated.gatewayChargeId,
+          providerReference: updated.providerReference,
+          providerTransactionId: updated.providerTransactionId,
+          providerStatus: updated.providerStatus,
+          gatewayRequestedAt: updated.gatewayRequestedAt,
+          gatewayRespondedAt: updated.gatewayRespondedAt,
+          webhookReceivedAt: updated.webhookReceivedAt,
+          failureReason: updated.failureReason,
+          createdAt: updated.createdAt,
+          processedAt: updated.processedAt,
+        }
+      : null,
+  };
 }
 
 function maskEmail(email: string) {

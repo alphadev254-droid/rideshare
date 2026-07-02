@@ -374,6 +374,7 @@ export interface WalletTransaction {
   providerReference?: string | null;
   providerTransactionId?: string | null;
   providerStatus?: string | null;
+  providerPayload?: unknown;
   description: string;
   createdAt: string;
 }
@@ -389,6 +390,7 @@ export interface WalletWithdrawal {
   providerReference?: string | null;
   providerTransactionId?: string | null;
   providerStatus?: string | null;
+  providerPayload?: unknown;
   gatewayRequestedAt?: string | null;
   gatewayRespondedAt?: string | null;
   webhookReceivedAt?: string | null;
@@ -398,6 +400,35 @@ export interface WalletWithdrawal {
   walletTransactionId?: string | null;
   balanceBeforeMwk?: string | null;
   balanceAfterMwk?: string | null;
+}
+
+export interface AdminWalletWithdrawal
+  extends Omit<WalletWithdrawal, "status" | "balanceBeforeMwk" | "balanceAfterMwk"> {
+  status: "queued" | "processing" | "completed" | "failed" | string;
+  driverId: string;
+  driverName?: string | null;
+  driverPhone?: string | null;
+  driverEmail?: string | null;
+}
+
+export interface AdminWalletTransaction extends WalletTransaction {
+  driverId: string;
+  driverName?: string | null;
+  driverPhone?: string | null;
+  driverEmail?: string | null;
+  reference?: string | null;
+  metadata?: unknown;
+  withdrawal?: {
+    id: string;
+    status?: string | null;
+    provider?: string | null;
+    phone?: string | null;
+    failureReason?: string | null;
+    gatewayRequestedAt?: string | null;
+    gatewayRespondedAt?: string | null;
+    webhookReceivedAt?: string | null;
+    processedAt?: string | null;
+  } | null;
 }
 
 export interface RefundPreview {
