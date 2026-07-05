@@ -507,7 +507,6 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
             providerFeeRate: true,
             systemFeeMwk: true,
             systemFeeRate: true,
-            customerAmountMwk: true,
             commissionMwk: true,
             commissionRate: true,
             netAmountMwk: true,
@@ -517,7 +516,6 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
             releasedAt: true,
             refundedAt: true,
             createdAt: true,
-            status: true,
             passenger: { select: { phone: true } },
             refunds: {
               where: { status: { in: ["requested", "processing", "completed"] } },
