@@ -1329,14 +1329,23 @@ export async function listAdminTransactions({
       { providerReference: { contains: search, mode: "insensitive" } },
     ];
   }
-  const rows = await prisma.payment.findMany({
-    where,
-    include: paymentInclude,
-    orderBy: { createdAt: "desc" },
-    skip: (Math.max(page, 1) - 1) * safeLimit,
-    take: safeLimit,
-  });
-  return rows.map(formatPayment);
+  const safePage = Math.max(page, 1);
+  const [total, rows] = await prisma.$transaction([
+    prisma.payment.count({ where }),
+    prisma.payment.findMany({
+      where,
+      include: paymentInclude,
+      orderBy: { createdAt: "desc" },
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
+    }),
+  ]);
+  return {
+    data: rows.map(formatPayment),
+    total,
+    page: safePage,
+    limit: safeLimit,
+  };
 }
 
 export async function getTransactionById(id: string, userId: string) {

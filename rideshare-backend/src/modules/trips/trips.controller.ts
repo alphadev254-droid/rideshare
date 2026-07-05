@@ -214,7 +214,7 @@ export async function listTripsAdminController(
 ): Promise<void> {
   try {
     const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 20;
+    const limit = Number(req.query.limit) || 70;
     const status = req.query.status as string | undefined;
     const search = req.query.search as string | undefined;
     const dateFrom = req.query.dateFrom as string | undefined;

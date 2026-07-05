@@ -41,7 +41,7 @@ export async function listReviewsForAdminController(
 ): Promise<void> {
   try {
     const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 50;
+    const limit = Number(req.query.limit) || 70;
     const rating = req.query.rating ? Number(req.query.rating) : undefined;
     const search = typeof req.query.search === "string" ? req.query.search : undefined;
     const data = await reviewsService.listReviewsForAdmin({ page, limit, search, rating });

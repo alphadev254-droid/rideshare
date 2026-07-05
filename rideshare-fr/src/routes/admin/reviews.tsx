@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageSquareText, Search, Star } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
@@ -25,27 +25,43 @@ import { Button } from "@/components/ui/button";
 import { reviewService, type AdminReview } from "@/lib/api";
 import { formatDateTime, formatMwk } from "@/lib/format";
 import { useDebounce } from "@/hooks/use-debounce";
+import { AdminPagination } from "@/components/admin-pagination";
 
 export const Route = createFileRoute("/admin/reviews")({
   component: AdminReviews,
 });
 
+const DEFAULT_PAGE_SIZE = 70;
+
 function AdminReviews() {
   const [search, setSearch] = useState("");
   const [rating, setRating] = useState<"all" | "1" | "2" | "3" | "4" | "5">("all");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const debouncedSearch = useDebounce(search, 350);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["reviews", "admin", debouncedSearch, rating],
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ["reviews", "admin", debouncedSearch, rating, page, limit],
     queryFn: () =>
       reviewService.admin({
-        limit: 80,
+        page,
+        limit,
         search: debouncedSearch || undefined,
         rating: rating === "all" ? undefined : Number(rating),
       }),
   });
 
   const reviews = data?.data ?? [];
+  const totalReviews = data?.total ?? 0;
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, rating]);
+
+  function changeLimit(nextLimit: number) {
+    setLimit(nextLimit);
+    setPage(1);
+  }
 
   return (
     <div className="space-y-6">
@@ -89,25 +105,37 @@ function AdminReviews() {
           description="Completed-trip comments will appear here."
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Rating</TableHead>
-              <TableHead>Passenger</TableHead>
-              <TableHead>Driver</TableHead>
-              <TableHead>Trip</TableHead>
-              <TableHead>Comment</TableHead>
-              <TableHead>Fare</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {reviews.map((review) => (
-              <ReviewRow key={review.id} review={review} />
-            ))}
-          </TableBody>
-        </Table>
+        <>
+          <div className="overflow-x-auto rounded-md border border-border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rating</TableHead>
+                  <TableHead>Passenger</TableHead>
+                  <TableHead>Driver</TableHead>
+                  <TableHead>Trip</TableHead>
+                  <TableHead>Comment</TableHead>
+                  <TableHead>Fare</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reviews.map((review) => (
+                  <ReviewRow key={review.id} review={review} />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <AdminPagination
+            page={page}
+            limit={limit}
+            total={totalReviews}
+            isFetching={isFetching}
+            onPageChange={setPage}
+            onLimitChange={changeLimit}
+          />
+        </>
       )}
     </div>
   );

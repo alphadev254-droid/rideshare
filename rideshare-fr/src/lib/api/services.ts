@@ -302,7 +302,7 @@ export const paymentService = {
       query: query as Record<string, string | number | boolean | undefined>,
     }),
   adminTransactions: (query?: { page?: number; limit?: number; status?: PaymentStatus | "all"; search?: string }) =>
-    api.get<Payment[]>("/payments/transactions/admin", {
+    api.get<{ data: Payment[]; total: number; page: number; limit: number }>("/payments/transactions/admin", {
       query: {
         ...query,
         status: query?.status === "all" ? undefined : query?.status,
@@ -516,7 +516,7 @@ export const adminService = {
     dateFrom?: string;
     dateTo?: string;
   }) =>
-    api.get<Trip[]>("/trips", {
+    api.get<{ data: Trip[]; total: number; page: number; limit: number }>("/trips", {
       query: {
         ...query,
         status: query?.status === "all" ? undefined : query?.status,

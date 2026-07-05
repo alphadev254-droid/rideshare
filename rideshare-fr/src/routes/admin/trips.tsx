@@ -56,6 +56,7 @@ import { cn } from "@/lib/utils";
 import { Edit3, Eye, MapPin, Plus, Search, Trash2, X, XCircle, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { TripViewDialog } from "@/components/trip-view-dialog";
+import { AdminPagination } from "@/components/admin-pagination";
 
 const STATUSES: (TripStatus | "all")[] = [
   "all",
@@ -73,6 +74,8 @@ const STATUS_ACTIONS: TripStatus[] = [
   "completed",
   "cancelled",
 ];
+
+const DEFAULT_PAGE_SIZE = 70;
 
 export const Route = createFileRoute("/admin/trips")({
   component: AdminTrips,
@@ -113,6 +116,8 @@ function AdminTrips() {
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<TripForm>(emptyForm);
   const [viewTrip, setViewTrip] = useState<Trip | null>(null);
@@ -126,11 +131,12 @@ function AdminTrips() {
     queryKey: [
       "admin",
       "trips",
-      { limit: 200, status: filter, search: debouncedSearch, dateFrom: debouncedDateFrom, dateTo: debouncedDateTo },
+      { page, limit, status: filter, search: debouncedSearch, dateFrom: debouncedDateFrom, dateTo: debouncedDateTo },
     ],
     queryFn: () =>
       adminService.listTrips({
-        limit: 200,
+        page,
+        limit,
         status: filter !== "all" ? filter : undefined,
         search: debouncedSearch.trim() || undefined,
         dateFrom: debouncedDateFrom || undefined,
@@ -172,7 +178,17 @@ function AdminTrips() {
   const vehicles = (selectedDriver?.vehicles ?? []).filter((vehicle) => vehicle.reviewStatus === "approved");
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === form.vehicleId);
 
-  const trips = tripsQuery.data ?? [];
+  const trips = tripsQuery.data?.data ?? [];
+  const totalTrips = tripsQuery.data?.total ?? 0;
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter, debouncedSearch, debouncedDateFrom, debouncedDateTo]);
+
+  function changeLimit(nextLimit: number) {
+    setLimit(nextLimit);
+    setPage(1);
+  }
 
   const createTrip = useMutation({
     mutationFn: () => adminService.createTrip(toPayload(form, selectedVehicle?.comfortClass)),
@@ -343,135 +359,145 @@ function AdminTrips() {
       ) : trips.length === 0 ? (
         <EmptyState title="No trips" description="Nothing matches this filter." />
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Status</TableHead>
-                <TableHead>Route</TableHead>
-                <TableHead>Driver</TableHead>
-                <TableHead>Vehicle</TableHead>
-                <TableHead>Departure</TableHead>
-                <TableHead>Available seats</TableHead>
-                <TableHead>Bookings</TableHead>
-                <TableHead>Fare</TableHead>
-                <TableHead>Distance</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Class</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {trips.map((trip) => (
-                <TableRow key={trip.id}>
-                  <TableCell>
-                    <StatusPill status={trip.status} />
-                  </TableCell>
-                  <TableCell className="min-w-56 font-medium">
-                    {trip.originName} to {trip.dropOffPoint || trip.destinationName}
-                    <div className="mt-1 font-mono text-[10px] text-muted-foreground">
-                      {trip.id.slice(0, 8)}
-                    </div>
-                  </TableCell>
-                  <TableCell className="min-w-40">
-                    <div>{trip.driver?.user.fullName ?? "-"}</div>
-                    <div className="font-mono text-xs text-muted-foreground">
-                      {trip.driver?.user.phone ?? ""}
-                    </div>
-                  </TableCell>
-                  <TableCell className="min-w-44">
-                    <div>
-                      {trip.vehicle?.make} {trip.vehicle?.model}
-                    </div>
-                    <div className="font-mono text-xs text-muted-foreground">
-                      {trip.vehicle?.plateNumber ?? "-"}
-                    </div>
-                  </TableCell>
-                  <TableCell className="min-w-44 text-xs">{formatDateTime(trip.departureTime)}</TableCell>
-                  <TableCell className="tabular">
-                    {trip.availableSeats}
-                  </TableCell>
-                  <TableCell className="tabular">{trip._count?.bookings ?? trip.bookingCount ?? 0}</TableCell>
-                  <TableCell className="tabular">{formatMwk(trip.farePerSeatMwk)}</TableCell>
-                  <TableCell className="tabular">{formatDistanceKm(trip.distanceKm)}</TableCell>
-                  <TableCell className="tabular">
-                    {trip.estimatedDurationMinutes ? formatDuration(trip.estimatedDurationMinutes) : "-"}
-                  </TableCell>
-                  <TableCell className="uppercase">{trip.comfortClass}</TableCell>
-                  <TableCell className="min-w-36 text-xs">
-                    {trip.createdAt ? formatDateTime(trip.createdAt) : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-2">
-                      <Select
-                        value={trip.status}
-                        onValueChange={(status) =>
-                          setStatus.mutate({ id: trip.id, status: status as TripStatus })
-                        }
-                      >
-                        <SelectTrigger className="h-9 w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATUS_ACTIONS.map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {status.replace(/_/g, " ")}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button size="icon" variant="outline" onClick={() => { setViewTrip(trip); setViewOpen(true); }}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {trip.status === "in_transit" && (
-                        <Button asChild size="icon" variant="outline" title="View driver location">
-                          <Link to="/trips/$id/location" params={{ id: trip.id }}>
-                            <MapPin className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                      )}
-                      <Button size="icon" variant="outline" onClick={() => openEdit(trip)}>
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
-                      {trip.status !== "cancelled" && (
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="border-destructive/40 text-destructive"
-                          onClick={() => setStatus.mutate({ id: trip.id, status: "cancelled" })}
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="outline" className="border-destructive/40 text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete trip?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Trips with bookings or pending payments cannot be deleted. Cancel those instead.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteTrip.mutate(trip.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
+        <>
+          <div className="overflow-x-auto rounded-md border border-border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Route</TableHead>
+                  <TableHead>Driver</TableHead>
+                  <TableHead>Vehicle</TableHead>
+                  <TableHead>Departure</TableHead>
+                  <TableHead>Available seats</TableHead>
+                  <TableHead>Bookings</TableHead>
+                  <TableHead>Fare</TableHead>
+                  <TableHead>Distance</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {trips.map((trip) => (
+                  <TableRow key={trip.id}>
+                    <TableCell>
+                      <StatusPill status={trip.status} />
+                    </TableCell>
+                    <TableCell className="min-w-56 font-medium">
+                      {trip.originName} to {trip.dropOffPoint || trip.destinationName}
+                      <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                        {trip.id.slice(0, 8)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="min-w-40">
+                      <div>{trip.driver?.user.fullName ?? "-"}</div>
+                      <div className="font-mono text-xs text-muted-foreground">
+                        {trip.driver?.user.phone ?? ""}
+                      </div>
+                    </TableCell>
+                    <TableCell className="min-w-44">
+                      <div>
+                        {trip.vehicle?.make} {trip.vehicle?.model}
+                      </div>
+                      <div className="font-mono text-xs text-muted-foreground">
+                        {trip.vehicle?.plateNumber ?? "-"}
+                      </div>
+                    </TableCell>
+                    <TableCell className="min-w-44 text-xs">{formatDateTime(trip.departureTime)}</TableCell>
+                    <TableCell className="tabular">
+                      {trip.availableSeats}
+                    </TableCell>
+                    <TableCell className="tabular">{trip._count?.bookings ?? trip.bookingCount ?? 0}</TableCell>
+                    <TableCell className="tabular">{formatMwk(trip.farePerSeatMwk)}</TableCell>
+                    <TableCell className="tabular">{formatDistanceKm(trip.distanceKm)}</TableCell>
+                    <TableCell className="tabular">
+                      {trip.estimatedDurationMinutes ? formatDuration(trip.estimatedDurationMinutes) : "-"}
+                    </TableCell>
+                    <TableCell className="uppercase">{trip.comfortClass}</TableCell>
+                    <TableCell className="min-w-36 text-xs">
+                      {trip.createdAt ? formatDateTime(trip.createdAt) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-2">
+                        <Select
+                          value={trip.status}
+                          onValueChange={(status) =>
+                            setStatus.mutate({ id: trip.id, status: status as TripStatus })
+                          }
+                        >
+                          <SelectTrigger className="h-9 w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUS_ACTIONS.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status.replace(/_/g, " ")}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button size="icon" variant="outline" onClick={() => { setViewTrip(trip); setViewOpen(true); }}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {trip.status === "in_transit" && (
+                          <Button asChild size="icon" variant="outline" title="View driver location">
+                            <Link to="/trips/$id/location" params={{ id: trip.id }}>
+                              <MapPin className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        )}
+                        <Button size="icon" variant="outline" onClick={() => openEdit(trip)}>
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                        {trip.status !== "cancelled" && (
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="border-destructive/40 text-destructive"
+                            onClick={() => setStatus.mutate({ id: trip.id, status: "cancelled" })}
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="icon" variant="outline" className="border-destructive/40 text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete trip?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Trips with bookings or pending payments cannot be deleted. Cancel those instead.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteTrip.mutate(trip.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <AdminPagination
+            page={page}
+            limit={limit}
+            total={totalTrips}
+            isFetching={tripsQuery.isFetching}
+            onPageChange={setPage}
+            onLimitChange={changeLimit}
+          />
+        </>
       )}
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>

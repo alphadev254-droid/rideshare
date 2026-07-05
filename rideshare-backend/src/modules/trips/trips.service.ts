@@ -1249,7 +1249,7 @@ export async function cancelTrip(tripId: string, userId: string) {
 
 export async function listTripsAdmin(
   page = 1,
-  limit = 20,
+  limit = 70,
   options?: { status?: string; search?: string; dateFrom?: string; dateTo?: string },
 ) {
   const where: Prisma.TripWhereInput = {};
@@ -1295,49 +1295,59 @@ export async function listTripsAdmin(
     }
   }
 
-  const trips = await prisma.trip.findMany({
-    where,
-    select: {
-      id: true,
-      driverId: true,
-      vehicleId: true,
-      originName: true,
-      destinationName: true,
-      dropOffPoint: true,
-      departureTime: true,
-      availableSeats: true,
-      totalSeats: true,
-      comfortClass: true,
-      status: true,
-      distanceKm: true,
-      baseFareMwk: true,
-      estimatedDurationMinutes: true,
-      gpsTrackingActive: true,
-      startedAt: true,
-      completedAt: true,
-      createdAt: true,
-      updatedAt: true,
-      driver: { select: { id: true, user: { select: { fullName: true, phone: true } } } },
-      vehicle: {
-        select: {
-          make: true,
-          model: true,
-          plateNumber: true,
-          year: true,
-          color: true,
-          seatCapacity: true,
+  const safePage = Math.max(1, page);
+  const safeLimit = Math.min(Math.max(1, limit), 200);
+  const [total, trips] = await prisma.$transaction([
+    prisma.trip.count({ where }),
+    prisma.trip.findMany({
+      where,
+      select: {
+        id: true,
+        driverId: true,
+        vehicleId: true,
+        originName: true,
+        destinationName: true,
+        dropOffPoint: true,
+        departureTime: true,
+        availableSeats: true,
+        totalSeats: true,
+        comfortClass: true,
+        status: true,
+        distanceKm: true,
+        baseFareMwk: true,
+        estimatedDurationMinutes: true,
+        gpsTrackingActive: true,
+        startedAt: true,
+        completedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        driver: { select: { id: true, user: { select: { fullName: true, phone: true } } } },
+        vehicle: {
+          select: {
+            make: true,
+            model: true,
+            plateNumber: true,
+            year: true,
+            color: true,
+            seatCapacity: true,
+          },
         },
+        _count: { select: { bookings: true } },
       },
-      _count: { select: { bookings: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    skip: (page - 1) * limit,
-    take: limit,
-  });
+      orderBy: { createdAt: "desc" },
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
+    }),
+  ]);
 
-  return trips.map(({ baseFareMwk, distanceKm, ...trip }) => ({
-    ...trip,
-    farePerSeatMwk: baseFareMwk?.toString() ?? "0",
-    distanceKm: distanceKm ? Number(distanceKm) : 0,
-  }));
+  return {
+    data: trips.map(({ baseFareMwk, distanceKm, ...trip }) => ({
+      ...trip,
+      farePerSeatMwk: baseFareMwk?.toString() ?? "0",
+      distanceKm: distanceKm ? Number(distanceKm) : 0,
+    })),
+    total,
+    page: safePage,
+    limit: safeLimit,
+  };
 }

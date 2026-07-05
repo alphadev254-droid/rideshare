@@ -52,7 +52,7 @@ export async function getDriverReviews(driverId: string, page = 1, limit = 20) {
 
 export async function listReviewsForAdmin({
   page = 1,
-  limit = 50,
+  limit = 70,
   search,
   rating,
 }: {
