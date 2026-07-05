@@ -45,7 +45,7 @@ export async function listReviewsForAdminController(
     const rating = req.query.rating ? Number(req.query.rating) : undefined;
     const search = typeof req.query.search === "string" ? req.query.search : undefined;
     const data = await reviewsService.listReviewsForAdmin({ page, limit, search, rating });
-    res.json({ success: true, ...data });
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
