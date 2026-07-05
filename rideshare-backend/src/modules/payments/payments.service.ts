@@ -1686,6 +1686,7 @@ export async function adminRefund(paymentId: string) {
         id: true,
         paymentId: true,
         bookingId: true,
+        status: true,
         refundAmountMwk: true,
         gatewayChargeId: true,
       },
