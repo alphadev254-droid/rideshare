@@ -1174,6 +1174,15 @@ export async function handlePaychanguWebhook(
   rawBody: Buffer,
   signature: string,
 ) {
+  console.log(
+    "[PAYCHANGU] Webhook before signature verification:",
+    JSON.stringify({
+      receivedAt: new Date().toISOString(),
+      signaturePresent: Boolean(signature),
+      rawBodyBytes: rawBody.length,
+      body: parseJsonIfPossible(rawBody.toString("utf8")),
+    }),
+  );
   verifyWebhookSignature(rawBody, signature);
   const payload = JSON.parse(rawBody.toString("utf8")) as Record<
     string,
@@ -1207,6 +1216,14 @@ export async function handlePaychanguWebhook(
   if (!txRef) return { received: true };
   await enqueuePaymentWebhook(txRef);
   return { received: true, queued: true, txRef };
+}
+
+function parseJsonIfPossible(value: string) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
 }
 
 export async function verifyPayment(paymentIdOrTxRef: string, userId: string) {
