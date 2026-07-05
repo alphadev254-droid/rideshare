@@ -5,7 +5,11 @@ import { env } from "../../config/env.js";
 import { AppError } from "../../middleware/error-handler.js";
 import { generateCode, storeCode, hashCode, isCodeExpired } from "../../lib/secret-code.js";
 import { sendSecretCode } from "../../lib/sms.js";
-import { fetchPaychanguPayoutDetails, initiatePaychanguMobileMoneyRefund } from "../../lib/paychangu.js";
+import {
+  extractPaychanguMobilePaymentDetails,
+  fetchPaychanguPayoutDetails,
+  initiatePaychanguMobileMoneyRefund,
+} from "../../lib/paychangu.js";
 import { enqueueRefundTimeout } from "../../jobs/queue.js";
 import { creditRefundConvenienceShare } from "../wallet/wallet.service.js";
 import type { CreateBookingInput } from "./bookings.schemas.js";
@@ -130,6 +134,9 @@ function formatRefund(refund: {
   platformConvenienceFeeMwk: bigint;
   refundAmountMwk: bigint;
   paymentMethod?: string | null;
+  providerChannel?: string | null;
+  providerOperatorRefId?: string | null;
+  providerOperatorName?: string | null;
   recipientPhone?: string | null;
   gatewayChargeId?: string | null;
   providerReference?: string | null;
@@ -172,6 +179,9 @@ const refundSelect = {
   platformConvenienceFeeMwk: true,
   refundAmountMwk: true,
   paymentMethod: true,
+  providerChannel: true,
+  providerOperatorRefId: true,
+  providerOperatorName: true,
   recipientPhone: true,
   gatewayChargeId: true,
   providerReference: true,
@@ -479,6 +489,11 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
             customerAmountMwk: true,
             paymentMethod: true,
             providerReference: true,
+            providerChannel: true,
+            providerOperatorRefId: true,
+            providerOperatorName: true,
+            providerMobileNumber: true,
+            providerPayload: true,
             passenger: { select: { phone: true } },
             refunds: {
               where: { status: { in: ["requested", "processing", "completed"] } },
@@ -503,6 +518,17 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
     }
 
     const amounts = calculateRefundAmounts(booking.payment.customerAmountMwk);
+    const payloadPayment = extractPaychanguMobilePaymentDetails(booking.payment.providerPayload);
+    const paidPhone = booking.payment.providerMobileNumber ?? payloadPayment.mobileNumber;
+    if (!paidPhone) {
+      throw new AppError(
+        400,
+        "Cannot automatically refund because the original PayChangu payment phone was not saved. Use manual review for this payment.",
+      );
+    }
+    const operatorRefId = booking.payment.providerOperatorRefId ?? payloadPayment.operatorRefId;
+    const operatorName = booking.payment.providerOperatorName ?? payloadPayment.operatorName;
+    const providerChannel = booking.payment.providerChannel ?? payloadPayment.channel;
     const refundId = randomUUID();
     const chargeId = `RF-${refundId}`;
     const created = await tx.paymentRefund.create({
@@ -523,7 +549,10 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
         platformConvenienceFeeMwk: amounts.platformConvenienceFeeMwk,
         refundAmountMwk: amounts.refundAmountMwk,
         paymentMethod: booking.payment.paymentMethod,
-        recipientPhone: booking.payment.passenger.phone,
+        providerChannel,
+        providerOperatorRefId: operatorRefId,
+        providerOperatorName: operatorName,
+        recipientPhone: paidPhone,
         gatewayChargeId: chargeId,
         providerReference: booking.payment.providerReference,
         gatewayRequestedAt: new Date(),
@@ -543,6 +572,9 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
         platformConvenienceFeeMwk: true,
         refundAmountMwk: true,
         paymentMethod: true,
+        providerChannel: true,
+        providerOperatorRefId: true,
+        providerOperatorName: true,
         recipientPhone: true,
         gatewayChargeId: true,
         providerReference: true,
@@ -564,8 +596,10 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
       tripId: booking.tripId,
       segmentId: booking.segmentId,
       driverId: booking.payment.driverId,
-      passengerPhone: booking.payment.passenger.phone,
+      passengerPhone: paidPhone,
       paymentMethod: booking.payment.paymentMethod,
+      providerOperatorRefId: operatorRefId,
+      providerOperatorName: operatorName,
       seatsBooked: booking.seatsBooked,
       chargeId,
     };
@@ -575,6 +609,8 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
   try {
     payout = await initiatePaychanguMobileMoneyRefund({
       paymentMethod: pendingRefund.paymentMethod,
+      operatorRefId: pendingRefund.providerOperatorRefId,
+      operatorName: pendingRefund.providerOperatorName,
       passengerPhone: pendingRefund.passengerPhone,
       amountMwk: pendingRefund.refund.refundAmountMwk,
       chargeId: pendingRefund.chargeId,

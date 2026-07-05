@@ -15,7 +15,10 @@ import {
   sendSecretCode,
 } from "../../lib/sms.js";
 import { sendPushNotification } from "../../lib/fcm.js";
-import { initiatePaychanguMobileMoneyRefund } from "../../lib/paychangu.js";
+import {
+  extractPaychanguMobilePaymentDetails,
+  initiatePaychanguMobileMoneyRefund,
+} from "../../lib/paychangu.js";
 import {
   enqueueNotification,
   enqueuePaymentWebhook,
@@ -45,6 +48,10 @@ type PendingPaymentRow = {
   driverId: string;
   txRef: string;
   paymentMethod: PaymentMethod;
+  providerChannel: string | null;
+  providerOperatorRefId: string | null;
+  providerOperatorName: string | null;
+  providerMobileNumber: string | null;
   seatsBooked: number;
   travelerNames: Prisma.JsonValue | null;
   fareAmountMwk: bigint;
@@ -83,6 +90,10 @@ type PaymentRow = {
   paymentMethod: PaymentMethod;
   gatewayRef: string | null;
   providerReference: string | null;
+  providerChannel?: string | null;
+  providerOperatorRefId?: string | null;
+  providerOperatorName?: string | null;
+  providerMobileNumber?: string | null;
   providerPayload?: Prisma.JsonValue | null;
   status: string;
   escrowHeldAt: Date | null;
@@ -178,6 +189,10 @@ function formatPending(row: PendingPaymentRow) {
     driverId: row.driverId,
     txRef: row.txRef,
     paymentMethod: row.paymentMethod,
+    providerChannel: row.providerChannel,
+    providerOperatorRefId: row.providerOperatorRefId,
+    providerOperatorName: row.providerOperatorName,
+    providerMobileNumber: row.providerMobileNumber,
     seatsBooked: row.seatsBooked,
     travelerNames: travelerNamesFromJson(row.travelerNames),
     fareAmountMwk: row.fareAmountMwk.toString(),
@@ -252,6 +267,10 @@ function formatPaymentBase(row: PaymentRow) {
     providerFeeRate: toRate(row.providerFeeRate),
     customerAmountMwk: row.customerAmountMwk.toString(),
     paymentMethod: row.paymentMethod,
+    providerChannel: row.providerChannel ?? null,
+    providerOperatorRefId: row.providerOperatorRefId ?? null,
+    providerOperatorName: row.providerOperatorName ?? null,
+    providerMobileNumber: row.providerMobileNumber ?? null,
     gatewayRef: row.gatewayRef,
     status: row.status,
     escrowHeldAt: row.escrowHeldAt,
@@ -564,6 +583,81 @@ function statusIsFailed(status: unknown) {
   );
 }
 
+function recordFrom(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function stringFrom(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return null;
+}
+
+function paymentMethodFromProviderDetails(
+  fallback: PaymentMethod,
+  details: { channel: string | null; operatorName: string | null },
+): PaymentMethod {
+  const source = `${details.channel ?? ""} ${details.operatorName ?? ""}`.toLowerCase();
+  if (source.includes("airtel")) return "airtel_money";
+  if (source.includes("tnm") || source.includes("mpamba")) return "tnm_mpamba";
+  if (source.includes("visa")) return "visa";
+  if (source.includes("mastercard") || source.includes("master card")) return "mastercard";
+  return fallback;
+}
+
+function extractPaychanguPaymentDetails(
+  verification: Record<string, unknown>,
+  fallbackMethod: PaymentMethod,
+) {
+  const authorization = recordFrom(verification.authorization);
+  const mobileMoney = recordFrom(verification.mobile_money);
+  const authMobileMoney = recordFrom(authorization.mobile_money);
+
+  const channel = stringFrom(
+    authorization.channel,
+    authorization.payment_channel,
+    verification.channel,
+    verification.payment_channel,
+    verification.type,
+  );
+  const operatorRefId = stringFrom(
+    authorization.mobile_money_operator_ref_id,
+    authorization.operator_ref_id,
+    authorization.operator_id,
+    authorization.ref_id,
+    authMobileMoney.ref_id,
+    mobileMoney.ref_id,
+  );
+  const operatorName = stringFrom(
+    authorization.provider,
+    authorization.operator,
+    authorization.operator_name,
+    authMobileMoney.name,
+    mobileMoney.name,
+  );
+  const mobileNumber = stringFrom(
+    authorization.mobile_number,
+    authorization.mobile,
+    verification.mobile,
+    mobileMoney.mobile,
+  );
+
+  return {
+    channel,
+    operatorRefId,
+    operatorName,
+    mobileNumber,
+    paymentMethod: paymentMethodFromProviderDetails(fallbackMethod, {
+      channel,
+      operatorName,
+    }),
+  };
+}
+
 function verifyWebhookSignature(rawBody: Buffer, signature: string) {
   if (!env.PAYCHANGU_WEBHOOK_SECRET) {
     throw new AppError(500, "PayChangu webhook secret is not configured");
@@ -837,6 +931,7 @@ async function finalizeVerifiedPayment(
   }
 
   const providerReference = String(verification.reference ?? "");
+  const providerPayment = extractPaychanguPaymentDetails(verification, pending.paymentMethod);
   let bookingId = pending.bookingId;
   let notification: BookingNotification | null = null;
   const rawCode = pending.bookingId ? null : generateCode();
@@ -1024,16 +1119,25 @@ async function finalizeVerifiedPayment(
         commissionMwk: pending.systemFeeMwk,
         commissionRate: pending.systemFeeRate,
         netAmountMwk: pending.driverAmountMwk,
-        paymentMethod: pending.paymentMethod,
+        paymentMethod: providerPayment.paymentMethod,
         gatewayRef: pending.txRef,
         provider: "paychangu",
         providerReference: providerReference || null,
+        providerChannel: providerPayment.channel,
+        providerOperatorRefId: providerPayment.operatorRefId,
+        providerOperatorName: providerPayment.operatorName,
+        providerMobileNumber: providerPayment.mobileNumber,
         providerPayload: toJson(verification),
         status: "escrow_held",
         escrowHeldAt: now,
         verifiedAt: now,
       },
       update: {
+        paymentMethod: providerPayment.paymentMethod,
+        providerChannel: providerPayment.channel,
+        providerOperatorRefId: providerPayment.operatorRefId,
+        providerOperatorName: providerPayment.operatorName,
+        providerMobileNumber: providerPayment.mobileNumber,
         providerPayload: toJson(verification),
         verifiedAt: now,
       },
@@ -1053,6 +1157,11 @@ async function finalizeVerifiedPayment(
         status: "verified",
         gatewayReference: providerReference || null,
         bookingId,
+        paymentMethod: providerPayment.paymentMethod,
+        providerChannel: providerPayment.channel,
+        providerOperatorRefId: providerPayment.operatorRefId,
+        providerOperatorName: providerPayment.operatorName,
+        providerMobileNumber: providerPayment.mobileNumber,
         providerPayload: toJson(verification),
         verifiedAt: now,
       },
@@ -1409,6 +1518,11 @@ export async function adminRefund(paymentId: string) {
         driverId: true,
         customerAmountMwk: true,
         paymentMethod: true,
+        providerChannel: true,
+        providerOperatorRefId: true,
+        providerOperatorName: true,
+        providerMobileNumber: true,
+        providerPayload: true,
         gatewayRef: true,
         providerReference: true,
         passenger: { select: { phone: true } },
@@ -1459,6 +1573,17 @@ export async function adminRefund(paymentId: string) {
 
     const refundId = randomUUID();
     const chargeId = `RF-${refundId}`;
+    const payloadPayment = extractPaychanguMobilePaymentDetails(payment.providerPayload);
+    const paidPhone = payment.providerMobileNumber ?? payloadPayment.mobileNumber;
+    if (!paidPhone) {
+      throw new AppError(
+        400,
+        "Cannot automatically refund because the original PayChangu payment phone was not saved. Use manual review for this payment.",
+      );
+    }
+    const operatorRefId = payment.providerOperatorRefId ?? payloadPayment.operatorRefId;
+    const operatorName = payment.providerOperatorName ?? payloadPayment.operatorName;
+    const providerChannel = payment.providerChannel ?? payloadPayment.channel;
     const refund = await tx.paymentRefund.create({
       data: {
         id: refundId,
@@ -1477,7 +1602,10 @@ export async function adminRefund(paymentId: string) {
         platformConvenienceFeeMwk: 0,
         refundAmountMwk: payment.customerAmountMwk,
         paymentMethod: payment.paymentMethod,
-        recipientPhone: payment.passenger.phone,
+        providerChannel,
+        providerOperatorRefId: operatorRefId,
+        providerOperatorName: operatorName,
+        recipientPhone: paidPhone,
         gatewayChargeId: chargeId,
         providerReference: payment.providerReference ?? payment.gatewayRef,
         gatewayRequestedAt: new Date(),
@@ -1495,8 +1623,10 @@ export async function adminRefund(paymentId: string) {
       refund,
       tripId: payment.booking.tripId,
       segmentId: payment.booking.segmentId,
-      passengerPhone: payment.passenger.phone,
+      passengerPhone: paidPhone,
       paymentMethod: payment.paymentMethod,
+      providerOperatorRefId: operatorRefId,
+      providerOperatorName: operatorName,
       seatsBooked: payment.booking.seatsBooked,
     };
   });
@@ -1505,6 +1635,8 @@ export async function adminRefund(paymentId: string) {
   try {
     payout = await initiatePaychanguMobileMoneyRefund({
       paymentMethod: pendingRefund.paymentMethod,
+      operatorRefId: pendingRefund.providerOperatorRefId,
+      operatorName: pendingRefund.providerOperatorName,
       passengerPhone: pendingRefund.passengerPhone,
       amountMwk: pendingRefund.refund.refundAmountMwk,
       chargeId: pendingRefund.refund.gatewayChargeId ?? `RF-${pendingRefund.refund.id}`,

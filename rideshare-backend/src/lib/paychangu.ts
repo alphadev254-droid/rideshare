@@ -9,6 +9,13 @@ type OperatorInfo = { name: string; refId: string };
 let cachedOperators: OperatorInfo[] | null = null;
 let operatorsFetchPromise: Promise<OperatorInfo[]> | null = null;
 
+export type PaychanguMobilePaymentDetails = {
+  channel: string | null;
+  operatorRefId: string | null;
+  operatorName: string | null;
+  mobileNumber: string | null;
+};
+
 export type PaychanguPayoutInitiation = {
   success: boolean;
   uncertain?: boolean;
@@ -91,6 +98,49 @@ function operatorRefForMethod(method: PaymentMethod) {
   return "";
 }
 
+async function resolveMobileMoneyOperatorRef(input: {
+  paymentMethod?: PaymentMethod | null;
+  operatorRefId?: string | null;
+  operatorName?: string | null;
+}) {
+  if (input.operatorRefId?.trim()) return input.operatorRefId.trim();
+
+  const normalizedName = input.operatorName?.toLowerCase() ?? "";
+  if (normalizedName.includes("airtel")) {
+    return (
+      getOperatorRefFromCache("airtel") ||
+      env.PAYCHANGU_AIRTEL_MONEY_OPERATOR_REF_ID ||
+      (await fetchMobileMoneyOperators()).find((op) =>
+        op.name.toLowerCase().includes("airtel"),
+      )?.refId ||
+      ""
+    );
+  }
+  if (normalizedName.includes("tnm") || normalizedName.includes("mpamba")) {
+    return (
+      getOperatorRefFromCache("tnm") ||
+      env.PAYCHANGU_TNM_MPAMBA_OPERATOR_REF_ID ||
+      (await fetchMobileMoneyOperators()).find((op) =>
+        op.name.toLowerCase().includes("tnm"),
+      )?.refId ||
+      ""
+    );
+  }
+
+  if (input.paymentMethod) {
+    const fromEnv = operatorRefForMethod(input.paymentMethod);
+    if (fromEnv) return fromEnv;
+
+    if (input.paymentMethod === "airtel_money" || input.paymentMethod === "tnm_mpamba") {
+      const operators = await fetchMobileMoneyOperators();
+      const needle = input.paymentMethod === "airtel_money" ? "airtel" : "tnm";
+      return operators.find((op) => op.name.toLowerCase().includes(needle))?.refId ?? "";
+    }
+  }
+
+  return "";
+}
+
 function providerErrorMessage(error: unknown, fallback: string) {
   if (!axios.isAxiosError(error)) return fallback;
   const data = error.response?.data as
@@ -98,19 +148,81 @@ function providerErrorMessage(error: unknown, fallback: string) {
   return data?.message ?? data?.error ?? fallback;
 }
 
+function recordFrom(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function stringFrom(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return null;
+}
+
+export function extractPaychanguMobilePaymentDetails(
+  payload: Prisma.JsonValue | Record<string, unknown> | null | undefined,
+): PaychanguMobilePaymentDetails {
+  const root = recordFrom(payload);
+  const data = recordFrom(root.data);
+  const source = Object.keys(data).length > 0 ? data : root;
+  const authorization = recordFrom(source.authorization);
+  const mobileMoney = recordFrom(source.mobile_money);
+  const authMobileMoney = recordFrom(authorization.mobile_money);
+
+  return {
+    channel: stringFrom(
+      authorization.channel,
+      authorization.payment_channel,
+      source.channel,
+      source.payment_channel,
+      source.type,
+    ),
+    operatorRefId: stringFrom(
+      authorization.mobile_money_operator_ref_id,
+      authorization.operator_ref_id,
+      authorization.operator_id,
+      authorization.ref_id,
+      authMobileMoney.ref_id,
+      mobileMoney.ref_id,
+    ),
+    operatorName: stringFrom(
+      authorization.provider,
+      authorization.operator,
+      authorization.operator_name,
+      authMobileMoney.name,
+      mobileMoney.name,
+    ),
+    mobileNumber: stringFrom(
+      authorization.mobile_number,
+      authorization.mobile,
+      source.mobile,
+      mobileMoney.mobile,
+    ),
+  };
+}
+
 // ─── Mobile Money Refund (passenger) ──────────────────────
 
 export async function initiatePaychanguMobileMoneyRefund(input: {
-  paymentMethod: PaymentMethod;
+  paymentMethod?: PaymentMethod | null;
   passengerPhone: string | null;
   amountMwk: bigint;
   chargeId: string;
+  operatorRefId?: string | null;
+  operatorName?: string | null;
 }): Promise<PaychanguPayoutInitiation> {
-  const operatorRef = operatorRefForMethod(input.paymentMethod);
+  const operatorRef = await resolveMobileMoneyOperatorRef({
+    paymentMethod: input.paymentMethod,
+    operatorRefId: input.operatorRefId,
+    operatorName: input.operatorName,
+  });
   if (!operatorRef) {
     throw new AppError(
       400,
-      "Automatic PayChangu refunds are currently configured only for Airtel Money and TNM Mpamba. Set the matching operator reference ID in env.",
+      "Automatic PayChangu refunds require the original mobile-money operator. Save the PayChangu operator ref on payment verification or configure the matching Airtel/TNM operator reference ID in env.",
     );
   }
   if (!input.passengerPhone) {
@@ -122,13 +234,14 @@ export async function initiatePaychanguMobileMoneyRefund(input: {
   if (input.amountMwk <= 0n) {
     throw new AppError(400, "Refund amount must be greater than zero");
   }
+  const mobile = normalizePhoneForPayout(input.passengerPhone);
 
   try {
     const response = await axios.post(
       `${env.PAYCHANGU_BASE_URL}/mobile-money/payouts/initialize`,
       {
         mobile_money_operator_ref_id: operatorRef,
-        mobile: input.passengerPhone,
+        mobile,
         amount: input.amountMwk.toString(),
         charge_id: input.chargeId,
       },
