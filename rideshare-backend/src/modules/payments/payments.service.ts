@@ -160,6 +160,12 @@ function toJson(value: Record<string, unknown>): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
+function stringifyLogPayload(value: unknown) {
+  return JSON.stringify(value, (_key, item) =>
+    typeof item === "bigint" ? item.toString() : item,
+  );
+}
+
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value,
@@ -1577,6 +1583,22 @@ export async function adminRefund(paymentId: string) {
         providerOperatorName: true,
         providerMobileNumber: true,
         providerPayload: true,
+        grossAmountMwk: true,
+        fareAmountMwk: true,
+        providerFeeMwk: true,
+        providerFeeRate: true,
+        systemFeeMwk: true,
+        systemFeeRate: true,
+        commissionMwk: true,
+        commissionRate: true,
+        netAmountMwk: true,
+        provider: true,
+        escrowHeldAt: true,
+        verifiedAt: true,
+        releasedAt: true,
+        refundedAt: true,
+        createdAt: true,
+        status: true,
         gatewayRef: true,
         providerReference: true,
         passenger: { select: { phone: true } },
@@ -1647,6 +1669,20 @@ export async function adminRefund(paymentId: string) {
     const chargeId = `RF-${refundId}`;
     const payloadPayment = extractPaychanguMobilePaymentDetails(payment.providerPayload);
     const paidPhone = payment.providerMobileNumber ?? payloadPayment.mobileNumber;
+    console.log(
+      "[REFUND] Payment source data for admin refund:",
+      stringifyLogPayload({
+        payment,
+        bookingId: payment.bookingId,
+        savedProviderMobileNumber: payment.providerMobileNumber,
+        savedProviderOperatorRefId: payment.providerOperatorRefId,
+        savedProviderOperatorName: payment.providerOperatorName,
+        savedProviderChannel: payment.providerChannel,
+        extractedFromProviderPayload: payloadPayment,
+        selectedRefundPhone: paidPhone,
+        providerPayload: payment.providerPayload,
+      }),
+    );
     if (!paidPhone) {
       throw new AppError(
         400,

@@ -197,6 +197,12 @@ const refundSelect = {
   processedAt: true,
 } satisfies Prisma.PaymentRefundSelect;
 
+function stringifyLogPayload(value: unknown) {
+  return JSON.stringify(value, (_key, item) =>
+    typeof item === "bigint" ? item.toString() : item,
+  );
+}
+
 /** Leaner include for list queries — no payment/transaction data. */
 const bookingAdminListSelect = {
   id: true,
@@ -494,6 +500,24 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
             providerOperatorName: true,
             providerMobileNumber: true,
             providerPayload: true,
+            gatewayRef: true,
+            grossAmountMwk: true,
+            fareAmountMwk: true,
+            providerFeeMwk: true,
+            providerFeeRate: true,
+            systemFeeMwk: true,
+            systemFeeRate: true,
+            customerAmountMwk: true,
+            commissionMwk: true,
+            commissionRate: true,
+            netAmountMwk: true,
+            provider: true,
+            escrowHeldAt: true,
+            verifiedAt: true,
+            releasedAt: true,
+            refundedAt: true,
+            createdAt: true,
+            status: true,
             passenger: { select: { phone: true } },
             refunds: {
               where: { status: { in: ["requested", "processing", "completed"] } },
@@ -520,6 +544,20 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
     const amounts = calculateRefundAmounts(booking.payment.customerAmountMwk);
     const payloadPayment = extractPaychanguMobilePaymentDetails(booking.payment.providerPayload);
     const paidPhone = booking.payment.providerMobileNumber ?? payloadPayment.mobileNumber;
+    console.log(
+      "[REFUND] Payment source data for passenger refund:",
+      stringifyLogPayload({
+        bookingId: booking.id,
+        payment: booking.payment,
+        savedProviderMobileNumber: booking.payment.providerMobileNumber,
+        savedProviderOperatorRefId: booking.payment.providerOperatorRefId,
+        savedProviderOperatorName: booking.payment.providerOperatorName,
+        savedProviderChannel: booking.payment.providerChannel,
+        extractedFromProviderPayload: payloadPayment,
+        selectedRefundPhone: paidPhone,
+        providerPayload: booking.payment.providerPayload,
+      }),
+    );
     if (!paidPhone) {
       throw new AppError(
         400,
