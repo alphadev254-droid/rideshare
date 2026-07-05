@@ -10,4 +10,3 @@ ALTER TABLE payment_refunds
 
 CREATE INDEX IF NOT EXISTS payment_refunds_gateway_charge_id_idx ON payment_refunds(gateway_charge_id);
 CREATE INDEX IF NOT EXISTS payment_refunds_provider_reference_idx ON payment_refunds(provider_reference);
-CREATE UNIQUE INDEX IF NOT EXISTS payment_refunds_payment_id_key ON payment_refunds(payment_id);

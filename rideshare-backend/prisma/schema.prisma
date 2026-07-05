@@ -477,8 +477,8 @@ model PaymentRefund {
   driver    DriverProfile       @relation(fields: [driverId], references: [id])
   walletTx  WalletTransaction[]
 
-  @@unique([paymentId])
   @@index([bookingId])
+  @@index([paymentId])
   @@index([passengerId])
   @@index([driverId])
   @@index([gatewayChargeId])
@@ -527,6 +527,7 @@ model PendingPayment {
   passenger User          @relation(fields: [passengerId], references: [id])
   driver    DriverProfile @relation(fields: [driverId], references: [id])
 
+  @@index([passengerId, tripId, status])
   @@map("pending_payments")
 }
 

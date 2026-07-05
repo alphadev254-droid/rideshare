@@ -497,7 +497,8 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
             passenger: { select: { phone: true } },
             refunds: {
               where: { status: { in: ["requested", "processing", "completed"] } },
-              select: { id: true },
+              select: refundSelect,
+              orderBy: { requestedAt: "desc" },
               take: 1,
             },
           },
@@ -506,7 +507,6 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
     });
     if (!booking) throw new AppError(404, "Booking not found");
     if (!booking.payment) throw new AppError(400, "This booking has no completed payment");
-    if (booking.payment.refunds.length > 0) throw new AppError(400, "A refund already exists for this booking");
     if (booking.paymentStatus !== "held_in_escrow" || booking.payment.status !== "escrow_held") {
       throw new AppError(400, "Only escrow-held bookings can be refunded by the passenger");
     }
@@ -531,6 +531,22 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
     const providerChannel = booking.payment.providerChannel ?? payloadPayment.channel;
     const refundId = randomUUID();
     const chargeId = `RF-${refundId}`;
+    const existingRefund = booking.payment.refunds[0] ?? null;
+    if (existingRefund) {
+      return {
+        refund: existingRefund,
+        skipPayout: true,
+        tripId: booking.tripId,
+        segmentId: booking.segmentId,
+        driverId: booking.payment.driverId,
+        passengerPhone: paidPhone,
+        paymentMethod: booking.payment.paymentMethod,
+        providerOperatorRefId: operatorRefId,
+        providerOperatorName: operatorName,
+        seatsBooked: booking.seatsBooked,
+        chargeId: existingRefund.gatewayChargeId ?? chargeId,
+      };
+    }
     const created = await tx.paymentRefund.create({
       data: {
         id: refundId,
@@ -557,42 +573,12 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
         providerReference: booking.payment.providerReference,
         gatewayRequestedAt: new Date(),
       },
-      select: {
-        id: true,
-        paymentId: true,
-        bookingId: true,
-        status: true,
-        reason: true,
-        originalCustomerAmountMwk: true,
-        refundableBaseMwk: true,
-        convenienceFeeRate: true,
-        convenienceFeeMwk: true,
-        driverConvenienceShareRate: true,
-        driverConvenienceShareMwk: true,
-        platformConvenienceFeeMwk: true,
-        refundAmountMwk: true,
-        paymentMethod: true,
-        providerChannel: true,
-        providerOperatorRefId: true,
-        providerOperatorName: true,
-        recipientPhone: true,
-        gatewayChargeId: true,
-        providerReference: true,
-        providerTransactionId: true,
-        providerStatus: true,
-        providerPayload: true,
-        gatewayRequestedAt: true,
-        gatewayRespondedAt: true,
-        webhookReceivedAt: true,
-        failedAt: true,
-        failureReason: true,
-        requestedAt: true,
-        processedAt: true,
-      },
+      select: refundSelect,
     });
 
     return {
       refund: created,
+      skipPayout: false,
       tripId: booking.tripId,
       segmentId: booking.segmentId,
       driverId: booking.payment.driverId,
@@ -604,6 +590,8 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
       chargeId,
     };
   });
+
+  if (pendingRefund.skipPayout) return formatRefund(pendingRefund.refund);
 
   let payout;
   try {

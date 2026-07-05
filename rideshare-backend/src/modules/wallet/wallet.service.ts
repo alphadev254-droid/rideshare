@@ -818,8 +818,9 @@ export async function requestWithdrawal(
     );
 
   if (!driver.wallet) throw new AppError(404, "Driver wallet not found");
+  const roundedAmountMwk = BigInt(Math.round(amountMwk));
   const { netAmountMwk } = calculateWithdrawalFee(
-    BigInt(Math.round(amountMwk)),
+    roundedAmountMwk,
     provider,
   );
   if (netAmountMwk <= 0n) {
@@ -839,13 +840,50 @@ export async function requestWithdrawal(
     throw new AppError(400, "Insufficient balance");
   }
 
+  const activeWithdrawal = await prisma.walletWithdrawalRequest.findFirst({
+    where: {
+      driverId: driver.id,
+      status: { in: ["queued", "processing"] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      amountMwk: true,
+      phone: true,
+      provider: true,
+      status: true,
+      reference: true,
+    },
+  });
+  if (activeWithdrawal) {
+    const sameRequest =
+      activeWithdrawal.amountMwk === roundedAmountMwk &&
+      activeWithdrawal.phone === phone &&
+      activeWithdrawal.provider === provider;
+    if (!sameRequest) {
+      throw new AppError(
+        409,
+        "You already have a withdrawal being processed. Wait for it to finish before starting another one.",
+      );
+    }
+    return {
+      id: activeWithdrawal.id,
+      amountMwk: activeWithdrawal.amountMwk.toString(),
+      reference: activeWithdrawal.reference,
+      status: activeWithdrawal.status,
+      phone: activeWithdrawal.phone,
+      provider: activeWithdrawal.provider,
+      message: "Withdrawal already queued",
+    };
+  }
+
   const ref = `WD-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
   const request = await prisma.$transaction(async (tx) => {
     await verifyAndConsumeOtpCode(driver.user.id, "withdrawal", otp, tx);
     return tx.walletWithdrawalRequest.create({
       data: {
         driverId: driver.id,
-        amountMwk: BigInt(amountMwk),
+        amountMwk: roundedAmountMwk,
         phone,
         provider,
         reference: ref,

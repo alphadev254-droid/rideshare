@@ -125,6 +125,9 @@ type BookingNotification = {
   route: string;
 };
 
+const ACTIVE_PENDING_PAYMENT_STATUSES = ["pending"] as const;
+const RETRYABLE_PENDING_PAYMENT_STATUSES = ["failed"] as const;
+
 function paychanguHeaders() {
   return {
     Authorization: `Bearer ${env.PAYCHANGU_SECRET_KEY}`,
@@ -715,6 +718,26 @@ export async function initiatePayment(
   if (existingPayment)
     throw new AppError(400, "Booking already has a finalized payment");
 
+  const existingPending = await prisma.pendingPayment.findUnique({
+    where: { bookingId },
+  });
+  if (
+    existingPending &&
+    ACTIVE_PENDING_PAYMENT_STATUSES.includes(existingPending.status as (typeof ACTIVE_PENDING_PAYMENT_STATUSES)[number])
+  ) {
+    return {
+      ...formatPending(existingPending),
+      paymentUrl: existingPending.checkoutUrl,
+      checkoutUrl: existingPending.checkoutUrl,
+    };
+  }
+  if (
+    existingPending &&
+    !RETRYABLE_PENDING_PAYMENT_STATUSES.includes(existingPending.status as (typeof RETRYABLE_PENDING_PAYMENT_STATUSES)[number])
+  ) {
+    throw new AppError(400, `Payment is already ${existingPending.status}`);
+  }
+
   const breakdown = calculatePaymentBreakdown(Number(booking.fareMwk));
   assertPaychanguMinimum(breakdown.customerAmountMwk);
   const txRef = `RS-${randomUUID()}`;
@@ -846,6 +869,37 @@ export async function initiateRidePayment(
   });
   if (existingBooking)
     throw new AppError(409, "You already have a booking for this trip");
+
+  const existingPending = await prisma.pendingPayment.findFirst({
+    where: {
+      tripId: input.tripId,
+      passengerId,
+      status: { in: [...ACTIVE_PENDING_PAYMENT_STATUSES] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (existingPending) {
+    const sameCheckout =
+      existingPending.segmentId === (input.segmentId ?? null) &&
+      existingPending.seatsBooked === input.seatsBooked &&
+      existingPending.boardingPoint === (segment?.fromStop.pickupPoint ?? input.boardingPoint) &&
+      existingPending.dropOffPoint ===
+        (segment?.toStop.dropOffPoint ??
+          input.dropOffPoint ??
+          trip.dropOffPoint ??
+          trip.destinationName);
+    if (!sameCheckout) {
+      throw new AppError(
+        409,
+        "You already have a payment checkout pending for this trip. Finish that payment before changing seats or route.",
+      );
+    }
+    return {
+      ...formatPending(existingPending),
+      paymentUrl: existingPending.checkoutUrl,
+      checkoutUrl: existingPending.checkoutUrl,
+    };
+  }
 
   const farePerSeat = Number(segment?.fareMwk ?? trip.baseFareMwk ?? BigInt(0));
   const fareAmount = farePerSeat * input.seatsBooked;
@@ -1539,7 +1593,14 @@ export async function adminRefund(paymentId: string) {
         },
         refunds: {
           where: { status: { in: ["requested", "processing", "completed"] } },
-          select: { id: true },
+          select: {
+            id: true,
+            bookingId: true,
+            refundAmountMwk: true,
+            gatewayChargeId: true,
+            status: true,
+          },
+          orderBy: { requestedAt: "desc" },
           take: 1,
         },
       },
@@ -1549,8 +1610,19 @@ export async function adminRefund(paymentId: string) {
         404,
         "Escrow-held payment not found or not refundable",
       );
-    if (payment.refunds.length > 0)
-      throw new AppError(400, "A refund already exists for this payment");
+    if (payment.refunds.length > 0) {
+      return {
+        refund: payment.refunds[0],
+        skipPayout: true,
+        tripId: payment.booking.tripId,
+        segmentId: payment.booking.segmentId,
+        passengerPhone: payment.providerMobileNumber ?? null,
+        paymentMethod: payment.paymentMethod,
+        providerOperatorRefId: payment.providerOperatorRefId,
+        providerOperatorName: payment.providerOperatorName,
+        seatsBooked: payment.booking.seatsBooked,
+      };
+    }
     if (payment.booking.paymentStatus !== "held_in_escrow") {
       throw new AppError(
         400,
@@ -1621,6 +1693,7 @@ export async function adminRefund(paymentId: string) {
 
     return {
       refund,
+      skipPayout: false,
       tripId: payment.booking.tripId,
       segmentId: payment.booking.segmentId,
       passengerPhone: paidPhone,
@@ -1630,6 +1703,16 @@ export async function adminRefund(paymentId: string) {
       seatsBooked: payment.booking.seatsBooked,
     };
   });
+
+  if (pendingRefund.skipPayout) {
+    return {
+      id: paymentId,
+      status: pendingRefund.refund.status,
+      bookingId: pendingRefund.refund.bookingId,
+      refundId: pendingRefund.refund.id,
+      refundAmountMwk: pendingRefund.refund.refundAmountMwk.toString(),
+    };
+  }
 
   let payout;
   try {
