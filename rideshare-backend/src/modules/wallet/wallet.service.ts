@@ -532,16 +532,25 @@ export async function listWithdrawalsForAdmin(input: {
   limit?: number;
   search?: string;
   status?: string;
+  method?: string;
+  needsReconcile?: boolean;
 }) {
   const page = Math.max(Number(input.page) || 1, 1);
   const limit = Math.min(Math.max(Number(input.limit) || 50, 1), 200);
   const offset = (page - 1) * limit;
   const search = input.search?.trim();
   const status = input.status && input.status !== "all" ? input.status : undefined;
+  const method = input.method && input.method !== "all" ? input.method : undefined;
 
   const where: Prisma.Sql[] = [];
   if (status) {
     where.push(Prisma.sql`(wr.status::text = ${status} OR wr.provider_status = ${status})`);
+  }
+  if (method) {
+    where.push(Prisma.sql`wr.provider = ${method}`);
+  }
+  if (input.needsReconcile) {
+    where.push(Prisma.sql`wr.status::text = 'processing' AND wr.gateway_charge_id IS NOT NULL`);
   }
   if (search) {
     const pattern = `%${search}%`;

@@ -40,15 +40,33 @@ import {
 } from "@/lib/api";
 import { formatDateTime, formatMwk } from "@/lib/format";
 
+const DEFAULT_PAYOUT_PAGE_SIZE = 70;
+const PAYOUT_PAGE_SIZE_OPTIONS = [25, 50, 70, 100];
+
 export const Route = createFileRoute("/admin/wallet")({
   component: AdminWalletPage,
 });
 
 function AdminWalletPage() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [type, setType] = useState<"all" | "credit" | "withdrawal">("all");
-  const [status, setStatus] = useState("all");
+  const [activeTab, setActiveTab] = useState("transactions");
+  const [ledgerSearch, setLedgerSearch] = useState("");
+  const [ledgerType, setLedgerType] = useState<"all" | "credit" | "withdrawal">("all");
+  const [ledgerStatus, setLedgerStatus] = useState("all");
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const [ledgerLimit, setLedgerLimit] = useState(DEFAULT_PAYOUT_PAGE_SIZE);
+  const [withdrawalSearch, setWithdrawalSearch] = useState("");
+  const [withdrawalStatus, setWithdrawalStatus] = useState("all");
+  const [withdrawalMethod, setWithdrawalMethod] = useState("all");
+  const [withdrawalNeedsReconcile, setWithdrawalNeedsReconcile] = useState("all");
+  const [withdrawalPage, setWithdrawalPage] = useState(1);
+  const [withdrawalLimit, setWithdrawalLimit] = useState(DEFAULT_PAYOUT_PAGE_SIZE);
+  const [refundSearch, setRefundSearch] = useState("");
+  const [refundStatus, setRefundStatus] = useState("all");
+  const [refundMethod, setRefundMethod] = useState("all");
+  const [refundNeedsReconcile, setRefundNeedsReconcile] = useState("all");
+  const [refundPage, setRefundPage] = useState(1);
+  const [refundLimit, setRefundLimit] = useState(DEFAULT_PAYOUT_PAGE_SIZE);
   const [jsonDialog, setJsonDialog] = useState<{ title: string; value: unknown } | null>(null);
   const [rowDialog, setRowDialog] = useState<
     | { title: string; kind: "transaction"; row: AdminWalletTransaction }
@@ -58,34 +76,64 @@ function AdminWalletPage() {
   >(null);
 
   const transactions = useQuery({
-    queryKey: ["wallet", "admin", "transactions", search, type, status],
+    queryKey: ["wallet", "admin", "transactions", ledgerSearch, ledgerType, ledgerStatus, ledgerPage, ledgerLimit],
     queryFn: () =>
       walletService.adminTransactions({
-        limit: 100,
-        search: search || undefined,
-        type,
-        status,
+        page: ledgerPage,
+        limit: ledgerLimit,
+        search: ledgerSearch || undefined,
+        type: ledgerType,
+        status: ledgerStatus,
       }),
+    enabled: activeTab === "transactions",
   });
 
   const withdrawals = useQuery({
-    queryKey: ["wallet", "admin", "withdrawals", search, status],
+    queryKey: [
+      "wallet",
+      "admin",
+      "withdrawals",
+      withdrawalSearch,
+      withdrawalStatus,
+      withdrawalMethod,
+      withdrawalNeedsReconcile,
+      withdrawalPage,
+      withdrawalLimit,
+    ],
     queryFn: () =>
       walletService.adminWithdrawals({
-        limit: 100,
-        search: search || undefined,
-        status,
+        page: withdrawalPage,
+        limit: withdrawalLimit,
+        search: withdrawalSearch || undefined,
+        status: withdrawalStatus,
+        method: withdrawalMethod,
+        needsReconcile: withdrawalNeedsReconcile === "needs",
       }),
+    enabled: activeTab === "withdrawals",
   });
 
   const refunds = useQuery({
-    queryKey: ["payouts", "admin", "refunds", search, status],
+    queryKey: [
+      "payouts",
+      "admin",
+      "refunds",
+      refundSearch,
+      refundStatus,
+      refundMethod,
+      refundNeedsReconcile,
+      refundPage,
+      refundLimit,
+    ],
     queryFn: () =>
       walletService.adminRefunds({
-        limit: 100,
-        search: search || undefined,
-        status,
+        page: refundPage,
+        limit: refundLimit,
+        search: refundSearch || undefined,
+        status: refundStatus,
+        method: refundMethod,
+        needsReconcile: refundNeedsReconcile === "needs",
       }),
+    enabled: activeTab === "refunds",
   });
 
   const reconcile = useMutation({
@@ -115,44 +163,7 @@ function AdminWalletPage() {
         description="Driver withdrawals, passenger refund payouts, gateway status and manual PayChangu reconciliation."
       />
 
-      <div className="grid gap-3 rounded-md border border-border bg-card p-3 lg:grid-cols-[1fr_180px_220px]">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search driver, phone, reference or charge ID"
-            className="pl-9"
-          />
-        </div>
-        <Select value={type} onValueChange={(value) => setType(value as typeof type)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            <SelectItem value="credit">Credit</SelectItem>
-            <SelectItem value="withdrawal">Withdrawal</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="queued">Queued</SelectItem>
-            <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="failed">Failed</SelectItem>
-            <SelectItem value="pending">Gateway pending</SelectItem>
-            <SelectItem value="request_uncertain">Request uncertain</SelectItem>
-            <SelectItem value="timeout_waiting_for_webhook">Timed out</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Tabs defaultValue="transactions" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="transactions">Wallet transactions</TabsTrigger>
           <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
@@ -160,44 +171,144 @@ function AdminWalletPage() {
         </TabsList>
 
         <TabsContent value="transactions">
+          <LedgerFilters
+            search={ledgerSearch}
+            type={ledgerType}
+            status={ledgerStatus}
+            onSearchChange={(value) => {
+              setLedgerSearch(value);
+              setLedgerPage(1);
+            }}
+            onTypeChange={(value) => {
+              setLedgerType(value);
+              setLedgerPage(1);
+            }}
+            onStatusChange={(value) => {
+              setLedgerStatus(value);
+              setLedgerPage(1);
+            }}
+          />
           {transactions.isLoading ? (
             <LoadingState />
           ) : (
-            <WalletTransactionsTable
-              rows={transactions.data?.items ?? []}
-              onViewJson={(title, value) => setJsonDialog({ title, value })}
-              onViewRow={(row) => setRowDialog({ title: "Wallet transaction details", kind: "transaction", row })}
-            />
+            <>
+              <WalletTransactionsTable
+                rows={transactions.data?.items ?? []}
+                onViewJson={(title, value) => setJsonDialog({ title, value })}
+                onViewRow={(row) => setRowDialog({ title: "Wallet transaction details", kind: "transaction", row })}
+              />
+              <PayoutPagination
+                page={ledgerPage}
+                limit={ledgerLimit}
+                total={transactions.data?.total ?? 0}
+                isFetching={transactions.isFetching}
+                onPageChange={setLedgerPage}
+                onLimitChange={(value) => {
+                  setLedgerLimit(value);
+                  setLedgerPage(1);
+                }}
+              />
+            </>
           )}
         </TabsContent>
 
         <TabsContent value="withdrawals">
+          <WithdrawalFilters
+            search={withdrawalSearch}
+            status={withdrawalStatus}
+            method={withdrawalMethod}
+            needsReconcile={withdrawalNeedsReconcile}
+            onSearchChange={(value) => {
+              setWithdrawalSearch(value);
+              setWithdrawalPage(1);
+            }}
+            onStatusChange={(value) => {
+              setWithdrawalStatus(value);
+              setWithdrawalPage(1);
+            }}
+            onMethodChange={(value) => {
+              setWithdrawalMethod(value);
+              setWithdrawalPage(1);
+            }}
+            onNeedsReconcileChange={(value) => {
+              setWithdrawalNeedsReconcile(value);
+              setWithdrawalPage(1);
+            }}
+          />
           {withdrawals.isLoading ? (
             <LoadingState />
           ) : (
-            <WithdrawalsTable
-              rows={withdrawals.data?.items ?? []}
-              onReconcile={(id) => reconcile.mutate(id)}
-              onViewJson={(title, value) => setJsonDialog({ title, value })}
-              onViewRow={(row) => setRowDialog({ title: "Withdrawal details", kind: "withdrawal", row })}
-              reconcilingId={reconcile.variables}
-              isReconciling={reconcile.isPending}
-            />
+            <>
+              <WithdrawalsTable
+                rows={withdrawals.data?.items ?? []}
+                onReconcile={(id) => reconcile.mutate(id)}
+                onViewJson={(title, value) => setJsonDialog({ title, value })}
+                onViewRow={(row) => setRowDialog({ title: "Withdrawal details", kind: "withdrawal", row })}
+                reconcilingId={reconcile.variables}
+                isReconciling={reconcile.isPending}
+              />
+              <PayoutPagination
+                page={withdrawalPage}
+                limit={withdrawalLimit}
+                total={withdrawals.data?.total ?? 0}
+                isFetching={withdrawals.isFetching}
+                onPageChange={setWithdrawalPage}
+                onLimitChange={(value) => {
+                  setWithdrawalLimit(value);
+                  setWithdrawalPage(1);
+                }}
+              />
+            </>
           )}
         </TabsContent>
 
         <TabsContent value="refunds">
+          <RefundFilters
+            search={refundSearch}
+            status={refundStatus}
+            method={refundMethod}
+            needsReconcile={refundNeedsReconcile}
+            onSearchChange={(value) => {
+              setRefundSearch(value);
+              setRefundPage(1);
+            }}
+            onStatusChange={(value) => {
+              setRefundStatus(value);
+              setRefundPage(1);
+            }}
+            onMethodChange={(value) => {
+              setRefundMethod(value);
+              setRefundPage(1);
+            }}
+            onNeedsReconcileChange={(value) => {
+              setRefundNeedsReconcile(value);
+              setRefundPage(1);
+            }}
+          />
           {refunds.isLoading ? (
             <LoadingState />
           ) : (
-            <RefundsTable
-              rows={refunds.data?.items ?? []}
-              onReconcile={(id) => reconcileRefund.mutate(id)}
-              onViewJson={(title, value) => setJsonDialog({ title, value })}
-              onViewRow={(row) => setRowDialog({ title: "Refund payout details", kind: "refund", row })}
-              reconcilingId={reconcileRefund.variables}
-              isReconciling={reconcileRefund.isPending}
-            />
+            <>
+              <RefundsTable
+                rows={refunds.data?.items ?? []}
+                onReconcile={(id) => reconcileRefund.mutate(id)}
+                onViewJson={(title, value) => setJsonDialog({ title, value })}
+                onViewRow={(row) => setRowDialog({ title: "Refund payout details", kind: "refund", row })}
+                reconcilingId={reconcileRefund.variables}
+                isReconciling={reconcileRefund.isPending}
+              />
+              <PayoutPagination
+                page={refundPage}
+                limit={refundLimit}
+                total={refunds.data?.total ?? 0}
+                isFetching={refunds.isFetching}
+                onPageChange={setRefundPage}
+                onLimitChange={(value) => {
+                  setRefundLimit(value);
+                  setRefundPage(1);
+                }}
+              />
+            </>
           )}
         </TabsContent>
       </Tabs>
@@ -218,6 +329,232 @@ function AdminWalletPage() {
         }}
         onViewJson={(title, value) => setJsonDialog({ title, value })}
       />
+    </div>
+  );
+}
+
+function LedgerFilters({
+  search,
+  type,
+  status,
+  onSearchChange,
+  onTypeChange,
+  onStatusChange,
+}: {
+  search: string;
+  type: "all" | "credit" | "withdrawal";
+  status: string;
+  onSearchChange: (value: string) => void;
+  onTypeChange: (value: "all" | "credit" | "withdrawal") => void;
+  onStatusChange: (value: string) => void;
+}) {
+  return (
+    <div className="mb-3 grid gap-3 rounded-md border border-border bg-card p-3 lg:grid-cols-[1fr_180px_220px]">
+      <SearchInput value={search} onChange={onSearchChange} placeholder="Search driver, reference, booking or refund ID" />
+      <Select value={type} onValueChange={(value) => onTypeChange(value as typeof type)}>
+        <SelectTrigger>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All ledger types</SelectItem>
+          <SelectItem value="credit">Credit</SelectItem>
+          <SelectItem value="withdrawal">Withdrawal</SelectItem>
+        </SelectContent>
+      </Select>
+      <StatusFilter value={status} onChange={onStatusChange} includeQueued={false} />
+    </div>
+  );
+}
+
+function WithdrawalFilters({
+  search,
+  status,
+  method,
+  needsReconcile,
+  onSearchChange,
+  onStatusChange,
+  onMethodChange,
+  onNeedsReconcileChange,
+}: {
+  search: string;
+  status: string;
+  method: string;
+  needsReconcile: string;
+  onSearchChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
+  onMethodChange: (value: string) => void;
+  onNeedsReconcileChange: (value: string) => void;
+}) {
+  return (
+    <div className="mb-3 grid gap-3 rounded-md border border-border bg-card p-3 xl:grid-cols-[1fr_180px_190px_210px]">
+      <SearchInput value={search} onChange={onSearchChange} placeholder="Search driver, phone, reference or charge ID" />
+      <StatusFilter value={status} onChange={onStatusChange} includeQueued />
+      <PayoutMethodFilter value={method} onChange={onMethodChange} />
+      <ReconcileFilter value={needsReconcile} onChange={onNeedsReconcileChange} />
+    </div>
+  );
+}
+
+function RefundFilters({
+  search,
+  status,
+  method,
+  needsReconcile,
+  onSearchChange,
+  onStatusChange,
+  onMethodChange,
+  onNeedsReconcileChange,
+}: {
+  search: string;
+  status: string;
+  method: string;
+  needsReconcile: string;
+  onSearchChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
+  onMethodChange: (value: string) => void;
+  onNeedsReconcileChange: (value: string) => void;
+}) {
+  return (
+    <div className="mb-3 grid gap-3 rounded-md border border-border bg-card p-3 xl:grid-cols-[1fr_180px_190px_210px]">
+      <SearchInput value={search} onChange={onSearchChange} placeholder="Search passenger, driver, route, phone or charge ID" />
+      <StatusFilter value={status} onChange={onStatusChange} includeQueued={false} />
+      <PayoutMethodFilter value={method} onChange={onMethodChange} />
+      <ReconcileFilter value={needsReconcile} onChange={onNeedsReconcileChange} />
+    </div>
+  );
+}
+
+function SearchInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="relative">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="pl-9" />
+    </div>
+  );
+}
+
+function StatusFilter({
+  value,
+  onChange,
+  includeQueued,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  includeQueued: boolean;
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All statuses</SelectItem>
+        {includeQueued ? <SelectItem value="queued">Queued</SelectItem> : null}
+        <SelectItem value="processing">Processing</SelectItem>
+        <SelectItem value="completed">Completed</SelectItem>
+        <SelectItem value="failed">Failed</SelectItem>
+        <SelectItem value="pending">Gateway pending</SelectItem>
+        <SelectItem value="request_uncertain">Request uncertain</SelectItem>
+        <SelectItem value="timeout_waiting_for_webhook">Timed out</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function PayoutMethodFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All methods</SelectItem>
+        <SelectItem value="airtel_money">Airtel Money</SelectItem>
+        <SelectItem value="tnm_mpamba">TNM Mpamba</SelectItem>
+        <SelectItem value="bank_transfer">Bank transfer</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ReconcileFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All records</SelectItem>
+        <SelectItem value="needs">Needs reconciliation</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function PayoutPagination({
+  page,
+  limit,
+  total,
+  isFetching,
+  onPageChange,
+  onLimitChange,
+}: {
+  page: number;
+  limit: number;
+  total: number;
+  isFetching: boolean;
+  onPageChange: (page: number) => void;
+  onLimitChange: (limit: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const start = total === 0 ? 0 : (page - 1) * limit + 1;
+  const end = Math.min(total, page * limit);
+
+  return (
+    <div className="mt-3 flex flex-col gap-3 rounded-md border border-border bg-card p-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+      <div>
+        Showing {start}-{end} of {total} records · Page {page} of {totalPages}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={String(limit)} onValueChange={(value) => onLimitChange(Number(value))}>
+          <SelectTrigger className="h-9 w-[130px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PAYOUT_PAGE_SIZE_OPTIONS.map((option) => (
+              <SelectItem key={option} value={String(option)}>
+                {option} / page
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={page <= 1 || isFetching}
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+        >
+          Previous
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={page >= totalPages || isFetching}
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+        >
+          Next
+        </Button>
+      </div>
     </div>
   );
 }

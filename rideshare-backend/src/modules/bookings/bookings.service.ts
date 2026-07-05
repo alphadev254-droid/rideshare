@@ -1,4 +1,4 @@
-import { BookingPaymentStatus, BookingStatus, Prisma, RefundStatus } from "@prisma/client";
+import { BookingPaymentStatus, BookingStatus, PaymentMethod, Prisma, RefundStatus } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { prisma } from "../../config/prisma.js";
 import { env } from "../../config/env.js";
@@ -839,9 +839,11 @@ export async function listRefundsForAdmin(params: {
   limit?: number;
   status?: string;
   search?: string;
+  method?: string;
+  needsReconcile?: boolean;
 }) {
   const page = Math.max(1, params.page ?? 1);
-  const limit = Math.min(100, Math.max(1, params.limit ?? 50));
+  const limit = Math.min(200, Math.max(1, params.limit ?? 50));
   const where: Prisma.PaymentRefundWhereInput = {};
 
   if (params.status && params.status !== "all") {
@@ -849,6 +851,16 @@ export async function listRefundsForAdmin(params: {
       throw new AppError(400, "Invalid refund status");
     }
     where.status = params.status as RefundStatus;
+  }
+  if (params.method && params.method !== "all") {
+    if (!Object.values(PaymentMethod).includes(params.method as PaymentMethod)) {
+      throw new AppError(400, "Invalid refund payment method");
+    }
+    where.paymentMethod = params.method as PaymentMethod;
+  }
+  if (params.needsReconcile) {
+    where.status = "processing";
+    where.gatewayChargeId = { not: null };
   }
   if (params.search?.trim()) {
     const search = params.search.trim();
@@ -886,7 +898,7 @@ export async function listRefundsForAdmin(params: {
   ]);
 
   return {
-    data: rows.map((refund) => ({
+    items: rows.map((refund) => ({
       ...formatRefund(refund),
       passengerName: refund.passenger.fullName,
       passengerPhone: refund.passenger.phone,
@@ -900,12 +912,10 @@ export async function listRefundsForAdmin(params: {
           ? `${refund.booking.boardingPoint} -> ${refund.booking.dropOffPoint}`
           : `${refund.booking.trip.originName} -> ${refund.booking.trip.destinationName}`,
     })),
-    meta: {
-      page,
-      limit,
-      total,
-      totalPages: Math.max(1, Math.ceil(total / limit)),
-    },
+    page,
+    limit,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
   };
 }
 

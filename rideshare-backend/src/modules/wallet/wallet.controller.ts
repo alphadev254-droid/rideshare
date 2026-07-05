@@ -76,6 +76,8 @@ export async function listAdminWithdrawalsController(
       limit: Number(req.query.limit) || 50,
       search: typeof req.query.search === "string" ? req.query.search : undefined,
       status: typeof req.query.status === "string" ? req.query.status : undefined,
+      method: typeof req.query.method === "string" ? req.query.method : undefined,
+      needsReconcile: req.query.needsReconcile === "true",
     });
     res.json({ success: true, data });
   } catch (err) {

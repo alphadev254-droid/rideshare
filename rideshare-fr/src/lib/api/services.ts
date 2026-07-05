@@ -332,7 +332,7 @@ export const walletService = {
     api.get<PaginatedResponse<AdminWalletTransaction>>("/wallet/admin/transactions", {
       query: query as Record<string, string | number | boolean | undefined>,
     }),
-  adminWithdrawals: (query?: { page?: number; limit?: number; search?: string; status?: string }) =>
+  adminWithdrawals: (query?: { page?: number; limit?: number; search?: string; status?: string; method?: string; needsReconcile?: boolean }) =>
     api.get<PaginatedResponse<AdminWalletWithdrawal>>("/wallet/admin/withdrawals", {
       query: query as Record<string, string | number | boolean | undefined>,
     }),
@@ -340,7 +340,7 @@ export const walletService = {
     api.post<{ result: unknown; withdrawal: AdminWalletWithdrawal | null }>(
       `/wallet/admin/withdrawals/${id}/reconcile`,
     ),
-  adminRefunds: (query?: { page?: number; limit?: number; search?: string; status?: string }) =>
+  adminRefunds: (query?: { page?: number; limit?: number; search?: string; status?: string; method?: string; needsReconcile?: boolean }) =>
     api.get<PaginatedResponse<AdminPayoutRefund>>("/bookings/admin/refunds", {
       query: query as Record<string, string | number | boolean | undefined>,
     }),
