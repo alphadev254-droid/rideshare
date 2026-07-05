@@ -141,11 +141,37 @@ async function resolveMobileMoneyOperatorRef(input: {
   return "";
 }
 
+function providerMessageValue(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (Array.isArray(value)) {
+    const parts = value.map(providerMessageValue).filter(Boolean);
+    return parts.length > 0 ? parts.join("; ") : null;
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const preferred = providerMessageValue(record.message) ?? providerMessageValue(record.error);
+    if (preferred) return preferred;
+    const parts = Object.entries(record)
+      .map(([key, item]) => {
+        const rendered = providerMessageValue(item);
+        return rendered ? `${key}: ${rendered}` : null;
+      })
+      .filter(Boolean);
+    return parts.length > 0 ? parts.join("; ") : JSON.stringify(record);
+  }
+  return null;
+}
+
 function providerErrorMessage(error: unknown, fallback: string) {
   if (!axios.isAxiosError(error)) return fallback;
-  const data = error.response?.data as
-    { message?: string; error?: string } | undefined;
-  return data?.message ?? data?.error ?? fallback;
+  const data = error.response?.data as Record<string, unknown> | undefined;
+  return (
+    providerMessageValue(data?.message) ??
+    providerMessageValue(data?.error) ??
+    providerMessageValue(data) ??
+    fallback
+  );
 }
 
 function recordFrom(value: unknown): Record<string, unknown> {
@@ -235,20 +261,39 @@ export async function initiatePaychanguMobileMoneyRefund(input: {
     throw new AppError(400, "Refund amount must be greater than zero");
   }
   const mobile = normalizePhoneForPayout(input.passengerPhone);
+  const refundPayoutUrl = `${env.PAYCHANGU_BASE_URL}/mobile-money/payouts/initialize`;
+  const refundPayoutBody = {
+    mobile_money_operator_ref_id: operatorRef,
+    mobile,
+    amount: input.amountMwk.toString(),
+    charge_id: input.chargeId,
+  };
+
+  console.log(
+    "[PAYCHANGU] Initiating refund payout:",
+    JSON.stringify({
+      url: refundPayoutUrl,
+      body: refundPayoutBody,
+      operatorName: input.operatorName ?? null,
+      paymentMethod: input.paymentMethod ?? null,
+    }),
+  );
 
   try {
     const response = await axios.post(
-      `${env.PAYCHANGU_BASE_URL}/mobile-money/payouts/initialize`,
-      {
-        mobile_money_operator_ref_id: operatorRef,
-        mobile,
-        amount: input.amountMwk.toString(),
-        charge_id: input.chargeId,
-      },
+      refundPayoutUrl,
+      refundPayoutBody,
       { headers: paychanguHeaders(), timeout: 30_000 },
     );
 
     const payload = response.data as Record<string, unknown>;
+    console.log(
+      "[PAYCHANGU] Refund payout response:",
+      JSON.stringify({
+        httpStatus: response.status,
+        data: payload,
+      }),
+    );
     const data = payload.data as Record<string, unknown> | undefined;
     const status = String(payload.status ?? data?.status ?? "").toLowerCase();
     if (status && !["success", "successful", "pending"].includes(status)) {
@@ -267,6 +312,14 @@ export async function initiatePaychanguMobileMoneyRefund(input: {
     if (error instanceof AppError) throw error;
     if (axios.isAxiosError(error)) {
       if (!error.response) {
+        console.warn(
+          "[PAYCHANGU] Refund payout no-response error:",
+          JSON.stringify({
+            message: error.message,
+            code: error.code ?? null,
+            request: { url: refundPayoutUrl, body: refundPayoutBody },
+          }),
+        );
         return {
           success: true,
           uncertain: true,
@@ -280,6 +333,14 @@ export async function initiatePaychanguMobileMoneyRefund(input: {
           } as Prisma.InputJsonValue,
         };
       }
+      console.warn(
+        "[PAYCHANGU] Refund payout rejected:",
+        JSON.stringify({
+          httpStatus: error.response.status,
+          data: error.response.data,
+          request: { url: refundPayoutUrl, body: refundPayoutBody },
+        }),
+      );
       throw new AppError(
         error.response?.status && error.response.status < 500 ? 400 : 502,
         providerErrorMessage(
