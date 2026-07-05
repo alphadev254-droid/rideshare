@@ -163,7 +163,7 @@ function Landing() {
             </p>
             <div className="mt-6 grid grid-cols-2 gap-3 sm:hidden">
               <Link to="/trips" className="min-w-0">
-                <Button size="lg" className="h-16 w-full flex-col items-start justify-center gap-0 bg-primary-strong px-4 text-left text-primary-foreground hover:bg-[color-mix(in_oklch,var(--color-primary-strong)_82%,black)]">
+                <Button size="lg" className="h-16 w-full flex-col items-start justify-center gap-0 bg-primary-strong px-4 text-left text-white hover:bg-[color-mix(in_oklch,var(--color-primary-strong)_82%,black)]">
                   <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Passenger</span>
                   <span className="flex items-center gap-2 text-sm">
                     Find a ride <ArrowRight className="h-4 w-4" />
@@ -173,7 +173,7 @@ function Landing() {
               <Button
                 size="lg"
                 onClick={handleCtaDrive}
-                className="h-16 w-full flex-col items-start justify-center gap-0 bg-primary-strong px-4 text-left text-primary-foreground hover:bg-[color-mix(in_oklch,var(--color-primary-strong)_82%,black)]"
+                className="h-16 w-full flex-col items-start justify-center gap-0 bg-primary-strong px-4 text-left text-white hover:bg-[color-mix(in_oklch,var(--color-primary-strong)_82%,black)]"
               >
                 <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Driver</span>
                 <span className="text-sm">Create a trip</span>
