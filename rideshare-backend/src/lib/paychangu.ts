@@ -222,10 +222,10 @@ export function extractPaychanguMobilePaymentDetails(
       mobileMoney.name,
     ),
     mobileNumber: stringFrom(
-      authorization.mobile_number,
-      authorization.mobile,
       source.mobile,
       mobileMoney.mobile,
+      authorization.mobile,
+      authorization.mobile_number,
     ),
   };
 }
@@ -261,6 +261,12 @@ export async function initiatePaychanguMobileMoneyRefund(input: {
     throw new AppError(400, "Refund amount must be greater than zero");
   }
   const mobile = normalizePhoneForPayout(input.passengerPhone);
+  if (!/^\d{9}$/.test(mobile)) {
+    throw new AppError(
+      400,
+      "Cannot automatically refund because the original PayChangu payment phone is incomplete or invalid. Use manual review for this payment.",
+    );
+  }
   const refundPayoutUrl = `${env.PAYCHANGU_BASE_URL}/mobile-money/payouts/initialize`;
   const refundPayoutBody = {
     mobile_money_operator_ref_id: operatorRef,
