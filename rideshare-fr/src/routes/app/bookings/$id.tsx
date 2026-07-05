@@ -8,6 +8,7 @@ import {
   reviewService,
   userService,
   type PendingPayment,
+  type PaymentRefund,
   type User,
 } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
@@ -52,6 +53,7 @@ function BookingDetail() {
   const [reviewed, setReviewed] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundReason, setRefundReason] = useState("");
+  const [refundResult, setRefundResult] = useState<PaymentRefund | null>(null);
   const [selectedVehicleImage, setSelectedVehicleImage] = useState<string | null>(null);
   const needsEmergencyContact = !user?.emergencyContactPhone;
 
@@ -118,9 +120,9 @@ function BookingDetail() {
 
   const refund = useMutation({
     mutationFn: () => bookingService.requestRefund(id, { reason: refundReason.trim() || undefined }),
-    onSuccess: () => {
-      toast.success("Refund requested");
-      setRefundOpen(false);
+    onSuccess: (result) => {
+      toast.success("Refund payout started");
+      setRefundResult(result);
       setRefundReason("");
       qc.invalidateQueries({ queryKey: ["booking", id] });
       qc.invalidateQueries({ queryKey: ["bookings"] });
@@ -142,14 +144,19 @@ function BookingDetail() {
   const canResendCode = !!booking.codeAvailable && booking.status !== "cancelled";
   const showBoardingCodePanel = !needsPayment && booking.status !== "cancelled";
   const canReview = booking.status === "completed" && !booking.ratedDriver && !reviewed;
+  const hasActiveRefund = Boolean(booking.payment?.refunds?.length);
+  const tripHasStarted =
+    !!booking.trip?.startedAt ||
+    booking.trip?.status === "in_transit" ||
+    booking.trip?.status === "completed" ||
+    booking.trip?.status === "cancelled";
   const canRequestRefund =
     booking.paymentStatus === "held_in_escrow" &&
     booking.payment?.status === "escrow_held" &&
+    !hasActiveRefund &&
     !booking.codeUsed &&
     booking.status !== "authenticated" &&
-    booking.trip?.status !== "in_transit" &&
-    booking.trip?.status !== "completed" &&
-    booking.trip?.status !== "cancelled";
+    !tripHasStarted;
 
   return (
     <div className="space-y-6">
@@ -472,7 +479,10 @@ function BookingDetail() {
               <Button
                 variant="outline"
                 className="mt-4 w-full gap-2"
-                onClick={() => setRefundOpen(true)}
+                onClick={() => {
+                  setRefundResult(null);
+                  setRefundOpen(true);
+                }}
               >
                 <RotateCcw className="h-4 w-4" /> Request refund
               </Button>
@@ -497,16 +507,62 @@ function BookingDetail() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={refundOpen} onOpenChange={setRefundOpen}>
+      <Dialog
+        open={refundOpen}
+        onOpenChange={(open) => {
+          if (refund.isPending) return;
+          setRefundOpen(open);
+          if (!open) setRefundResult(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Request refund</DialogTitle>
+            <DialogTitle>{refundResult ? "Refund payout processing" : "Request refund"}</DialogTitle>
             <DialogDescription>
-              Review the refund policy and amount before confirming.
+              {refundResult
+                ? "Your refund request has been sent to PayChangu. We will update the booking when the payout is confirmed."
+                : "Review the refund policy and amount before confirming."}
             </DialogDescription>
           </DialogHeader>
 
-          {refundPreview.isLoading ? (
+          {refundResult ? (
+            <div className="space-y-4">
+              <div className="rounded-md border border-primary/40 bg-primary/5 p-4">
+                <div className="flex items-start gap-3">
+                  <RefreshCw className="mt-0.5 h-5 w-5 animate-spin text-primary" />
+                  <div>
+                    <p className="font-semibold">Refund is being processed</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Keep this booking for tracking. If PayChangu confirms success, the booking will be cancelled and marked refunded.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <dl className="grid grid-cols-2 gap-3 rounded-md border border-border bg-surface-2 p-4 text-sm">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Status</dt>
+                  <dd className="font-semibold capitalize">{refundResult.status.replace("_", " ")}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Refund amount</dt>
+                  <dd className="font-semibold text-primary">{formatMwk(refundResult.refundAmountMwk)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Convenience fee</dt>
+                  <dd className="font-semibold">{formatMwk(refundResult.convenienceFeeMwk)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Requested</dt>
+                  <dd className="font-semibold">{formatDateTime(refundResult.requestedAt)}</dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-xs text-muted-foreground">Tracking ID</dt>
+                  <dd className="break-all font-mono text-xs">{refundResult.gatewayChargeId ?? refundResult.id}</dd>
+                </div>
+              </dl>
+            </div>
+          ) : refundPreview.isLoading ? (
             <LoadingState />
           ) : refundPreview.error ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
@@ -552,12 +608,14 @@ function BookingDetail() {
             <Button variant="outline" onClick={() => setRefundOpen(false)}>
               Close
             </Button>
-            <Button
-              onClick={() => refund.mutate()}
-              disabled={refund.isPending || refundPreview.isLoading || !refundPreview.data}
-            >
-              {refund.isPending ? "Submitting..." : "Confirm refund"}
-            </Button>
+            {!refundResult ? (
+              <Button
+                onClick={() => refund.mutate()}
+                disabled={refund.isPending || refundPreview.isLoading || !refundPreview.data}
+              >
+                {refund.isPending ? "Starting refund..." : "Confirm refund"}
+              </Button>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>

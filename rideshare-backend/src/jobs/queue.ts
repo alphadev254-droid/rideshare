@@ -16,6 +16,10 @@ export type WithdrawalTimeoutJob = {
   withdrawalId: string;
 };
 
+export type RefundTimeoutJob = {
+  refundId: string;
+};
+
 export type NotificationJob =
   | { type: "email"; to: string; subject: string; text: string; html?: string }
   | { type: "otp"; recipient: string; otp: string; html?: string }
@@ -34,6 +38,7 @@ const PAYMENT_WEBHOOK_QUEUE_NAME = "payments-webhooks";
 const NOTIFICATION_QUEUE_NAME = "notifications";
 const WITHDRAWAL_QUEUE_NAME = "withdrawals";
 const WITHDRAWAL_TIMEOUT_QUEUE_NAME = "withdrawals-timeout";
+const REFUND_TIMEOUT_QUEUE_NAME = "refunds-timeout";
 
 const queuePrefix = `{${env.REDIS_QUEUE_PREFIX}}`;
 
@@ -61,6 +66,12 @@ export const withdrawalTimeoutQueue = new Queue<WithdrawalTimeoutJob>(WITHDRAWAL
   defaultJobOptions,
 });
 
+export const refundTimeoutQueue = new Queue<RefundTimeoutJob>(REFUND_TIMEOUT_QUEUE_NAME, {
+  connection: getRedisConnection(),
+  prefix: queuePrefix,
+  defaultJobOptions,
+});
+
 const workers: Worker[] = [];
 
 export async function enqueuePaymentWebhook(txRef: string) {
@@ -80,6 +91,14 @@ export async function enqueueWithdrawalTimeout(withdrawalId: string, delayMs: nu
     "wallet.timeout",
     { withdrawalId },
     { jobId: `timeout-${withdrawalId}`, delay: delayMs, removeOnComplete: true, removeOnFail: true },
+  );
+}
+
+export async function enqueueRefundTimeout(refundId: string, delayMs: number) {
+  await refundTimeoutQueue.add(
+    "refund.timeout",
+    { refundId },
+    { jobId: `refund-timeout-${refundId}`, delay: delayMs, removeOnComplete: true, removeOnFail: true },
   );
 }
 
@@ -135,6 +154,20 @@ export function startQueueWorkers() {
   );
 
   workers.push(
+    new Worker<RefundTimeoutJob>(
+      REFUND_TIMEOUT_QUEUE_NAME,
+      async (job) => {
+        const { handleRefundPayoutTimeout } = await import("../modules/bookings/bookings.service.js");
+        await handleRefundPayoutTimeout(job.data.refundId);
+      },
+      {
+        connection: getRedisConnection(),
+        prefix: queuePrefix,
+      },
+    ),
+  );
+
+  workers.push(
     new Worker<NotificationJob>(
       NOTIFICATION_QUEUE_NAME,
       async (job) => {
@@ -181,5 +214,11 @@ export function startQueueWorkers() {
 export async function closeQueueWorkers() {
   await Promise.all(workers.map((worker) => worker.close()));
   workers.length = 0;
-  await Promise.all([paymentWebhookQueue.close(), notificationQueue.close(), withdrawalQueue.close(), withdrawalTimeoutQueue.close()]);
+  await Promise.all([
+    paymentWebhookQueue.close(),
+    notificationQueue.close(),
+    withdrawalQueue.close(),
+    withdrawalTimeoutQueue.close(),
+    refundTimeoutQueue.close(),
+  ]);
 }

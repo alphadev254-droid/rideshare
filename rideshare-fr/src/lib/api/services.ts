@@ -4,6 +4,7 @@
  */
 import { api } from "./client";
 import type {
+  AdminPayoutRefund,
   AdminWalletTransaction,
   AdminWalletWithdrawal,
   AdminUser,
@@ -339,6 +340,12 @@ export const walletService = {
     api.post<{ result: unknown; withdrawal: AdminWalletWithdrawal | null }>(
       `/wallet/admin/withdrawals/${id}/reconcile`,
     ),
+  adminRefunds: (query?: { page?: number; limit?: number; search?: string; status?: string }) =>
+    api.get<PaginatedResponse<AdminPayoutRefund>>("/bookings/admin/refunds", {
+      query: query as Record<string, string | number | boolean | undefined>,
+    }),
+  reconcileRefund: (id: string) =>
+    api.post<PaymentRefund>(`/bookings/admin/refunds/${id}/reconcile`),
 };
 
 // ─── Reviews ──────────────────────────────────────────────────────
@@ -528,5 +535,5 @@ export const adminService = {
     paymentService.adminTransactions(query),
   getPayment: (id: string) => paymentService.transactionById(id),
   refundPayment: (paymentId: string) =>
-    api.post<{ message: string; paymentId: string }>(`/payments/${paymentId}/refund`),
+    api.post<{ status: string; paymentId?: string; bookingId?: string; refundId?: string; refundAmountMwk?: string }>(`/payments/${paymentId}/refund`),
 };

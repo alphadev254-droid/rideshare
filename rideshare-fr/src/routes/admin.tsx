@@ -25,7 +25,7 @@ function AdminShell() {
         { to: "/admin/trips", label: "Trips", icon: RouteIcon },
         { to: "/admin/bookings", label: "Bookings", icon: Ticket },
         { to: "/admin/payments", label: "Payments", icon: CreditCard },
-        { to: "/admin/wallet", label: "Wallet", icon: WalletCards },
+        { to: "/admin/wallet", label: "Payouts", icon: WalletCards },
         { to: "/admin/reviews", label: "Reviews", icon: Star },
       ]}
     />

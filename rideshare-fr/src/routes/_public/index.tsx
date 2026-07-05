@@ -129,7 +129,7 @@ function Landing() {
         <div className="relative mx-auto grid max-w-7xl items-center gap-6 px-4 py-10 sm:px-6 sm:py-12 lg:min-h-[calc(100svh-5rem)] lg:grid-cols-12 lg:gap-12 lg:py-10 xl:py-12">
           <div className="lg:col-span-7 lg:-translate-y-4 xl:-translate-y-6">
             <div className="max-w-xl">
-              <div className="relative grid grid-cols-4 px-1 pb-2 pt-6 text-center text-[11px] font-semibold uppercase tracking-wide sm:text-xs">
+              <div className="relative hidden grid-cols-4 px-1 pb-2 pt-6 text-center text-[11px] font-semibold uppercase tracking-wide sm:grid sm:text-xs">
                 <span className="absolute left-4 right-4 top-[3.625rem] h-px bg-border-strong" />
                 {[
                   ["Shared routes", "bg-primary text-primary ring-primary/15"],
@@ -146,16 +146,41 @@ function Landing() {
                 ))}
               </div>
             </div>
-            <h1 className="mt-2 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+            <h1 className="mt-2 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:hidden">
+              Shared rides across Malawi.
+            </h1>
+            <h1 className="mt-2 hidden font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:block sm:text-6xl lg:text-7xl">
               A driver going your way. <br />
               <span className="text-primary">You book a seat, share the cost.</span>
             </h1>
-            <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
+            <p className="mt-4 max-w-sm text-base text-muted-foreground sm:hidden">
+              Find verified intercity trips and book your seat securely.
+            </p>
+            <p className="mt-4 hidden max-w-xl text-base text-muted-foreground sm:block sm:text-lg">
               Drivers travelling between places publish planned trips and open available seats to
               passengers. Book your seat, pay with Airtel Money or TNM Mpamba, and travel with
               people going the same way.
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:hidden">
+              <Link to="/trips" className="min-w-0">
+                <Button size="lg" className="h-16 w-full flex-col items-start justify-center gap-0 bg-[#16a34a] px-4 text-left text-white hover:bg-[#15803d]">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Passenger</span>
+                  <span className="flex items-center gap-2 text-sm">
+                    Find a ride <ArrowRight className="h-4 w-4" />
+                  </span>
+                </Button>
+              </Link>
+              <Button
+                size="lg"
+                onClick={handleCtaDrive}
+                className="h-16 w-full flex-col items-start justify-center gap-0 bg-[#16a34a] px-4 text-left text-white hover:bg-[#15803d]"
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Driver</span>
+                <span className="text-sm">Create a trip</span>
+              </Button>
+              <PwaInstallButton variant="outline" size="lg" className="col-span-2 gap-2" showWhenUnavailable />
+            </div>
+            <div className="mt-6 hidden flex-wrap gap-3 sm:flex">
               <Link to="/trips">
                 <Button size="lg" className="gap-2">
                   Find a seat <ArrowRight className="h-4 w-4" />

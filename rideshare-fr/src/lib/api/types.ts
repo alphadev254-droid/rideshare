@@ -269,6 +269,7 @@ export interface Booking {
     departureTime: string;
     baseFareMwk: string;
     status: TripStatus;
+    startedAt?: string | null;
     driver?: {
       id: string;
       userId: string;
@@ -291,6 +292,12 @@ export interface Booking {
     customerAmountMwk: string;
     netAmountMwk: string;
     createdAt: string;
+    refunds?: Array<{
+      id: string;
+      status: RefundStatus;
+      requestedAt: string;
+      processedAt?: string | null;
+    }>;
   } | null;
 }
 
@@ -455,8 +462,31 @@ export interface PaymentRefund extends Omit<
   id: string;
   status: RefundStatus;
   reason?: string | null;
+  paymentMethod?: PaymentMethod | null;
+  recipientPhone?: string | null;
+  gatewayChargeId?: string | null;
+  providerReference?: string | null;
+  providerTransactionId?: string | null;
+  providerStatus?: string | null;
+  providerPayload?: unknown;
+  gatewayRequestedAt?: string | null;
+  gatewayRespondedAt?: string | null;
+  webhookReceivedAt?: string | null;
+  failedAt?: string | null;
+  failureReason?: string | null;
   requestedAt: string;
   processedAt?: string | null;
+}
+
+export interface AdminPayoutRefund extends PaymentRefund {
+  passengerName?: string | null;
+  passengerPhone?: string | null;
+  passengerEmail?: string | null;
+  driverId?: string | null;
+  driverName?: string | null;
+  driverPhone?: string | null;
+  driverEmail?: string | null;
+  route?: string | null;
 }
 
 export interface Review {

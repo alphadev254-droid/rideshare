@@ -34,6 +34,7 @@ import {
 import {
   walletService,
   extractApiError,
+  type AdminPayoutRefund,
   type AdminWalletTransaction,
   type AdminWalletWithdrawal,
 } from "@/lib/api";
@@ -52,6 +53,7 @@ function AdminWalletPage() {
   const [rowDialog, setRowDialog] = useState<
     | { title: string; kind: "transaction"; row: AdminWalletTransaction }
     | { title: string; kind: "withdrawal"; row: AdminWalletWithdrawal }
+    | { title: string; kind: "refund"; row: AdminPayoutRefund }
     | null
   >(null);
 
@@ -76,6 +78,16 @@ function AdminWalletPage() {
       }),
   });
 
+  const refunds = useQuery({
+    queryKey: ["payouts", "admin", "refunds", search, status],
+    queryFn: () =>
+      walletService.adminRefunds({
+        limit: 100,
+        search: search || undefined,
+        status,
+      }),
+  });
+
   const reconcile = useMutation({
     mutationFn: (id: string) => walletService.reconcileWithdrawal(id),
     onSuccess: () => {
@@ -85,12 +97,22 @@ function AdminWalletPage() {
     onError: (error) => toast.error(extractApiError(error)),
   });
 
+  const reconcileRefund = useMutation({
+    mutationFn: (id: string) => walletService.reconcileRefund(id),
+    onSuccess: () => {
+      toast.success("Refund reconciliation completed");
+      queryClient.invalidateQueries({ queryKey: ["payouts", "admin"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet", "admin"] });
+    },
+    onError: (error) => toast.error(extractApiError(error)),
+  });
+
   return (
     <div className="space-y-5">
       <PageHeader
         eyebrow="Admin"
-        title="Wallet"
-        description="Driver wallet ledger, withdrawal gateway status and manual PayChangu reconciliation."
+        title="Payouts"
+        description="Driver withdrawals, passenger refund payouts, gateway status and manual PayChangu reconciliation."
       />
 
       <div className="grid gap-3 rounded-md border border-border bg-card p-3 lg:grid-cols-[1fr_180px_220px]">
@@ -134,6 +156,7 @@ function AdminWalletPage() {
         <TabsList>
           <TabsTrigger value="transactions">Wallet transactions</TabsTrigger>
           <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
+          <TabsTrigger value="refunds">Refund payouts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="transactions">
@@ -159,6 +182,21 @@ function AdminWalletPage() {
               onViewRow={(row) => setRowDialog({ title: "Withdrawal details", kind: "withdrawal", row })}
               reconcilingId={reconcile.variables}
               isReconciling={reconcile.isPending}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="refunds">
+          {refunds.isLoading ? (
+            <LoadingState />
+          ) : (
+            <RefundsTable
+              rows={refunds.data?.items ?? []}
+              onReconcile={(id) => reconcileRefund.mutate(id)}
+              onViewJson={(title, value) => setJsonDialog({ title, value })}
+              onViewRow={(row) => setRowDialog({ title: "Refund payout details", kind: "refund", row })}
+              reconcilingId={reconcileRefund.variables}
+              isReconciling={reconcileRefund.isPending}
             />
           )}
         </TabsContent>
@@ -366,11 +404,120 @@ function WithdrawalsTable({
   );
 }
 
+function RefundsTable({
+  rows,
+  onReconcile,
+  onViewJson,
+  onViewRow,
+  reconcilingId,
+  isReconciling,
+}: {
+  rows: AdminPayoutRefund[];
+  onReconcile: (id: string) => void;
+  onViewJson: (title: string, value: unknown) => void;
+  onViewRow: (row: AdminPayoutRefund) => void;
+  reconcilingId?: string;
+  isReconciling: boolean;
+}) {
+  if (rows.length === 0) return <EmptyWalletState label="No refund payouts found." />;
+
+  return (
+    <div className="overflow-hidden rounded-md border border-border bg-card">
+      <div className="overflow-x-auto">
+        <Table className="min-w-[1700px]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Requested</TableHead>
+              <TableHead>Passenger</TableHead>
+              <TableHead>Driver</TableHead>
+              <TableHead>Route</TableHead>
+              <TableHead className="text-right">Refund</TableHead>
+              <TableHead className="text-right">Fee</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Method</TableHead>
+              <TableHead>Recipient</TableHead>
+              <TableHead>Gateway status</TableHead>
+              <TableHead>Charge ID</TableHead>
+              <TableHead>Provider ref</TableHead>
+              <TableHead>Webhook</TableHead>
+              <TableHead>Processed</TableHead>
+              <TableHead>Failure</TableHead>
+              <TableHead>Payload</TableHead>
+              <TableHead className="text-right">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => {
+              const canReconcile = row.status === "processing" && Boolean(row.gatewayChargeId);
+              const isCurrent = isReconciling && reconcilingId === row.id;
+              return (
+                <TableRow key={row.id}>
+                  <TableCell className="whitespace-nowrap">{formatDateTime(row.requestedAt)}</TableCell>
+                  <TableCell>
+                    <PersonCell name={row.passengerName} phone={row.passengerPhone} email={row.passengerEmail} />
+                  </TableCell>
+                  <TableCell>
+                    <DriverCell row={row} />
+                  </TableCell>
+                  <TableCell className="max-w-[260px] truncate">{clean(row.route)}</TableCell>
+                  <TableCell className="text-right font-mono font-semibold">{formatMwk(row.refundAmountMwk)}</TableCell>
+                  <TableCell className="text-right font-mono">{formatMwk(row.convenienceFeeMwk)}</TableCell>
+                  <TableCell>
+                    <StatusPill status={row.status as never} />
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap capitalize">{clean(row.paymentMethod)?.replace("_", " ")}</TableCell>
+                  <TableCell className="font-mono text-xs">{clean(row.recipientPhone)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{clean(row.providerStatus)}</TableCell>
+                  <TableCell className="max-w-[260px] truncate font-mono text-xs">{clean(row.gatewayChargeId)}</TableCell>
+                  <TableCell className="max-w-[180px] truncate font-mono text-xs">{clean(row.providerReference)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{formatDateTime(row.webhookReceivedAt)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{formatDateTime(row.processedAt)}</TableCell>
+                  <TableCell className="max-w-[260px] truncate text-xs text-destructive">{clean(row.failureReason)}</TableCell>
+                  <TableCell>
+                    <JsonCell label="View payload" value={row.providerPayload} onView={() => onViewJson("Refund provider payload", row.providerPayload)} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => onViewRow(row)}>
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={canReconcile ? "default" : "outline"}
+                        disabled={!canReconcile || isReconciling}
+                        onClick={() => onReconcile(row.id)}
+                        className="whitespace-nowrap"
+                      >
+                        <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isCurrent ? "animate-spin" : ""}`} />
+                        Reconcile
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 function DriverCell({ row }: { row: { driverName?: string | null; driverPhone?: string | null; driverEmail?: string | null } }) {
   return (
     <div className="min-w-[180px]">
       <div className="font-medium">{row.driverName ?? "Unknown driver"}</div>
       <div className="text-xs text-muted-foreground">{row.driverPhone ?? row.driverEmail ?? "-"}</div>
+    </div>
+  );
+}
+
+function PersonCell({ name, phone, email }: { name?: string | null; phone?: string | null; email?: string | null }) {
+  return (
+    <div className="min-w-[180px]">
+      <div className="font-medium">{name ?? "Unknown passenger"}</div>
+      <div className="text-xs text-muted-foreground">{phone ?? email ?? "-"}</div>
     </div>
   );
 }
@@ -435,6 +582,7 @@ function WalletRowDetailsDialog({
   data:
     | { title: string; kind: "transaction"; row: AdminWalletTransaction }
     | { title: string; kind: "withdrawal"; row: AdminWalletWithdrawal }
+    | { title: string; kind: "refund"; row: AdminPayoutRefund }
     | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -445,7 +593,7 @@ function WalletRowDetailsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden">
         <DialogHeader>
-          <DialogTitle>{data?.title ?? "Wallet details"}</DialogTitle>
+          <DialogTitle>{data?.title ?? "Payout details"}</DialogTitle>
         </DialogHeader>
         {data?.kind === "transaction" ? (
           <div className="max-h-[72vh] overflow-auto pr-1">
@@ -526,6 +674,54 @@ function WalletRowDetailsDialog({
               <DetailItem label="Webhook received" value={formatDateTime(data.row.webhookReceivedAt)} />
               <DetailItem label="Processed" value={formatDateTime(data.row.processedAt)} />
               <DetailItem label="Failure reason" value={data.row.failureReason} wide tone="destructive" />
+            </DetailSection>
+
+            <DetailJsonActions
+              payload={data.row.providerPayload}
+              onViewJson={onViewJson}
+            />
+          </div>
+        ) : data?.kind === "refund" ? (
+          <div className="max-h-[72vh] overflow-auto pr-1">
+            <DetailSection title="Passenger">
+              <DetailItem label="Passenger name" value={data.row.passengerName} />
+              <DetailItem label="Passenger phone" value={data.row.passengerPhone} />
+              <DetailItem label="Passenger email" value={data.row.passengerEmail} />
+            </DetailSection>
+
+            <DetailSection title="Refund payout">
+              <DetailItem label="Refund ID" value={data.row.id} wide />
+              <DetailItem label="Booking ID" value={data.row.bookingId} />
+              <DetailItem label="Payment ID" value={data.row.paymentId} />
+              <DetailItem label="Route" value={data.row.route} wide />
+              <DetailItem label="Status" value={data.row.status} />
+              <DetailItem label="Amount paid" value={formatMwk(data.row.originalCustomerAmountMwk)} />
+              <DetailItem label="Refund amount" value={formatMwk(data.row.refundAmountMwk)} />
+              <DetailItem label="Convenience fee" value={formatMwk(data.row.convenienceFeeMwk)} />
+              <DetailItem label="Driver fee share" value={formatMwk(data.row.driverConvenienceShareMwk)} />
+              <DetailItem label="Platform fee share" value={formatMwk(data.row.platformConvenienceFeeMwk)} />
+              <DetailItem label="Reason" value={data.row.reason} wide />
+            </DetailSection>
+
+            <DetailSection title="Recipient and gateway">
+              <DetailItem label="Method" value={clean(data.row.paymentMethod)} />
+              <DetailItem label="Recipient phone" value={data.row.recipientPhone} />
+              <DetailItem label="Charge ID" value={data.row.gatewayChargeId} wide />
+              <DetailItem label="Provider reference" value={data.row.providerReference} />
+              <DetailItem label="Provider transaction" value={data.row.providerTransactionId} />
+              <DetailItem label="Provider status" value={data.row.providerStatus} />
+              <DetailItem label="Requested" value={formatDateTime(data.row.gatewayRequestedAt ?? data.row.requestedAt)} />
+              <DetailItem label="Responded" value={formatDateTime(data.row.gatewayRespondedAt)} />
+              <DetailItem label="Webhook received" value={formatDateTime(data.row.webhookReceivedAt)} />
+              <DetailItem label="Processed" value={formatDateTime(data.row.processedAt)} />
+              <DetailItem label="Failure reason" value={data.row.failureReason} wide tone="destructive" />
+            </DetailSection>
+
+            <DetailSection title="Driver">
+              <DetailItem label="Driver name" value={data.row.driverName} />
+              <DetailItem label="Driver phone" value={data.row.driverPhone} />
+              <DetailItem label="Driver email" value={data.row.driverEmail} />
+              <DetailItem label="Driver ID" value={data.row.driverId} wide />
             </DetailSection>
 
             <DetailJsonActions

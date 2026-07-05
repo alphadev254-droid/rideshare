@@ -62,7 +62,7 @@ const envSchema = z.object({
   PAYCHANGU_SECRET_KEY: z.string().default(""),
   PAYCHANGU_PUBLIC_KEY: z.string().default(""),
   PAYCHANGU_BASE_URL: z.string().default("https://api.paychangu.com"),
-  PAYCHANGU_WEBHOOK_SECRET: z.string().default(""),
+  PAYCHANGU_WEBHOOK_SECRET: z.string().min(1, "PAYCHANGU_WEBHOOK_SECRET is required"),
   PAYCHANGU_TRANSACTION_FEE_RATE: z.coerce.number().default(0.038),
   PAYCHANGU_MIN_AMOUNT_MWK: z.coerce.number().default(50),
   PAYCHANGU_AIRTEL_MONEY_OPERATOR_REF_ID: z.string().default(""),

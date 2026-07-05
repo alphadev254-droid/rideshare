@@ -22,8 +22,9 @@ function AdminPaymentDetail() {
   const refund = useMutation({
     mutationFn: () => adminService.refundPayment(id),
     onSuccess: () => {
-      toast.success("Refund marked");
+      toast.success("Refund payout started");
       qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: ["payouts", "admin"] });
     },
     onError: (error: Error) => toast.error(error.message || "Could not refund"),
   });

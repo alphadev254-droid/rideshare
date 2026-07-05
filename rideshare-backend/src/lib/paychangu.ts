@@ -105,7 +105,7 @@ export async function initiatePaychanguMobileMoneyRefund(input: {
   passengerPhone: string | null;
   amountMwk: bigint;
   chargeId: string;
-}) {
+}): Promise<PaychanguPayoutInitiation> {
   const operatorRef = operatorRefForMethod(input.paymentMethod);
   if (!operatorRef) {
     throw new AppError(
@@ -132,7 +132,7 @@ export async function initiatePaychanguMobileMoneyRefund(input: {
         amount: input.amountMwk.toString(),
         charge_id: input.chargeId,
       },
-      { headers: paychanguHeaders() },
+      { headers: paychanguHeaders(), timeout: 30_000 },
     );
 
     const payload = response.data as Record<string, unknown>;
@@ -141,11 +141,32 @@ export async function initiatePaychanguMobileMoneyRefund(input: {
     if (status && !["success", "successful", "pending"].includes(status)) {
       throw new AppError(502, "PayChangu refund payout was not accepted");
     }
+    const metadata = extractPayoutMetadata(payload);
 
-    return JSON.parse(JSON.stringify(payload)) as Prisma.InputJsonValue;
+    return {
+      success: true,
+      providerStatus: metadata.providerStatus ?? status,
+      providerReference: metadata.providerReference,
+      providerTransactionId: metadata.providerTransactionId,
+      providerPayload: JSON.parse(JSON.stringify(payload)) as Prisma.InputJsonValue,
+    };
   } catch (error) {
     if (error instanceof AppError) throw error;
     if (axios.isAxiosError(error)) {
+      if (!error.response) {
+        return {
+          success: true,
+          uncertain: true,
+          providerStatus: "request_uncertain",
+          providerReference: null,
+          providerTransactionId: null,
+          providerPayload: {
+            error: error.message,
+            code: error.code ?? null,
+            charge_id: input.chargeId,
+          } as Prisma.InputJsonValue,
+        };
+      }
       throw new AppError(
         error.response?.status && error.response.status < 500 ? 400 : 502,
         providerErrorMessage(

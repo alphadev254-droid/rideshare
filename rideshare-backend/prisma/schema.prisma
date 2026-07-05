@@ -449,8 +449,16 @@ model PaymentRefund {
   platformConvenienceFeeMwk  BigInt       @map("platform_convenience_fee_mwk")
   refundAmountMwk            BigInt       @map("refund_amount_mwk")
   provider                   String       @default("paychangu") @db.VarChar(50)
+  paymentMethod              PaymentMethod? @map("payment_method")
+  recipientPhone             String?      @map("recipient_phone") @db.VarChar(30)
+  gatewayChargeId            String?      @map("gateway_charge_id") @db.VarChar(120)
   providerReference          String?      @map("provider_reference") @db.VarChar(255)
+  providerTransactionId      String?      @map("provider_transaction_id") @db.VarChar(255)
+  providerStatus             String?      @map("provider_status") @db.VarChar(50)
   providerPayload            Json?        @map("provider_payload")
+  gatewayRequestedAt         DateTime?    @map("gateway_requested_at") @db.Timestamptz()
+  gatewayRespondedAt         DateTime?    @map("gateway_responded_at") @db.Timestamptz()
+  webhookReceivedAt          DateTime?    @map("webhook_received_at") @db.Timestamptz()
   requestedAt                DateTime     @default(now()) @map("requested_at") @db.Timestamptz()
   processedAt                DateTime?    @map("processed_at") @db.Timestamptz()
   failedAt                   DateTime?    @map("failed_at") @db.Timestamptz()
@@ -462,9 +470,12 @@ model PaymentRefund {
   driver    DriverProfile       @relation(fields: [driverId], references: [id])
   walletTx  WalletTransaction[]
 
+  @@unique([paymentId])
   @@index([bookingId])
   @@index([passengerId])
   @@index([driverId])
+  @@index([gatewayChargeId])
+  @@index([providerReference])
   @@map("payment_refunds")
 }
 

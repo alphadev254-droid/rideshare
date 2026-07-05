@@ -115,6 +115,37 @@ export async function requestRefundController(
   }
 }
 
+export async function listAdminRefundsController(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const data = await bookingsService.listRefundsForAdmin({
+      page: Number(req.query.page) || 1,
+      limit: Number(req.query.limit) || 50,
+      status: typeof req.query.status === "string" ? req.query.status : undefined,
+      search: typeof req.query.search === "string" ? req.query.search : undefined,
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reconcileRefundController(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const data = await bookingsService.reconcileRefundForAdmin(req.params.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getMyBookingsController(
   req: AuthRequest,
   res: Response,

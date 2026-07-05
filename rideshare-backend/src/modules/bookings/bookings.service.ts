@@ -1,10 +1,12 @@
-import { BookingPaymentStatus, BookingStatus, Prisma } from "@prisma/client";
+import { BookingPaymentStatus, BookingStatus, Prisma, RefundStatus } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { prisma } from "../../config/prisma.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../middleware/error-handler.js";
 import { generateCode, storeCode, hashCode, isCodeExpired } from "../../lib/secret-code.js";
 import { sendSecretCode } from "../../lib/sms.js";
-import { initiatePaychanguMobileMoneyRefund } from "../../lib/paychangu.js";
+import { fetchPaychanguPayoutDetails, initiatePaychanguMobileMoneyRefund } from "../../lib/paychangu.js";
+import { enqueueRefundTimeout } from "../../jobs/queue.js";
 import { creditRefundConvenienceShare } from "../wallet/wallet.service.js";
 import type { CreateBookingInput } from "./bookings.schemas.js";
 
@@ -44,6 +46,7 @@ const bookingDetailSelect = {
       departureTime: true,
       baseFareMwk: true,
       status: true,
+      startedAt: true,
       driver: {
         select: {
           id: true,
@@ -72,6 +75,11 @@ const bookingDetailSelect = {
       customerAmountMwk: true,
       netAmountMwk: true,
       createdAt: true,
+      refunds: {
+        where: { status: { in: ["requested", "processing", "completed"] } },
+        select: { id: true, status: true, requestedAt: true, processedAt: true },
+        take: 1,
+      },
     },
   },
 } satisfies Prisma.BookingSelect;
@@ -121,6 +129,18 @@ function formatRefund(refund: {
   driverConvenienceShareMwk: bigint;
   platformConvenienceFeeMwk: bigint;
   refundAmountMwk: bigint;
+  paymentMethod?: string | null;
+  recipientPhone?: string | null;
+  gatewayChargeId?: string | null;
+  providerReference?: string | null;
+  providerTransactionId?: string | null;
+  providerStatus?: string | null;
+  providerPayload?: Prisma.JsonValue | null;
+  gatewayRequestedAt?: Date | null;
+  gatewayRespondedAt?: Date | null;
+  webhookReceivedAt?: Date | null;
+  failedAt?: Date | null;
+  failureReason?: string | null;
   requestedAt: Date;
   processedAt: Date | null;
 }) {
@@ -136,6 +156,36 @@ function formatRefund(refund: {
     refundAmountMwk: refund.refundAmountMwk.toString(),
   };
 }
+
+const refundSelect = {
+  id: true,
+  paymentId: true,
+  bookingId: true,
+  status: true,
+  reason: true,
+  originalCustomerAmountMwk: true,
+  refundableBaseMwk: true,
+  convenienceFeeRate: true,
+  convenienceFeeMwk: true,
+  driverConvenienceShareRate: true,
+  driverConvenienceShareMwk: true,
+  platformConvenienceFeeMwk: true,
+  refundAmountMwk: true,
+  paymentMethod: true,
+  recipientPhone: true,
+  gatewayChargeId: true,
+  providerReference: true,
+  providerTransactionId: true,
+  providerStatus: true,
+  providerPayload: true,
+  gatewayRequestedAt: true,
+  gatewayRespondedAt: true,
+  webhookReceivedAt: true,
+  failedAt: true,
+  failureReason: true,
+  requestedAt: true,
+  processedAt: true,
+} satisfies Prisma.PaymentRefundSelect;
 
 /** Leaner include for list queries — no payment/transaction data. */
 const bookingAdminListSelect = {
@@ -315,8 +365,20 @@ export async function cancelBooking(bookingId: string, userId: string) {
       status: { in: ["pending", "confirmed"] },
       ...(caller.role === "admin" ? {} : { passengerId: userId }),
     },
+    include: { trip: { select: { status: true, startedAt: true } } },
   });
   if (!booking) throw new AppError(404, "Booking not found or cannot be cancelled");
+  if (caller.role !== "admin") {
+    if (booking.codeUsed || booking.status === "authenticated") {
+      throw new AppError(400, "This booking has already been boarded and cannot be cancelled");
+    }
+    if (booking.trip.startedAt || ["in_transit", "completed", "cancelled"].includes(booking.trip.status)) {
+      throw new AppError(400, "This trip has already started and cannot be cancelled");
+    }
+    if (booking.paymentStatus === "held_in_escrow") {
+      throw new AppError(400, "Use the refund request flow for paid bookings");
+    }
+  }
 
   const updated = await prisma.$transaction(async (tx) => {
     if (!booking.segmentId) {
@@ -441,8 +503,11 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
     }
 
     const amounts = calculateRefundAmounts(booking.payment.customerAmountMwk);
+    const refundId = randomUUID();
+    const chargeId = `RF-${refundId}`;
     const created = await tx.paymentRefund.create({
       data: {
+        id: refundId,
         paymentId: booking.payment.id,
         bookingId: booking.id,
         passengerId: booking.payment.passengerId,
@@ -457,7 +522,11 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
         driverConvenienceShareMwk: amounts.driverConvenienceShareMwk,
         platformConvenienceFeeMwk: amounts.platformConvenienceFeeMwk,
         refundAmountMwk: amounts.refundAmountMwk,
+        paymentMethod: booking.payment.paymentMethod,
+        recipientPhone: booking.payment.passenger.phone,
+        gatewayChargeId: chargeId,
         providerReference: booking.payment.providerReference,
+        gatewayRequestedAt: new Date(),
       },
       select: {
         id: true,
@@ -473,6 +542,18 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
         driverConvenienceShareMwk: true,
         platformConvenienceFeeMwk: true,
         refundAmountMwk: true,
+        paymentMethod: true,
+        recipientPhone: true,
+        gatewayChargeId: true,
+        providerReference: true,
+        providerTransactionId: true,
+        providerStatus: true,
+        providerPayload: true,
+        gatewayRequestedAt: true,
+        gatewayRespondedAt: true,
+        webhookReceivedAt: true,
+        failedAt: true,
+        failureReason: true,
         requestedAt: true,
         processedAt: true,
       },
@@ -486,16 +567,17 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
       passengerPhone: booking.payment.passenger.phone,
       paymentMethod: booking.payment.paymentMethod,
       seatsBooked: booking.seatsBooked,
+      chargeId,
     };
   });
 
-  let providerPayload: Prisma.InputJsonValue;
+  let payout;
   try {
-    providerPayload = await initiatePaychanguMobileMoneyRefund({
+    payout = await initiatePaychanguMobileMoneyRefund({
       paymentMethod: pendingRefund.paymentMethod,
       passengerPhone: pendingRefund.passengerPhone,
       amountMwk: pendingRefund.refund.refundAmountMwk,
-      chargeId: `RF-${pendingRefund.refund.id}`,
+      chargeId: pendingRefund.chargeId,
     });
   } catch (error) {
     await prisma.paymentRefund.update({
@@ -509,57 +591,96 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
     throw error;
   }
 
-  const refund = await prisma.$transaction(async (tx) => {
+  const refund = await prisma.paymentRefund.update({
+    where: { id: pendingRefund.refund.id },
+    data: {
+      providerStatus:
+        payout.providerStatus ?? (payout.uncertain ? "request_uncertain" : "pending"),
+      providerReference: payout.providerReference ?? undefined,
+      providerTransactionId: payout.providerTransactionId ?? undefined,
+      providerPayload: payout.providerPayload,
+      gatewayRespondedAt: payout.uncertain ? null : new Date(),
+      failureReason: payout.uncertain
+        ? "PayChangu refund payout response timed out locally; awaiting webhook or reconciliation"
+        : null,
+    },
+    select: refundSelect,
+  });
+  await enqueueRefundTimeout(
+    pendingRefund.refund.id,
+    env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES * 60_000,
+  );
+
+  return formatRefund(refund);
+}
+
+export async function finalizeRefundPayout(
+  refundId: string,
+  success: boolean,
+  message?: string,
+  gateway?: {
+    providerStatus?: string | null;
+    providerReference?: string | null;
+    providerTransactionId?: string | null;
+    providerPayload?: Prisma.InputJsonValue;
+    webhookReceivedAt?: Date | null;
+  },
+) {
+  const refund = await prisma.paymentRefund.findUnique({
+    where: { id: refundId },
+    include: {
+      booking: { select: { id: true, tripId: true, segmentId: true, seatsBooked: true } },
+    },
+  });
+  if (!refund) {
+    console.warn(`[REFUND] Payout finalization for unknown refund: ${refundId}`);
+    return null;
+  }
+  if (refund.status === "completed") return formatRefund(refund);
+  if (refund.status === "failed" && !success) return formatRefund(refund);
+
+  if (!success) {
+    const failed = await prisma.paymentRefund.update({
+      where: { id: refundId },
+      data: {
+        status: "failed",
+        failedAt: new Date(),
+        processedAt: new Date(),
+        webhookReceivedAt: gateway?.webhookReceivedAt ?? new Date(),
+        failureReason: message ?? "PayChangu refund payout failed",
+        providerStatus: gateway?.providerStatus ?? "failed",
+        providerReference: gateway?.providerReference ?? undefined,
+        providerTransactionId: gateway?.providerTransactionId ?? undefined,
+        providerPayload: gateway?.providerPayload ?? undefined,
+      },
+      select: refundSelect,
+    });
+    return formatRefund(failed);
+  }
+
+  const completed = await prisma.$transaction(async (tx) => {
     const current = await tx.paymentRefund.findUnique({
-      where: { id: pendingRefund.refund.id },
-      select: {
-        id: true,
-        paymentId: true,
-        bookingId: true,
-        driverId: true,
-        status: true,
-        reason: true,
-        originalCustomerAmountMwk: true,
-        refundableBaseMwk: true,
-        convenienceFeeRate: true,
-        convenienceFeeMwk: true,
-        driverConvenienceShareRate: true,
-        driverConvenienceShareMwk: true,
-        platformConvenienceFeeMwk: true,
-        refundAmountMwk: true,
-        requestedAt: true,
-        processedAt: true,
+      where: { id: refundId },
+      include: {
+        booking: { select: { id: true, tripId: true, segmentId: true, seatsBooked: true } },
       },
     });
-    if (!current || current.status !== "processing") {
-      throw new AppError(409, "Refund is no longer in a processable state");
-    }
+    if (!current) throw new AppError(404, "Refund not found");
+    if (current.status === "completed") return current;
 
-    const completed = await tx.paymentRefund.update({
-      where: { id: current.id },
+    const updated = await tx.paymentRefund.update({
+      where: { id: refundId },
       data: {
         status: "completed",
-        providerReference: `RF-${current.id}`,
-        providerPayload,
         processedAt: new Date(),
+        webhookReceivedAt: gateway?.webhookReceivedAt ?? new Date(),
+        failureReason: null,
+        providerStatus: gateway?.providerStatus ?? "success",
+        providerReference: gateway?.providerReference ?? undefined,
+        providerTransactionId: gateway?.providerTransactionId ?? undefined,
+        providerPayload: gateway?.providerPayload ?? undefined,
       },
-      select: {
-        id: true,
-        paymentId: true,
-        bookingId: true,
-        status: true,
-        reason: true,
-        originalCustomerAmountMwk: true,
-        refundableBaseMwk: true,
-        convenienceFeeRate: true,
-        convenienceFeeMwk: true,
-        driverConvenienceShareRate: true,
-        driverConvenienceShareMwk: true,
-        platformConvenienceFeeMwk: true,
-        refundAmountMwk: true,
-        requestedAt: true,
-        processedAt: true,
-      },
+      select: refundSelect,
     });
 
     await tx.payment.update({
@@ -570,10 +691,10 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
       where: { id: current.bookingId },
       data: { status: "cancelled", paymentStatus: "refunded", rawSecretCode: null },
     });
-    if (!pendingRefund.segmentId) {
+    if (!current.booking.segmentId) {
       await tx.trip.update({
-        where: { id: pendingRefund.tripId },
-        data: { availableSeats: { increment: pendingRefund.seatsBooked } },
+        where: { id: current.booking.tripId },
+        data: { availableSeats: { increment: current.booking.seatsBooked } },
       });
     }
 
@@ -593,10 +714,224 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
       });
     }
 
-    return completed;
+    return updated;
   });
 
-  return formatRefund(refund);
+  return formatRefund(completed);
+}
+
+export async function handlePaychanguRefundPayoutWebhook(
+  payload: Record<string, unknown>,
+) {
+  console.log("[REFUND] Raw payout webhook payload:", JSON.stringify(payload, null, 2));
+  const normalized = normalizeRefundPayoutPayload(payload);
+  const chargeId = String(normalized.chargeId ?? "");
+  if (!chargeId.startsWith("RF-")) {
+    return { handled: false, reason: "charge_id does not match RF- prefix" };
+  }
+
+  const refund = await prisma.paymentRefund.findFirst({
+    where: { gatewayChargeId: chargeId },
+    select: { id: true },
+  });
+  if (!refund) return { handled: false, reason: "refund not found", chargeId };
+
+  const rawStatus = String(normalized.providerStatus ?? "");
+  const status = rawStatus.toLowerCase();
+  const isSuccess = status === "success" || status === "successful";
+  const isPending = status === "pending" || status === "processing";
+  const providerPayload = JSON.parse(JSON.stringify(payload)) as Prisma.InputJsonValue;
+
+  if (isPending) {
+    await prisma.paymentRefund.update({
+      where: { id: refund.id },
+      data: {
+        providerStatus: normalized.providerStatus ?? "pending",
+        providerReference: normalized.providerReference ?? undefined,
+        providerTransactionId: normalized.providerTransactionId ?? undefined,
+        providerPayload,
+        webhookReceivedAt: new Date(),
+        failureReason: null,
+      },
+    });
+    return { handled: true, refundId: refund.id, status: "processing" };
+  }
+
+  const finalized = await finalizeRefundPayout(
+    refund.id,
+    isSuccess,
+    normalized.message ?? undefined,
+    {
+      providerStatus: normalized.providerStatus,
+      providerReference: normalized.providerReference,
+      providerTransactionId: normalized.providerTransactionId,
+      providerPayload,
+      webhookReceivedAt: new Date(),
+    },
+  );
+  return { handled: true, refundId: refund.id, status: finalized?.status };
+}
+
+export async function handleRefundPayoutTimeout(refundId: string) {
+  const refund = await prisma.paymentRefund.findUnique({
+    where: { id: refundId },
+    select: { id: true, status: true, gatewayChargeId: true },
+  });
+  if (!refund || refund.status !== "processing") {
+    return { handled: false, id: refundId, reason: refund ? `already-${refund.status}` : "not-found" };
+  }
+
+  if (refund.gatewayChargeId) {
+    try {
+      const details = await fetchPaychanguPayoutDetails(refund.gatewayChargeId);
+      const status = String(details.providerStatus ?? "").toLowerCase();
+      const gateway = {
+        providerStatus: details.providerStatus,
+        providerReference: details.providerReference,
+        providerTransactionId: details.providerTransactionId,
+        providerPayload: details.providerPayload,
+      };
+
+      if (status === "success" || status === "successful") {
+        return finalizeRefundPayout(refundId, true, undefined, gateway);
+      }
+
+      await prisma.paymentRefund.update({
+        where: { id: refundId },
+        data: {
+          providerStatus: details.providerStatus ?? undefined,
+          providerReference: details.providerReference ?? undefined,
+          providerTransactionId: details.providerTransactionId ?? undefined,
+          providerPayload: details.providerPayload,
+        },
+      });
+
+      if (status === "pending" || status === "processing") {
+        return { handled: false, id: refundId, reason: `paychangu-${status}` };
+      }
+      if (status === "failed" || status === "failure" || status === "rejected") {
+        return finalizeRefundPayout(
+          refundId,
+          false,
+          "PayChangu refund payout failed",
+          gateway,
+        );
+      }
+    } catch (error) {
+      console.warn(`[REFUND] Timeout reconciliation failed for ${refundId}:`, (error as Error).message);
+    }
+  }
+
+  return finalizeRefundPayout(
+    refundId,
+    false,
+    `No webhook confirmation received within ${env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES} minutes`,
+    { providerStatus: "timeout_waiting_for_webhook" },
+  );
+}
+
+export async function reconcileRefundForAdmin(refundId: string) {
+  return handleRefundPayoutTimeout(refundId);
+}
+
+export async function listRefundsForAdmin(params: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+}) {
+  const page = Math.max(1, params.page ?? 1);
+  const limit = Math.min(100, Math.max(1, params.limit ?? 50));
+  const where: Prisma.PaymentRefundWhereInput = {};
+
+  if (params.status && params.status !== "all") {
+    if (!Object.values(RefundStatus).includes(params.status as RefundStatus)) {
+      throw new AppError(400, "Invalid refund status");
+    }
+    where.status = params.status as RefundStatus;
+  }
+  if (params.search?.trim()) {
+    const search = params.search.trim();
+    where.OR = [
+      { gatewayChargeId: { contains: search, mode: "insensitive" } },
+      { providerReference: { contains: search, mode: "insensitive" } },
+      { providerTransactionId: { contains: search, mode: "insensitive" } },
+      { recipientPhone: { contains: search, mode: "insensitive" } },
+      { passenger: { fullName: { contains: search, mode: "insensitive" } } },
+      { passenger: { phone: { contains: search, mode: "insensitive" } } },
+      { driver: { user: { fullName: { contains: search, mode: "insensitive" } } } },
+    ];
+  }
+
+  const [total, rows] = await prisma.$transaction([
+    prisma.paymentRefund.count({ where }),
+    prisma.paymentRefund.findMany({
+      where,
+      include: {
+        passenger: { select: { fullName: true, phone: true, email: true } },
+        driver: { select: { id: true, user: { select: { fullName: true, phone: true, email: true } } } },
+        booking: {
+          select: {
+            id: true,
+            boardingPoint: true,
+            dropOffPoint: true,
+            trip: { select: { originName: true, destinationName: true } },
+          },
+        },
+      },
+      orderBy: { requestedAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+  ]);
+
+  return {
+    data: rows.map((refund) => ({
+      ...formatRefund(refund),
+      passengerName: refund.passenger.fullName,
+      passengerPhone: refund.passenger.phone,
+      passengerEmail: refund.passenger.email,
+      driverId: refund.driver.id,
+      driverName: refund.driver.user.fullName,
+      driverPhone: refund.driver.user.phone,
+      driverEmail: refund.driver.user.email,
+      route:
+        refund.booking.boardingPoint && refund.booking.dropOffPoint
+          ? `${refund.booking.boardingPoint} -> ${refund.booking.dropOffPoint}`
+          : `${refund.booking.trip.originName} -> ${refund.booking.trip.destinationName}`,
+    })),
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  };
+}
+
+function normalizeRefundPayoutPayload(payload: Record<string, unknown>) {
+  const data =
+    payload.data && typeof payload.data === "object"
+      ? (payload.data as Record<string, unknown>)
+      : {};
+  const transaction =
+    data.transaction && typeof data.transaction === "object"
+      ? (data.transaction as Record<string, unknown>)
+      : data;
+
+  return {
+    chargeId: stringOrNull(transaction.charge_id ?? data.charge_id ?? payload.charge_id),
+    providerStatus: stringOrNull(transaction.status ?? data.status ?? payload.status),
+    providerReference: stringOrNull(transaction.ref_id ?? data.ref_id ?? payload.ref_id),
+    providerTransactionId: stringOrNull(transaction.trans_id ?? data.trans_id ?? payload.trans_id),
+    message: stringOrNull(payload.message ?? data.message),
+  };
+}
+
+function stringOrNull(value: unknown) {
+  if (value === null || value === undefined) return null;
+  const text = String(value);
+  return text.length > 0 ? text : null;
 }
 
 export async function getMyBookings(passengerId: string, page = 1, limit = 20) {

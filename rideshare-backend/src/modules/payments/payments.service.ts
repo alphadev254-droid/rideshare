@@ -19,6 +19,7 @@ import { initiatePaychanguMobileMoneyRefund } from "../../lib/paychangu.js";
 import {
   enqueueNotification,
   enqueuePaymentWebhook,
+  enqueueRefundTimeout,
 } from "../../jobs/queue.js";
 import {
   bookingConfirmationEmail,
@@ -27,6 +28,7 @@ import {
   driverBookingNotificationText,
 } from "../../lib/email-templates.js";
 import { handlePaychanguPayoutWebhook } from "../wallet/wallet.service.js";
+import { handlePaychanguRefundPayoutWebhook } from "../bookings/bookings.service.js";
 import type {
   InitiatePaymentInput,
   InitiateRidePaymentInput,
@@ -563,7 +565,9 @@ function statusIsFailed(status: unknown) {
 }
 
 function verifyWebhookSignature(rawBody: Buffer, signature: string) {
-  if (!env.PAYCHANGU_WEBHOOK_SECRET) return;
+  if (!env.PAYCHANGU_WEBHOOK_SECRET) {
+    throw new AppError(500, "PayChangu webhook secret is not configured");
+  }
   if (!signature) throw new AppError(401, "Missing webhook signature");
 
   const expected = createHmac("sha256", env.PAYCHANGU_WEBHOOK_SECRET)
@@ -1184,6 +1188,17 @@ export async function handlePaychanguWebhook(
   // If this is a payout webhook, route it to the wallet service
   const eventType = String(payload.event_type ?? nested.event_type ?? "");
   if (eventType === "api.payout" || eventType === "payout") {
+    const transaction =
+      nested.transaction && typeof nested.transaction === "object"
+        ? (nested.transaction as Record<string, unknown>)
+        : nested;
+    const chargeId = String(
+      transaction.charge_id ?? nested.charge_id ?? payload.charge_id ?? "",
+    );
+    if (chargeId.startsWith("RF-")) {
+      const result = await handlePaychanguRefundPayoutWebhook(payload);
+      return { received: true, refundPayout: result };
+    }
     const result = await handlePaychanguPayoutWebhook(payload);
     return { received: true, payout: result };
   }
@@ -1416,8 +1431,11 @@ export async function adminRefund(paymentId: string) {
       );
     }
 
+    const refundId = randomUUID();
+    const chargeId = `RF-${refundId}`;
     const refund = await tx.paymentRefund.create({
       data: {
+        id: refundId,
         paymentId: payment.id,
         bookingId: payment.bookingId,
         passengerId: payment.passengerId,
@@ -1432,13 +1450,18 @@ export async function adminRefund(paymentId: string) {
         driverConvenienceShareMwk: 0,
         platformConvenienceFeeMwk: 0,
         refundAmountMwk: payment.customerAmountMwk,
+        paymentMethod: payment.paymentMethod,
+        recipientPhone: payment.passenger.phone,
+        gatewayChargeId: chargeId,
         providerReference: payment.providerReference ?? payment.gatewayRef,
+        gatewayRequestedAt: new Date(),
       },
       select: {
         id: true,
         paymentId: true,
         bookingId: true,
         refundAmountMwk: true,
+        gatewayChargeId: true,
       },
     });
 
@@ -1452,13 +1475,13 @@ export async function adminRefund(paymentId: string) {
     };
   });
 
-  let providerPayload: Prisma.InputJsonValue;
+  let payout;
   try {
-    providerPayload = await initiatePaychanguMobileMoneyRefund({
+    payout = await initiatePaychanguMobileMoneyRefund({
       paymentMethod: pendingRefund.paymentMethod,
       passengerPhone: pendingRefund.passengerPhone,
       amountMwk: pendingRefund.refund.refundAmountMwk,
-      chargeId: `RF-${pendingRefund.refund.id}`,
+      chargeId: pendingRefund.refund.gatewayChargeId ?? `RF-${pendingRefund.refund.id}`,
     });
   } catch (error) {
     await prisma.paymentRefund.update({
@@ -1475,41 +1498,28 @@ export async function adminRefund(paymentId: string) {
     throw error;
   }
 
-  await prisma.$transaction([
-    prisma.paymentRefund.update({
-      where: { id: pendingRefund.refund.id },
-      data: {
-        status: "completed",
-        providerReference: `RF-${pendingRefund.refund.id}`,
-        providerPayload,
-        processedAt: new Date(),
-      },
-    }),
-    prisma.payment.update({
-      where: { id: paymentId },
-      data: { status: "refunded", refundedAt: new Date() },
-    }),
-    prisma.booking.update({
-      where: { id: pendingRefund.refund.bookingId },
-      data: {
-        status: "cancelled",
-        paymentStatus: "refunded",
-        rawSecretCode: null,
-      },
-    }),
-    ...(pendingRefund.segmentId
-      ? []
-      : [
-          prisma.trip.update({
-            where: { id: pendingRefund.tripId },
-            data: { availableSeats: { increment: pendingRefund.seatsBooked } },
-          }),
-        ]),
-  ]);
+  await prisma.paymentRefund.update({
+    where: { id: pendingRefund.refund.id },
+    data: {
+      providerStatus:
+        payout.providerStatus ?? (payout.uncertain ? "request_uncertain" : "pending"),
+      providerReference: payout.providerReference ?? undefined,
+      providerTransactionId: payout.providerTransactionId ?? undefined,
+      providerPayload: payout.providerPayload,
+      gatewayRespondedAt: payout.uncertain ? null : new Date(),
+      failureReason: payout.uncertain
+        ? "PayChangu refund payout response timed out locally; awaiting webhook or reconciliation"
+        : null,
+    },
+  });
+  await enqueueRefundTimeout(
+    pendingRefund.refund.id,
+    env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES * 60_000,
+  );
 
   return {
     id: paymentId,
-    status: "refunded",
+    status: "refund_processing",
     bookingId: pendingRefund.refund.bookingId,
     refundId: pendingRefund.refund.id,
     refundAmountMwk: pendingRefund.refund.refundAmountMwk.toString(),
