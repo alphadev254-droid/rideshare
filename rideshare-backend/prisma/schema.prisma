@@ -516,6 +516,9 @@ model PendingPayment {
   checkoutUrl       String?       @map("checkout_url")
   gatewayReference  String?       @map("gateway_reference") @db.VarChar(255)
   providerPayload   Json?         @map("provider_payload")
+  reservationExpiresAt DateTime?  @map("reservation_expires_at") @db.Timestamptz()
+  reservationReleasedAt DateTime? @map("reservation_released_at") @db.Timestamptz()
+  reservationReleaseReason String? @map("reservation_release_reason")
   failureReason     String?       @map("failure_reason")
   verifiedAt        DateTime?     @map("verified_at") @db.Timestamptz()
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz()
@@ -528,6 +531,7 @@ model PendingPayment {
   driver    DriverProfile @relation(fields: [driverId], references: [id])
 
   @@index([passengerId, tripId, status])
+  @@index([status, reservationExpiresAt])
   @@map("pending_payments")
 }
 

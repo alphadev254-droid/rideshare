@@ -200,7 +200,11 @@ function PassengerHome() {
         window.location.assign(payment.checkoutUrl);
         return;
       }
-      toast.error("Could not open payment checkout");
+      if (payment?.txRef) {
+        window.location.assign(`/app/payments/callback?tx_ref=${encodeURIComponent(payment.txRef)}`);
+        return;
+      }
+      toast.error("Could not start payment confirmation");
     },
     onError: (error: Error) => {
       toast.error(error instanceof ApiError ? error.message : "Payment failed");

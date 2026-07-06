@@ -18,6 +18,7 @@ import { sendPushNotification } from "../../lib/fcm.js";
 import {
   extractPaychanguMobilePaymentDetails,
   initiatePaychanguMobileMoneyRefund,
+  normalizedPayoutMobileOrNull,
 } from "../../lib/paychangu.js";
 import {
   enqueueNotification,
@@ -65,6 +66,9 @@ type PendingPaymentRow = {
   status: string;
   checkoutUrl: string | null;
   gatewayReference: string | null;
+  reservationExpiresAt: Date | null;
+  reservationReleasedAt: Date | null;
+  reservationReleaseReason: string | null;
   boardingPoint: string | null;
   dropOffPoint: string | null;
   failureReason: string | null;
@@ -127,6 +131,52 @@ type BookingNotification = {
 
 const ACTIVE_PENDING_PAYMENT_STATUSES = ["pending"] as const;
 const RETRYABLE_PENDING_PAYMENT_STATUSES = ["failed"] as const;
+const PAYMENT_RESERVATION_TTL_MINUTES = env.PAYMENT_RESERVATION_TTL_MINUTES;
+
+function reservationExpiryDate() {
+  return new Date(Date.now() + Math.max(1, PAYMENT_RESERVATION_TTL_MINUTES) * 60_000);
+}
+
+function activeReservationWhere(now = new Date()) {
+  return {
+    status: "pending",
+    reservationExpiresAt: { gt: now },
+    reservationReleasedAt: null,
+  } satisfies Prisma.PendingPaymentWhereInput;
+}
+
+async function releasePendingSeatHold(
+  tx: Prisma.TransactionClient,
+  pending: Pick<PendingPaymentRow, "id" | "tripId" | "segmentId" | "seatsBooked">,
+  data: {
+    status: string;
+    failureReason?: string;
+    providerPayload?: Prisma.InputJsonValue;
+    verifiedAt?: Date;
+    releaseReason: string;
+  },
+) {
+  const updated = await tx.pendingPayment.updateMany({
+    where: {
+      id: pending.id,
+      reservationReleasedAt: null,
+    },
+    data: {
+      status: data.status,
+      failureReason: data.failureReason,
+      providerPayload: data.providerPayload,
+      verifiedAt: data.verifiedAt,
+      reservationReleasedAt: new Date(),
+      reservationReleaseReason: data.releaseReason,
+    },
+  });
+  if (updated.count > 0 && !pending.segmentId && pending.tripId) {
+    await tx.trip.update({
+      where: { id: pending.tripId },
+      data: { availableSeats: { increment: pending.seatsBooked } },
+    });
+  }
+}
 
 function paychanguHeaders() {
   return {
@@ -215,6 +265,9 @@ function formatPending(row: PendingPaymentRow) {
     status: row.status,
     checkoutUrl: row.checkoutUrl,
     gatewayReference: row.gatewayReference,
+    reservationExpiresAt: row.reservationExpiresAt,
+    reservationReleasedAt: row.reservationReleasedAt,
+    reservationReleaseReason: row.reservationReleaseReason,
     boardingPoint: row.boardingPoint,
     dropOffPoint: row.dropOffPoint,
     failureReason: row.failureReason,
@@ -228,6 +281,7 @@ async function getSegmentAvailableSeats(
   tripId: string,
   segment: { fromOrder: number; toOrder: number; maxSeats: number },
   totalSeats: number,
+  excludePendingPaymentId?: string,
 ) {
   const bookings = await db.booking.findMany({
     where: {
@@ -244,7 +298,20 @@ async function getSegmentAvailableSeats(
     (total, booking) => total + booking.seatsBooked,
     0,
   );
-  return Math.max(0, Math.min(totalSeats, segment.maxSeats) - occupiedSeats);
+  const holds = await db.pendingPayment.findMany({
+    where: {
+      tripId,
+      segment: {
+        fromOrder: { lt: segment.toOrder },
+        toOrder: { gt: segment.fromOrder },
+      },
+      ...activeReservationWhere(),
+      ...(excludePendingPaymentId ? { id: { not: excludePendingPaymentId } } : {}),
+    },
+    select: { seatsBooked: true },
+  });
+  const heldSeats = holds.reduce((total, hold) => total + hold.seatsBooked, 0);
+  return Math.max(0, Math.min(totalSeats, segment.maxSeats) - occupiedSeats - heldSeats);
 }
 
 function formatPayment(row: PaymentRow) {
@@ -563,6 +630,94 @@ async function createPaychanguCheckout(params: {
   }
 }
 
+function operatorRefForDirectCharge(method: PaymentMethod) {
+  if (method === "airtel_money") return env.PAYCHANGU_AIRTEL_MONEY_OPERATOR_REF_ID;
+  if (method === "tnm_mpamba") return env.PAYCHANGU_TNM_MPAMBA_OPERATOR_REF_ID;
+  return "";
+}
+
+function normalizeMobileForDirectCharge(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("265") && digits.length === 12) return `0${digits.slice(3)}`;
+  if (digits.length === 9) return `0${digits}`;
+  if (digits.startsWith("0") && digits.length === 10) return digits;
+  return phone.trim();
+}
+
+function inferMobileMoneyMethod(method: PaymentMethod, phone: string): PaymentMethod {
+  const local = normalizeMobileForDirectCharge(phone);
+  if (/^0?8[89]/.test(local)) return "tnm_mpamba";
+  if (/^0?9[789]/.test(local)) return "airtel_money";
+  return method;
+}
+
+async function createPaychanguMobileMoneyCharge(params: {
+  txRef: string;
+  amount: number;
+  phone: string;
+  method: PaymentMethod;
+  email?: string | null;
+  firstName: string;
+  lastName: string;
+}) {
+  const operatorRef = operatorRefForDirectCharge(params.method);
+  if (!operatorRef) {
+    throw new AppError(
+      400,
+      "Mobile money operator is not configured for this payment method.",
+    );
+  }
+  if (params.method !== "airtel_money" && params.method !== "tnm_mpamba") {
+    throw new AppError(400, "Only mobile money payments are supported for ride bookings.");
+  }
+
+  const body = {
+    mobile_money_operator_ref_id: operatorRef,
+    mobile: normalizeMobileForDirectCharge(params.phone),
+    amount: String(params.amount),
+    charge_id: params.txRef,
+    email: params.email ?? undefined,
+    first_name: params.firstName,
+    last_name: params.lastName,
+  };
+
+  console.log(
+    "[PAYCHANGU] Initiating direct mobile-money payment:",
+    JSON.stringify({ url: `${env.PAYCHANGU_BASE_URL}/mobile-money/payments/initialize`, body }),
+  );
+
+  try {
+    const res = await axios.post(
+      `${env.PAYCHANGU_BASE_URL}/mobile-money/payments/initialize`,
+      body,
+      { headers: paychanguHeaders(), timeout: 30_000 },
+    );
+    console.log(
+      "[PAYCHANGU] Direct mobile-money payment response:",
+      JSON.stringify({ httpStatus: res.status, data: res.data }),
+    );
+    return res.data as Record<string, unknown>;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.warn(
+        "[PAYCHANGU] Direct mobile-money payment rejected:",
+        JSON.stringify({
+          httpStatus: error.response?.status ?? null,
+          data: error.response?.data ?? null,
+          request: { body },
+        }),
+      );
+      const responseData = error.response?.data as { message?: unknown } | undefined;
+      const message =
+        typeof responseData?.message === "string"
+          ? responseData.message
+          : "PayChangu rejected the mobile money payment request";
+      throw new AppError(error.response?.status === 400 ? 400 : 502, message);
+    }
+    throw error;
+  }
+}
+
 function assertPaychanguMinimum(amountMwk: number) {
   if (amountMwk < env.PAYCHANGU_MIN_AMOUNT_MWK) {
     throw new AppError(
@@ -704,7 +859,8 @@ export async function initiatePayment(
   passengerId: string,
   input: InitiatePaymentInput & { callbackUrl?: string; returnUrl?: string },
 ) {
-  const { bookingId, method } = input;
+  const { bookingId } = input;
+  const method = inferMobileMoneyMethod(input.method, input.phone);
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, passengerId },
     include: {
@@ -751,28 +907,9 @@ export async function initiatePayment(
     booking.passenger.fullName ?? "Customer"
   ).split(" ");
   const lastName = rest.join(" ") || firstName;
-  const appOrigin = getAppOrigin();
-  const callbackUrl = input.callbackUrl ?? `${appOrigin}/app/payments/callback`;
-  const returnUrl = input.returnUrl ?? `${appOrigin}/app/bookings/${bookingId}`;
+  const checkoutUrl = null;
 
-  const checkoutUrl = await createPaychanguCheckout({
-    txRef,
-    amount: breakdown.customerAmountMwk,
-    currency: "MWK",
-    email: booking.passenger.email ?? `${passengerId}@rideshare.mw`,
-    firstName,
-    lastName,
-    callbackUrl,
-    returnUrl,
-    meta: {
-      bookingId,
-      passengerId,
-      driverId: booking.trip.driverId,
-      route: `${booking.trip.originName} -> ${booking.trip.destinationName}`,
-    },
-  });
-
-  const pending = await prisma.pendingPayment.upsert({
+  let pending = await prisma.pendingPayment.upsert({
     where: { bookingId },
     create: {
       bookingId,
@@ -810,7 +947,57 @@ export async function initiatePayment(
     },
   });
 
-  return { ...formatPending(pending), paymentUrl: checkoutUrl, checkoutUrl };
+  let chargePayload: Record<string, unknown>;
+  try {
+    chargePayload = await createPaychanguMobileMoneyCharge({
+      txRef,
+      amount: breakdown.customerAmountMwk,
+      phone: input.phone,
+      method,
+      email: booking.passenger.email ?? `${passengerId}@rideshare.mw`,
+      firstName,
+      lastName,
+    });
+  } catch (error) {
+    await prisma.$transaction(async (tx) => {
+      await tx.pendingPayment.update({
+        where: { id: pending.id },
+        data: {
+          status: "failed",
+          reservationReleasedAt: new Date(),
+          reservationReleaseReason: "payment_request_failed",
+          failureReason: error instanceof Error ? error.message : "PayChangu payment request failed",
+        },
+      });
+      if (!pending.segmentId && pending.tripId) {
+        await tx.trip.update({
+          where: { id: pending.tripId },
+          data: { availableSeats: { increment: pending.seatsBooked } },
+        });
+      }
+    });
+    throw error;
+  }
+  const chargeData = recordFrom(chargePayload.data);
+  const mobileMoney = recordFrom(chargeData.mobile_money);
+  pending = await prisma.pendingPayment.update({
+    where: { id: pending.id },
+    data: {
+      gatewayReference: stringFrom(chargeData.ref_id),
+      providerPayload: toJson(chargePayload),
+      providerChannel: "Mobile Money",
+      providerOperatorRefId: stringFrom(mobileMoney.ref_id),
+      providerOperatorName: stringFrom(mobileMoney.name),
+      providerMobileNumber: normalizeMobileForDirectCharge(input.phone),
+    },
+  });
+
+  await enqueuePaymentWebhook(txRef, {
+    source: "poll",
+    delayMs: Math.max(1, env.PAYMENT_VERIFY_POLL_INTERVAL_SECONDS) * 1000,
+  });
+
+  return { ...formatPending(pending), paymentUrl: null, checkoutUrl: null };
 }
 
 export async function initiateRidePayment(
@@ -820,6 +1007,7 @@ export async function initiateRidePayment(
     returnUrl?: string;
   },
 ) {
+  const method = inferMobileMoneyMethod(input.method, input.phone);
   const user = await prisma.user.findUnique({
     where: { id: passengerId },
     select: {
@@ -860,12 +1048,6 @@ export async function initiateRidePayment(
       })
     : null;
 
-  const availableSeats = segment
-    ? await getSegmentAvailableSeats(prisma, trip.id, segment, trip.totalSeats)
-    : trip.availableSeats;
-  if (availableSeats < input.seatsBooked)
-    throw new AppError(400, "Not enough seats available");
-
   const existingBooking = await prisma.booking.findFirst({
     where: {
       tripId: input.tripId,
@@ -880,7 +1062,7 @@ export async function initiateRidePayment(
     where: {
       tripId: input.tripId,
       passengerId,
-      status: { in: [...ACTIVE_PENDING_PAYMENT_STATUSES] },
+      ...activeReservationWhere(),
     },
     orderBy: { createdAt: "desc" },
   });
@@ -921,58 +1103,100 @@ export async function initiateRidePayment(
     " ",
   );
   const lastName = rest.join(" ") || firstName;
-  const appOrigin = getAppOrigin();
-  const callbackUrl = input.callbackUrl ?? `${appOrigin}/app/payments/callback`;
-  const returnUrl =
-    input.returnUrl ?? `${appOrigin}/app/payments/callback?tx_ref=${txRef}`;
+  const checkoutUrl = null;
+  const reservationExpiresAt = reservationExpiryDate();
+  const boardingPoint = segment?.fromStop.pickupPoint ?? input.boardingPoint;
+  const dropOffPoint =
+    segment?.toStop.dropOffPoint ??
+    input.dropOffPoint ??
+    trip.dropOffPoint ??
+    trip.destinationName;
 
-  const checkoutUrl = await createPaychanguCheckout({
-    txRef,
-    amount: breakdown.customerAmountMwk,
-    currency: "MWK",
-    email: user.email ?? `${passengerId}@rideshare.mw`,
-    firstName,
-    lastName,
-    callbackUrl,
-    returnUrl,
-    meta: {
-      tripId: input.tripId,
-      segmentId: segment?.id ?? "",
-      passengerId,
-      driverId: trip.driverId,
-      route: `${trip.originName} -> ${trip.destinationName}`,
-    },
+  let pending = await prisma.$transaction(async (tx) => {
+    if (segment) {
+      const availableSeats = await getSegmentAvailableSeats(tx, trip.id, segment, trip.totalSeats);
+      if (availableSeats < input.seatsBooked) {
+        throw new AppError(400, "Not enough seats available");
+      }
+    } else {
+      const seatHold = await tx.trip.updateMany({
+        where: {
+          id: trip.id,
+          status: "scheduled",
+          availableSeats: { gte: input.seatsBooked },
+        },
+        data: { availableSeats: { decrement: input.seatsBooked } },
+      });
+      if (seatHold.count === 0) throw new AppError(400, "Not enough seats available");
+    }
+
+    return tx.pendingPayment.create({
+      data: {
+        tripId: input.tripId,
+        passengerId,
+        driverId: trip.driverId,
+        txRef,
+        paymentMethod: method,
+        seatsBooked: input.seatsBooked,
+        travelerNames: travelerNames as Prisma.InputJsonValue,
+        boardingPoint,
+        dropOffPoint,
+        fareAmountMwk: BigInt(breakdown.fareAmountMwk),
+        providerFeeMwk: BigInt(breakdown.providerFeeMwk),
+        providerFeeRate: breakdown.providerFeeRate,
+        systemFeeMwk: BigInt(breakdown.systemFeeMwk),
+        systemFeeRate: breakdown.systemFeeRate,
+        customerAmountMwk: BigInt(breakdown.customerAmountMwk),
+        driverAmountMwk: BigInt(breakdown.driverAmountMwk),
+        currency: "MWK",
+        status: "pending",
+        checkoutUrl,
+        reservationExpiresAt,
+      },
+    });
   });
 
-  const pending = await prisma.pendingPayment.create({
-    data: {
-      tripId: input.tripId,
-      passengerId,
-      driverId: trip.driverId,
+  let chargePayload: Record<string, unknown>;
+  try {
+    chargePayload = await createPaychanguMobileMoneyCharge({
       txRef,
-      paymentMethod: input.method,
-      seatsBooked: input.seatsBooked,
-      travelerNames: travelerNames as Prisma.InputJsonValue,
-      boardingPoint: segment?.fromStop.pickupPoint ?? input.boardingPoint,
-      dropOffPoint:
-        segment?.toStop.dropOffPoint ??
-        input.dropOffPoint ??
-        trip.dropOffPoint ??
-        trip.destinationName,
-      fareAmountMwk: BigInt(breakdown.fareAmountMwk),
-      providerFeeMwk: BigInt(breakdown.providerFeeMwk),
-      providerFeeRate: breakdown.providerFeeRate,
-      systemFeeMwk: BigInt(breakdown.systemFeeMwk),
-      systemFeeRate: breakdown.systemFeeRate,
-      customerAmountMwk: BigInt(breakdown.customerAmountMwk),
-      driverAmountMwk: BigInt(breakdown.driverAmountMwk),
-      currency: "MWK",
-      status: "pending",
-      checkoutUrl,
+      amount: breakdown.customerAmountMwk,
+      phone: input.phone,
+      method,
+      email: user.email ?? `${passengerId}@rideshare.mw`,
+      firstName,
+      lastName,
+    });
+  } catch (error) {
+    await prisma.$transaction(async (tx) => {
+      await releasePendingSeatHold(tx, pending, {
+        status: "failed",
+        releaseReason: "payment_request_failed",
+        failureReason: error instanceof Error ? error.message : "PayChangu payment request failed",
+      });
+    });
+    throw error;
+  }
+  const chargeData = recordFrom(chargePayload.data);
+  const mobileMoney = recordFrom(chargeData.mobile_money);
+  pending = await prisma.pendingPayment.update({
+    where: { id: pending.id },
+    data: {
+      gatewayReference: stringFrom(chargeData.ref_id),
+      providerPayload: toJson(chargePayload),
+      providerChannel: "Mobile Money",
+      providerOperatorRefId: stringFrom(mobileMoney.ref_id),
+      providerOperatorName: stringFrom(mobileMoney.name),
+      providerMobileNumber: normalizeMobileForDirectCharge(input.phone),
     },
   });
 
-  return { ...formatPending(pending), paymentUrl: checkoutUrl, checkoutUrl };
+  await enqueuePaymentWebhook(txRef, {
+    source: "poll",
+    delayMs: Math.max(1, env.PAYMENT_VERIFY_POLL_INTERVAL_SECONDS) * 1000,
+  });
+
+  return { ...formatPending(pending), paymentUrl: null, checkoutUrl: null };
 }
 
 async function finalizeVerifiedPayment(
@@ -988,6 +1212,35 @@ async function finalizeVerifiedPayment(
   }
   if (Number(verification.amount ?? 0) < Number(pending.customerAmountMwk)) {
     throw new AppError(400, "Payment amount is lower than expected");
+  }
+  const nowBeforeTx = new Date();
+  if (
+    pending.reservationExpiresAt &&
+    pending.reservationExpiresAt <= nowBeforeTx &&
+    !pending.bookingId
+  ) {
+    await prisma.$transaction(async (tx) => {
+      await releasePendingSeatHold(tx, pending, {
+        status: "paid_booking_failed",
+        releaseReason: "payment_confirmed_after_reservation_expired",
+        failureReason: "Payment confirmed after seat reservation expired",
+        providerPayload: toJson(verification),
+        verifiedAt: nowBeforeTx,
+      });
+    });
+    return null;
+  }
+  if (pending.reservationReleasedAt && !pending.bookingId) {
+    await prisma.pendingPayment.update({
+      where: { id: pending.id },
+      data: {
+        status: "paid_booking_failed",
+        failureReason: "Payment confirmed after seat reservation was released",
+        providerPayload: toJson(verification),
+        verifiedAt: nowBeforeTx,
+      },
+    });
+    return null;
   }
 
   const providerReference = String(verification.reference ?? "");
@@ -1051,6 +1304,7 @@ async function finalizeVerifiedPayment(
               pending.tripId,
               segment,
               segment.trip.totalSeats,
+              pending.id,
             )
           : 0;
         if (
@@ -1069,20 +1323,16 @@ async function finalizeVerifiedPayment(
           return null;
         }
       } else {
-        const seatUpdate = await tx.trip.updateMany({
-          where: {
-            id: pending.tripId,
-            status: "scheduled",
-            availableSeats: { gte: pending.seatsBooked },
-          },
-          data: { availableSeats: { decrement: pending.seatsBooked } },
+        const currentTrip = await tx.trip.findFirst({
+          where: { id: pending.tripId, status: "scheduled" },
+          select: { id: true },
         });
-        if (seatUpdate.count === 0) {
+        if (!currentTrip) {
           await tx.pendingPayment.update({
             where: { id: pending.id },
             data: {
               status: "paid_booking_failed",
-              failureReason: "No seats available after payment verification",
+              failureReason: "Trip is no longer accepting bookings",
               providerPayload: toJson(verification),
             },
           });
@@ -1224,6 +1474,8 @@ async function finalizeVerifiedPayment(
         providerMobileNumber: providerPayment.mobileNumber,
         providerPayload: toJson(verification),
         verifiedAt: now,
+        reservationReleasedAt: now,
+        reservationReleaseReason: "confirmed",
       },
     });
 
@@ -1314,13 +1566,18 @@ export async function verifyAndFinalizeByTxRef(txRef: string) {
     return { state: "pending", transaction: formatPending(pending) };
 
   if (statusIsFailed(verification.status)) {
-    await prisma.pendingPayment.update({
-      where: { id: pending.id },
-      data: { status: "failed", providerPayload: toJson(verification) },
+    await prisma.$transaction(async (tx) => {
+      await releasePendingSeatHold(tx, pending, {
+        status: "failed",
+        releaseReason: "payment_failed",
+        providerPayload: toJson(verification),
+        failureReason: "Payment failed at PayChangu",
+      });
     });
+    const failedPending = await getPendingByTxRef(txRef);
     return {
       state: "failed",
-      transaction: formatPending({ ...pending, status: "failed" }),
+      transaction: failedPending ? formatPending(failedPending) : formatPending({ ...pending, status: "failed" }),
     };
   }
 
@@ -1567,6 +1824,55 @@ export async function getPaymentStatus(bookingId: string, userId: string) {
   return formatPending(pending);
 }
 
+export async function expirePendingPaymentReservations(limit = 100) {
+  const now = new Date();
+  const expired = await prisma.pendingPayment.findMany({
+    where: {
+      status: "pending",
+      reservationExpiresAt: { lte: now },
+      reservationReleasedAt: null,
+    },
+    orderBy: { reservationExpiresAt: "asc" },
+    take: limit,
+    select: {
+      id: true,
+      tripId: true,
+      segmentId: true,
+      seatsBooked: true,
+    },
+  });
+
+  const results = [];
+  for (const hold of expired) {
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.pendingPayment.updateMany({
+        where: {
+          id: hold.id,
+          status: "pending",
+          reservationReleasedAt: null,
+        },
+        data: {
+          status: "expired",
+          reservationReleasedAt: now,
+          reservationReleaseReason: "reservation_expired",
+          failureReason: "Payment was not confirmed before the seat hold expired",
+        },
+      });
+      if (updated.count === 0) return { id: hold.id, released: false };
+      if (!hold.segmentId && hold.tripId) {
+        await tx.trip.update({
+          where: { id: hold.tripId },
+          data: { availableSeats: { increment: hold.seatsBooked } },
+        });
+      }
+      return { id: hold.id, released: true };
+    });
+    results.push(result);
+  }
+
+  return { checkedAt: now.toISOString(), expired: results };
+}
+
 export async function adminRefund(paymentId: string) {
   const pendingRefund = await prisma.$transaction(async (tx) => {
     const payment = await tx.payment.findFirst({
@@ -1668,7 +1974,9 @@ export async function adminRefund(paymentId: string) {
     const refundId = randomUUID();
     const chargeId = `RF-${refundId}`;
     const payloadPayment = extractPaychanguMobilePaymentDetails(payment.providerPayload);
-    const paidPhone = payment.providerMobileNumber ?? payloadPayment.mobileNumber;
+    const paidPhone =
+      normalizedPayoutMobileOrNull(payment.providerMobileNumber) ??
+      payloadPayment.mobileNumber;
     console.log(
       "[REFUND] Payment source data for admin refund:",
       stringifyLogPayload({

@@ -6,6 +6,8 @@ import { sendPushNotification } from "../lib/fcm.js";
 
 export type PaymentWebhookJob = {
   txRef: string;
+  attempt?: number;
+  source?: "webhook" | "poll";
 };
 
 export type WithdrawalJob = {
@@ -18,6 +20,10 @@ export type WithdrawalTimeoutJob = {
 
 export type RefundTimeoutJob = {
   refundId: string;
+};
+
+export type PaymentReservationSweepJob = {
+  requestedAt: string;
 };
 
 export type NotificationJob =
@@ -39,6 +45,7 @@ const NOTIFICATION_QUEUE_NAME = "notifications";
 const WITHDRAWAL_QUEUE_NAME = "withdrawals";
 const WITHDRAWAL_TIMEOUT_QUEUE_NAME = "withdrawals-timeout";
 const REFUND_TIMEOUT_QUEUE_NAME = "refunds-timeout";
+const PAYMENT_RESERVATION_SWEEP_QUEUE_NAME = "payments-reservation-sweep";
 
 const queuePrefix = `{${env.REDIS_QUEUE_PREFIX}}`;
 
@@ -72,10 +79,32 @@ export const refundTimeoutQueue = new Queue<RefundTimeoutJob>(REFUND_TIMEOUT_QUE
   defaultJobOptions,
 });
 
+export const paymentReservationSweepQueue = new Queue<PaymentReservationSweepJob>(
+  PAYMENT_RESERVATION_SWEEP_QUEUE_NAME,
+  {
+    connection: getRedisConnection(),
+    prefix: queuePrefix,
+    defaultJobOptions,
+  },
+);
+
 const workers: Worker[] = [];
 
-export async function enqueuePaymentWebhook(txRef: string) {
-  await paymentWebhookQueue.add("paychangu.verify", { txRef }, { jobId: `paychangu-${txRef}` });
+export async function enqueuePaymentWebhook(
+  txRef: string,
+  options: { delayMs?: number; attempt?: number; source?: "webhook" | "poll" } = {},
+) {
+  const attempt = options.attempt ?? 1;
+  const source = options.source ?? "webhook";
+  const jobId =
+    source === "poll"
+      ? `paychangu-${txRef}-poll-${attempt}`
+      : `paychangu-${txRef}-webhook-${Date.now()}`;
+  await paymentWebhookQueue.add(
+    "paychangu.verify",
+    { txRef, attempt, source },
+    { jobId, delay: options.delayMs ?? 0 },
+  );
 }
 
 export async function enqueueNotification(job: NotificationJob) {
@@ -102,6 +131,19 @@ export async function enqueueRefundTimeout(refundId: string, delayMs: number) {
   );
 }
 
+export async function enqueuePaymentReservationSweep(delayMs = 0) {
+  await paymentReservationSweepQueue.add(
+    "payments.reservations.expire",
+    { requestedAt: new Date().toISOString() },
+    {
+      jobId: `payment-reservation-sweep-${Math.floor(Date.now() / 1000)}`,
+      delay: delayMs,
+      removeOnComplete: true,
+      removeOnFail: true,
+    },
+  );
+}
+
 export function startQueueWorkers() {
   if (!env.QUEUE_WORKERS_ENABLED) {
     console.log("[QUEUE] Workers disabled by QUEUE_WORKERS_ENABLED=false");
@@ -114,7 +156,15 @@ export function startQueueWorkers() {
       PAYMENT_WEBHOOK_QUEUE_NAME,
       async (job) => {
         const { verifyAndFinalizeByTxRef } = await import("../modules/payments/payments.service.js");
-        await verifyAndFinalizeByTxRef(job.data.txRef);
+        const result = await verifyAndFinalizeByTxRef(job.data.txRef);
+        const attempt = job.data.attempt ?? 1;
+        if (result.state === "pending" && attempt < env.PAYMENT_VERIFY_MAX_ATTEMPTS) {
+          await enqueuePaymentWebhook(job.data.txRef, {
+            attempt: attempt + 1,
+            source: "poll",
+            delayMs: Math.max(1, env.PAYMENT_VERIFY_POLL_INTERVAL_SECONDS) * 1000,
+          });
+        }
       },
       {
         connection: getRedisConnection(),
@@ -166,6 +216,23 @@ export function startQueueWorkers() {
       },
     ),
   );
+
+  workers.push(
+    new Worker<PaymentReservationSweepJob>(
+      PAYMENT_RESERVATION_SWEEP_QUEUE_NAME,
+      async () => {
+        const { expirePendingPaymentReservations } = await import("../modules/payments/payments.service.js");
+        await expirePendingPaymentReservations();
+        await enqueuePaymentReservationSweep(Math.max(10, env.PAYMENT_RESERVATION_SWEEP_SECONDS) * 1000);
+      },
+      {
+        connection: getRedisConnection(),
+        prefix: queuePrefix,
+      },
+    ),
+  );
+
+  void enqueuePaymentReservationSweep(1000);
 
   workers.push(
     new Worker<NotificationJob>(
@@ -220,5 +287,6 @@ export async function closeQueueWorkers() {
     withdrawalQueue.close(),
     withdrawalTimeoutQueue.close(),
     refundTimeoutQueue.close(),
+    paymentReservationSweepQueue.close(),
   ]);
 }

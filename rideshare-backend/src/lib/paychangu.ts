@@ -188,6 +188,15 @@ function stringFrom(...values: unknown[]) {
   return null;
 }
 
+export function normalizedPayoutMobileOrNull(value: string | null | undefined) {
+  if (!value) return null;
+  const digits = value.replace(/\D/g, "");
+  if (digits.startsWith("265") && digits.length === 12) return digits.slice(3);
+  if (digits.startsWith("0") && digits.length === 10) return digits.slice(1);
+  if (digits.length === 9) return digits;
+  return null;
+}
+
 export function extractPaychanguMobilePaymentDetails(
   payload: Prisma.JsonValue | Record<string, unknown> | null | undefined,
 ): PaychanguMobilePaymentDetails {
@@ -221,12 +230,11 @@ export function extractPaychanguMobilePaymentDetails(
       authMobileMoney.name,
       mobileMoney.name,
     ),
-    mobileNumber: stringFrom(
-      source.mobile,
-      mobileMoney.mobile,
-      authorization.mobile,
-      authorization.mobile_number,
-    ),
+    mobileNumber:
+      normalizedPayoutMobileOrNull(stringFrom(source.mobile)) ??
+      normalizedPayoutMobileOrNull(stringFrom(mobileMoney.mobile)) ??
+      normalizedPayoutMobileOrNull(stringFrom(authorization.mobile)) ??
+      normalizedPayoutMobileOrNull(stringFrom(authorization.mobile_number)),
   };
 }
 

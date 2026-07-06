@@ -121,7 +121,8 @@ function PublicTripsPage() {
       toast.success("Opening secure payment.");
       setViewTrip(null);
       if (p?.checkoutUrl) { window.location.assign(p.checkoutUrl); return; }
-      toast.error("Could not open payment checkout");
+      if (p?.txRef) { window.location.assign(`/app/payments/callback?tx_ref=${encodeURIComponent(p.txRef)}`); return; }
+      toast.error("Could not start payment confirmation");
     },
     onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : "Payment failed"),
   });

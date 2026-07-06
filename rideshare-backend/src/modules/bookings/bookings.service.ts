@@ -9,6 +9,7 @@ import {
   extractPaychanguMobilePaymentDetails,
   fetchPaychanguPayoutDetails,
   initiatePaychanguMobileMoneyRefund,
+  normalizedPayoutMobileOrNull,
 } from "../../lib/paychangu.js";
 import { enqueueRefundTimeout } from "../../jobs/queue.js";
 import { creditRefundConvenienceShare } from "../wallet/wallet.service.js";
@@ -541,7 +542,9 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
 
     const amounts = calculateRefundAmounts(booking.payment.customerAmountMwk);
     const payloadPayment = extractPaychanguMobilePaymentDetails(booking.payment.providerPayload);
-    const paidPhone = booking.payment.providerMobileNumber ?? payloadPayment.mobileNumber;
+    const paidPhone =
+      normalizedPayoutMobileOrNull(booking.payment.providerMobileNumber) ??
+      payloadPayment.mobileNumber;
     console.log(
       "[REFUND] Payment source data for passenger refund:",
       stringifyLogPayload({
