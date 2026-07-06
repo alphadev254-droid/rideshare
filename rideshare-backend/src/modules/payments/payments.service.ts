@@ -32,7 +32,10 @@ import {
   driverBookingNotificationText,
 } from "../../lib/email-templates.js";
 import { handlePaychanguPayoutWebhook } from "../wallet/wallet.service.js";
-import { handlePaychanguRefundPayoutWebhook } from "../bookings/bookings.service.js";
+import {
+  calculateRefundAmounts,
+  handlePaychanguRefundPayoutWebhook,
+} from "../bookings/bookings.service.js";
 import type {
   InitiatePaymentInput as SchemaInitiatePaymentInput,
   InitiateRidePaymentInput as SchemaInitiateRidePaymentInput,
@@ -2003,6 +2006,7 @@ export async function adminRefund(paymentId: string) {
     const operatorRefId = payment.providerOperatorRefId ?? payloadPayment.operatorRefId;
     const operatorName = payment.providerOperatorName ?? payloadPayment.operatorName;
     const providerChannel = payment.providerChannel ?? payloadPayment.channel;
+    const amounts = calculateRefundAmounts(payment.customerAmountMwk);
     const refund = await tx.paymentRefund.create({
       data: {
         id: refundId,
@@ -2013,13 +2017,13 @@ export async function adminRefund(paymentId: string) {
         status: "processing",
         reason: "Admin refund",
         originalCustomerAmountMwk: payment.customerAmountMwk,
-        refundableBaseMwk: payment.customerAmountMwk,
-        convenienceFeeRate: 0,
-        convenienceFeeMwk: 0,
-        driverConvenienceShareRate: 0,
-        driverConvenienceShareMwk: 0,
-        platformConvenienceFeeMwk: 0,
-        refundAmountMwk: payment.customerAmountMwk,
+        refundableBaseMwk: amounts.refundableBaseMwk,
+        convenienceFeeRate: amounts.convenienceFeeRate,
+        convenienceFeeMwk: amounts.convenienceFeeMwk,
+        driverConvenienceShareRate: amounts.driverConvenienceShareRate,
+        driverConvenienceShareMwk: amounts.driverConvenienceShareMwk,
+        platformConvenienceFeeMwk: amounts.platformConvenienceFeeMwk,
+        refundAmountMwk: amounts.refundAmountMwk,
         paymentMethod: payment.paymentMethod,
         providerChannel,
         providerOperatorRefId: operatorRefId,

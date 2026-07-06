@@ -299,7 +299,14 @@ export async function updateTrip(userId: string, tripId: string, input: UpdateTr
     prisma.booking.count({
       where: { tripId, status: { notIn: ["cancelled", "no_show"] } },
     }),
-    prisma.pendingPayment.count({ where: { tripId } }),
+    prisma.pendingPayment.count({
+      where: {
+        tripId,
+        status: "pending",
+        reservationReleasedAt: null,
+        OR: [{ reservationExpiresAt: null }, { reservationExpiresAt: { gt: new Date() } }],
+      },
+    }),
   ]);
   if (activeBookingCount > 0) {
     throw new AppError(400, "Trips with passenger bookings cannot be edited. Cancel or complete the existing bookings first.");
@@ -475,9 +482,31 @@ export async function createTripAdmin(input: AdminTripInput) {
 export async function updateTripAdmin(tripId: string, input: AdminTripInput) {
   const trip = await prisma.trip.findUnique({
     where: { id: tripId },
-    select: { id: true, totalSeats: true, availableSeats: true },
+    select: { id: true, totalSeats: true, availableSeats: true, startedAt: true, status: true },
   });
   if (!trip) throw new AppError(404, "Trip not found");
+  if (trip.startedAt || trip.status === "in_transit" || trip.status === "completed" || trip.status === "cancelled") {
+    throw new AppError(400, "Only trips that have not started can be edited");
+  }
+  const [activeBookingCount, pendingPaymentCount] = await prisma.$transaction([
+    prisma.booking.count({
+      where: { tripId, status: { notIn: ["cancelled", "no_show"] } },
+    }),
+    prisma.pendingPayment.count({
+      where: {
+        tripId,
+        status: "pending",
+        reservationReleasedAt: null,
+        OR: [{ reservationExpiresAt: null }, { reservationExpiresAt: { gt: new Date() } }],
+      },
+    }),
+  ]);
+  if (activeBookingCount > 0) {
+    throw new AppError(400, "Trips with passenger bookings cannot be edited. Cancel or complete the existing bookings first.");
+  }
+  if (pendingPaymentCount > 0) {
+    throw new AppError(400, "Trips with passenger payments in progress cannot be edited yet.");
+  }
 
   const driver = await prisma.driverProfile.findFirst({
     where: { id: input.driverId, isApproved: true },
@@ -518,28 +547,35 @@ export async function updateTripAdmin(tripId: string, input: AdminTripInput) {
     estimated_duration_minutes: number | null; status: string;
   };
 
-  const rows = await prisma.$queryRaw<TripRow[]>`
-    UPDATE trips
-    SET driver_id = ${driver.id}::uuid,
-        vehicle_id = ${input.vehicleId}::uuid,
-        origin_name = ${input.originName},
-        pickup_point = ${input.pickupPoint ?? null},
-        origin_point = ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
-        destination_name = ${input.destinationName},
-        drop_off_point = ${input.dropOffPoint ?? null},
-        destination_point = ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
-        departure_time = ${departureTime},
-        total_seats = ${input.totalSeats},
-        available_seats = ${availableSeats},
-        comfort_class = ${vehicle.comfortClass as ComfortClass}::"ComfortClass",
-        distance_km = ${distanceKm},
-        base_fare_mwk = ${BigInt(input.farePerSeatMwk)},
-        estimated_duration_minutes = ${input.estimatedDurationMinutes},
-        updated_at = now()
-    WHERE id = ${tripId}::uuid
-    RETURNING id, origin_name, pickup_point, destination_name, drop_off_point, departure_time, total_seats,
-              available_seats, comfort_class, base_fare_mwk, distance_km,
-              estimated_duration_minutes, status`;
+  const rows = await prisma.$transaction(async (tx) => {
+    const updated = await tx.$queryRaw<TripRow[]>`
+      UPDATE trips
+      SET driver_id = ${driver.id}::uuid,
+          vehicle_id = ${input.vehicleId}::uuid,
+          origin_name = ${input.originName},
+          pickup_point = ${input.pickupPoint ?? null},
+          origin_point = ST_SetSRID(ST_MakePoint(${input.originLng}, ${input.originLat}), 4326),
+          destination_name = ${input.destinationName},
+          drop_off_point = ${input.dropOffPoint ?? null},
+          destination_point = ST_SetSRID(ST_MakePoint(${input.destinationLng}, ${input.destinationLat}), 4326),
+          departure_time = ${departureTime},
+          total_seats = ${input.totalSeats},
+          available_seats = ${availableSeats},
+          comfort_class = ${vehicle.comfortClass as ComfortClass}::"ComfortClass",
+          distance_km = ${distanceKm},
+          base_fare_mwk = ${BigInt(input.farePerSeatMwk)},
+          estimated_duration_minutes = ${input.estimatedDurationMinutes},
+          updated_at = now()
+      WHERE id = ${tripId}::uuid
+      RETURNING id, origin_name, pickup_point, destination_name, drop_off_point, departure_time, total_seats,
+                available_seats, comfort_class, base_fare_mwk, distance_km,
+                estimated_duration_minutes, status`;
+
+    await tx.tripSegment.deleteMany({ where: { tripId } });
+    await tx.tripStop.deleteMany({ where: { tripId } });
+    await createRoutePlan(tx, tripId, input);
+    return updated;
+  });
 
   const r = rows[0];
   return {

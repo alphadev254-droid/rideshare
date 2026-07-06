@@ -99,7 +99,7 @@ function clampRate(rate: number, max = 1) {
   return Math.min(rate, max);
 }
 
-function calculateRefundAmounts(customerAmountMwk: bigint) {
+export function calculateRefundAmounts(customerAmountMwk: bigint) {
   const convenienceFeeRate = clampRate(env.REFUND_CONVENIENCE_FEE_RATE);
   const driverShareRate = clampRate(env.DRIVER_REFUND_CONVENIENCE_SHARE_RATE);
   const convenienceFeeMwk = amountFromRate(customerAmountMwk, convenienceFeeRate);
@@ -998,6 +998,7 @@ export async function adminCancelBookingAndRefund(
     const providerChannel = booking.payment.providerChannel ?? payloadPayment.channel;
     const refundId = randomUUID();
     const chargeId = `RF-${refundId}`;
+    const amounts = calculateRefundAmounts(booking.payment.customerAmountMwk);
     const created = await tx.paymentRefund.create({
       data: {
         id: refundId,
@@ -1008,13 +1009,13 @@ export async function adminCancelBookingAndRefund(
         status: "processing",
         reason: input.reason?.trim() || "Admin cancel and refund",
         originalCustomerAmountMwk: booking.payment.customerAmountMwk,
-        refundableBaseMwk: booking.payment.customerAmountMwk,
-        convenienceFeeRate: 0,
-        convenienceFeeMwk: 0,
-        driverConvenienceShareRate: 0,
-        driverConvenienceShareMwk: 0,
-        platformConvenienceFeeMwk: 0,
-        refundAmountMwk: booking.payment.customerAmountMwk,
+        refundableBaseMwk: amounts.refundableBaseMwk,
+        convenienceFeeRate: amounts.convenienceFeeRate,
+        convenienceFeeMwk: amounts.convenienceFeeMwk,
+        driverConvenienceShareRate: amounts.driverConvenienceShareRate,
+        driverConvenienceShareMwk: amounts.driverConvenienceShareMwk,
+        platformConvenienceFeeMwk: amounts.platformConvenienceFeeMwk,
+        refundAmountMwk: amounts.refundAmountMwk,
         paymentMethod,
         providerChannel,
         providerOperatorRefId: operatorRefId,
