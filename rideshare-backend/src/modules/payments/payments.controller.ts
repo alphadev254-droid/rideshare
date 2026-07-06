@@ -11,7 +11,7 @@ export async function initiatePaymentController(
   try {
     const data = await paymentsService.initiatePayment(
       req.user!.sub,
-      req.body as InitiatePaymentInput,
+      req.body as InitiatePaymentInput & { phone: string },
     );
     res.status(201).json({ success: true, data });
   } catch (err) {
@@ -27,7 +27,7 @@ export async function initiateRidePaymentController(
   try {
     const data = await paymentsService.initiateRidePayment(
       req.user!.sub,
-      req.body as InitiateRidePaymentInput,
+      req.body as InitiateRidePaymentInput & { phone: string },
     );
     res.status(201).json({ success: true, data });
   } catch (err) {
