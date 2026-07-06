@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import type { PaymentMethod } from "@prisma/client";
 import type { AuthRequest } from "../../types/index.js";
 import * as bookingsService from "./bookings.service.js";
 import type { CreateBookingInput } from "./bookings.schemas.js";
@@ -143,6 +144,64 @@ export async function reconcileRefundController(
   try {
     const data = await bookingsService.reconcileRefundForAdmin(req.params.id);
     res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAdminCancelPreviewController(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const data = await bookingsService.getAdminBookingCancelPreview(req.params.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminCancelOnlyController(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const data = await bookingsService.adminCancelBookingOnly(
+      req.params.id,
+      req.user!.sub,
+      typeof req.body.reason === "string" ? req.body.reason : undefined,
+    );
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminCancelAndRefundController(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const data = await bookingsService.adminCancelBookingAndRefund(
+      req.params.id,
+      req.user!.sub,
+      {
+        reason: typeof req.body.reason === "string" ? req.body.reason : undefined,
+        overridePhone: typeof req.body.overridePhone === "string" ? req.body.overridePhone : undefined,
+        overridePaymentMethod:
+          typeof req.body.overridePaymentMethod === "string"
+            ? (req.body.overridePaymentMethod as PaymentMethod)
+            : undefined,
+        overrideReason:
+          typeof req.body.overrideReason === "string"
+            ? req.body.overrideReason
+            : undefined,
+      },
+    );
+    res.status(201).json({ success: true, data });
   } catch (err) {
     next(err);
   }

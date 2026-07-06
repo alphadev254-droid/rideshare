@@ -5,6 +5,7 @@
 import { api } from "./client";
 import type {
   AdminPayoutRefund,
+  AdminBookingCancelPreview,
   AdminWalletTransaction,
   AdminWalletWithdrawal,
   AdminUser,
@@ -260,6 +261,19 @@ export const bookingService = {
   verifyCode: (id: string, code: string) =>
     api.post<{ verified: boolean; bookingId: string; seatsBooked: number; travelers?: BookingTraveler[] }>(`/bookings/${id}/verify-code`, { code }),
   cancel: (id: string) => api.patch<Booking>(`/bookings/${id}/cancel`),
+  adminCancelPreview: (id: string) =>
+    api.get<AdminBookingCancelPreview>(`/bookings/admin/${id}/cancel-preview`),
+  adminCancelOnly: (id: string, body: { reason?: string }) =>
+    api.post<Booking>(`/bookings/admin/${id}/cancel-only`, body),
+  adminCancelAndRefund: (
+    id: string,
+    body: {
+      reason?: string;
+      overridePhone?: string;
+      overridePaymentMethod?: PaymentMethod;
+      overrideReason?: string;
+    },
+  ) => api.post<PaymentRefund>(`/bookings/admin/${id}/cancel-and-refund`, body),
 };
 
 // ─── Payments ─────────────────────────────────────────────────────

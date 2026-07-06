@@ -470,6 +470,9 @@ model PaymentRefund {
   processedAt                DateTime?    @map("processed_at") @db.Timestamptz()
   failedAt                   DateTime?    @map("failed_at") @db.Timestamptz()
   failureReason              String?      @map("failure_reason")
+  requestedByAdminId         String?      @map("requested_by_admin_id") @db.Uuid
+  refundDestinationOverridden Boolean     @default(false) @map("refund_destination_overridden")
+  refundDestinationOverrideReason String? @map("refund_destination_override_reason")
 
   payment   Payment             @relation(fields: [paymentId], references: [id])
   booking   Booking             @relation(fields: [bookingId], references: [id])

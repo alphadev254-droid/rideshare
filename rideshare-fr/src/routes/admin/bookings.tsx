@@ -1,14 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { CalendarClock, Eye, MapPin, Search } from "lucide-react";
+import { CalendarClock, Eye, MapPin, RotateCcw, Search } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import {
   bookingService,
+  type AdminBookingCancelPreview,
   type Booking,
   type BookingPaymentStatus,
   type BookingStatus,
+  type PaymentMethod,
 } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
@@ -16,6 +18,16 @@ import { EmptyState } from "@/components/empty-state";
 import { StatusPill } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -34,6 +46,7 @@ import {
 import { formatDateTime, formatMwk } from "@/lib/format";
 import { BookingViewDialog } from "@/components/booking-view-dialog";
 import { AdminPagination } from "@/components/admin-pagination";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/bookings")({
   component: AdminBookings,
@@ -68,6 +81,12 @@ function AdminBookings() {
   const [viewBooking, setViewBooking] = useState<Booking | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [viewLoading, setViewLoading] = useState(false);
+  const [cancelBooking, setCancelBooking] = useState<Booking | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [overrideDestination, setOverrideDestination] = useState(false);
+  const [overridePhone, setOverridePhone] = useState("");
+  const [overridePaymentMethod, setOverridePaymentMethod] = useState<PaymentMethod>("airtel_money");
+  const [overrideReason, setOverrideReason] = useState("");
 
   const qc = useQueryClient();
 
@@ -87,6 +106,42 @@ function AdminBookings() {
 
   const bookings = data?.data ?? [];
   const totalBookings = data?.meta.total ?? 0;
+  const cancelPreview = useQuery({
+    queryKey: ["bookings", "admin", cancelBooking?.id, "cancel-preview"],
+    queryFn: () => bookingService.adminCancelPreview(cancelBooking!.id),
+    enabled: Boolean(cancelBooking),
+    retry: false,
+  });
+
+  const cancelOnly = useMutation({
+    mutationFn: () =>
+      bookingService.adminCancelOnly(cancelBooking!.id, {
+        reason: cancelReason.trim() || undefined,
+      }),
+    onSuccess: () => {
+      toast.success("Booking cancelled");
+      setCancelBooking(null);
+      qc.invalidateQueries({ queryKey: ["bookings", "admin"] });
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not cancel booking"),
+  });
+
+  const cancelAndRefund = useMutation({
+    mutationFn: () =>
+      bookingService.adminCancelAndRefund(cancelBooking!.id, {
+        reason: cancelReason.trim() || undefined,
+        overridePhone: overrideDestination ? overridePhone.trim() : undefined,
+        overridePaymentMethod: overrideDestination ? overridePaymentMethod : undefined,
+        overrideReason: overrideDestination ? overrideReason.trim() : undefined,
+      }),
+    onSuccess: () => {
+      toast.success("Refund payout started. Booking will cancel after refund confirmation.");
+      setCancelBooking(null);
+      qc.invalidateQueries({ queryKey: ["bookings", "admin"] });
+      qc.invalidateQueries({ queryKey: ["payouts", "admin"] });
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not start refund"),
+  });
 
   useEffect(() => {
     setPage(1);
@@ -95,6 +150,15 @@ function AdminBookings() {
   function changeLimit(nextLimit: number) {
     setLimit(nextLimit);
     setPage(1);
+  }
+
+  function openCancelDialog(booking: Booking) {
+    setCancelBooking(booking);
+    setCancelReason("");
+    setOverrideDestination(false);
+    setOverridePhone("");
+    setOverridePaymentMethod("airtel_money");
+    setOverrideReason("");
   }
 
   async function openBookingView(
@@ -226,6 +290,16 @@ function AdminBookings() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
+                        {booking.status !== "cancelled" && (
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            title="Cancel booking"
+                            onClick={() => openCancelDialog(booking)}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -244,8 +318,222 @@ function AdminBookings() {
         </>
       )}
 
-
+      <AdminCancelBookingDialog
+        booking={cancelBooking}
+        preview={cancelPreview.data}
+        loading={cancelPreview.isLoading}
+        error={cancelPreview.error instanceof Error ? cancelPreview.error.message : null}
+        open={Boolean(cancelBooking)}
+        onOpenChange={(open) => {
+          if (!open && !cancelOnly.isPending && !cancelAndRefund.isPending) setCancelBooking(null);
+        }}
+        reason={cancelReason}
+        onReasonChange={setCancelReason}
+        overrideDestination={overrideDestination}
+        onOverrideDestinationChange={setOverrideDestination}
+        overridePhone={overridePhone}
+        onOverridePhoneChange={setOverridePhone}
+        overridePaymentMethod={overridePaymentMethod}
+        onOverridePaymentMethodChange={setOverridePaymentMethod}
+        overrideReason={overrideReason}
+        onOverrideReasonChange={setOverrideReason}
+        onCancelOnly={() => cancelOnly.mutate()}
+        onCancelAndRefund={() => cancelAndRefund.mutate()}
+        busy={cancelOnly.isPending || cancelAndRefund.isPending}
+      />
       <BookingViewDialog booking={viewBooking} open={viewOpen} loading={viewLoading} onOpenChange={setViewOpen} />
+    </div>
+  );
+}
+
+function AdminCancelBookingDialog({
+  booking,
+  preview,
+  loading,
+  error,
+  open,
+  onOpenChange,
+  reason,
+  onReasonChange,
+  overrideDestination,
+  onOverrideDestinationChange,
+  overridePhone,
+  onOverridePhoneChange,
+  overridePaymentMethod,
+  onOverridePaymentMethodChange,
+  overrideReason,
+  onOverrideReasonChange,
+  onCancelOnly,
+  onCancelAndRefund,
+  busy,
+}: {
+  booking: Booking | null;
+  preview?: AdminBookingCancelPreview;
+  loading: boolean;
+  error: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  reason: string;
+  onReasonChange: (value: string) => void;
+  overrideDestination: boolean;
+  onOverrideDestinationChange: (value: boolean) => void;
+  overridePhone: string;
+  onOverridePhoneChange: (value: string) => void;
+  overridePaymentMethod: PaymentMethod;
+  onOverridePaymentMethodChange: (value: PaymentMethod) => void;
+  overrideReason: string;
+  onOverrideReasonChange: (value: string) => void;
+  onCancelOnly: () => void;
+  onCancelAndRefund: () => void;
+  busy: boolean;
+}) {
+  const defaultPhone = preview?.payment?.providerMobileNumber ?? "";
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Cancel booking</DialogTitle>
+          <DialogDescription>
+            Review payment and refund status before choosing how to cancel this booking.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        ) : preview ? (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <CancelDetail label="Passenger" value={preview.passenger.fullName} />
+              <CancelDetail label="Route" value={preview.route} />
+              <CancelDetail label="Booking status" value={preview.bookingStatus.replaceAll("_", " ")} />
+              <CancelDetail label="Payment status" value={preview.paymentStatus.replaceAll("_", " ")} />
+              <CancelDetail label="Seats" value={`${preview.seatsBooked}`} />
+              <CancelDetail
+                label="Amount paid"
+                value={preview.payment ? formatMwk(preview.payment.customerAmountMwk) : "No payment"}
+              />
+            </div>
+
+            {preview.refund ? (
+              <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
+                Refund already exists: <span className="font-semibold capitalize">{preview.refund.status}</span>
+                {" "}for {formatMwk(preview.refund.refundAmountMwk)}.
+              </div>
+            ) : preview.failedRefund ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                Last refund failed: {preview.failedRefund.failureReason ?? "No failure reason available"}.
+              </div>
+            ) : null}
+
+            {preview.payment && !preview.refund ? (
+              <div className="space-y-3 rounded-md border border-border p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium">Refund destination</div>
+                    <div className="text-xs text-muted-foreground">
+                      Default: {defaultPhone || "No saved payment number"} · {preview.payment.providerOperatorName ?? preview.payment.paymentMethod}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={overrideDestination ? "default" : "outline"}
+                    onClick={() => onOverrideDestinationChange(!overrideDestination)}
+                  >
+                    Different number
+                  </Button>
+                </div>
+                {overrideDestination ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Refund phone</Label>
+                      <Input
+                        value={overridePhone}
+                        onChange={(event) => onOverridePhoneChange(event.target.value)}
+                        placeholder="0990000000"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Operator</Label>
+                      <Select
+                        value={overridePaymentMethod}
+                        onValueChange={(value) => onOverridePaymentMethodChange(value as PaymentMethod)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="airtel_money">Airtel Money</SelectItem>
+                          <SelectItem value="tnm_mpamba">TNM Mpamba</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label>Override reason</Label>
+                      <Textarea
+                        value={overrideReason}
+                        onChange={(event) => onOverrideReasonChange(event.target.value)}
+                        placeholder="Why should this refund go to a different number?"
+                      />
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="space-y-1.5">
+              <Label>Admin reason</Label>
+              <Textarea
+                value={reason}
+                onChange={(event) => onReasonChange(event.target.value)}
+                placeholder="Reason for cancellation"
+              />
+            </div>
+
+            {!preview.canCancel && preview.cancelBlockedReason ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {preview.cancelBlockedReason}
+              </div>
+            ) : null}
+          </div>
+        ) : booking ? (
+          <div className="text-sm text-muted-foreground">Preparing cancellation details...</div>
+        ) : null}
+
+        <DialogFooter className="gap-2 sm:justify-between">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+            Close
+          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              disabled={busy || !preview?.actions.cancelOnly}
+              onClick={onCancelOnly}
+            >
+              Cancel only
+            </Button>
+            <Button
+              disabled={busy || !preview?.actions.cancelAndRefund}
+              onClick={onCancelAndRefund}
+            >
+              Cancel and refund
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CancelDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border p-3">
+      <div className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-semibold">{value}</div>
     </div>
   );
 }

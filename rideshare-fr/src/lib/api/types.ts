@@ -474,8 +474,44 @@ export interface PaymentRefund extends Omit<
   webhookReceivedAt?: string | null;
   failedAt?: string | null;
   failureReason?: string | null;
+  requestedByAdminId?: string | null;
+  refundDestinationOverridden?: boolean;
+  refundDestinationOverrideReason?: string | null;
   requestedAt: string;
   processedAt?: string | null;
+}
+
+export interface AdminBookingCancelPreview {
+  bookingId: string;
+  bookingStatus: BookingStatus;
+  paymentStatus: BookingPaymentStatus;
+  passenger: {
+    fullName: string;
+    phone?: string | null;
+    email?: string | null;
+  };
+  route: string;
+  seatsBooked: number;
+  canCancel: boolean;
+  canRefund: boolean;
+  cancelBlockedReason?: string | null;
+  payment?: {
+    id: string;
+    status: PaymentStatus;
+    customerAmountMwk: string;
+    paymentMethod: PaymentMethod;
+    providerChannel?: string | null;
+    providerOperatorRefId?: string | null;
+    providerOperatorName?: string | null;
+    providerMobileNumber?: string | null;
+  } | null;
+  refund?: PaymentRefund | null;
+  failedRefund?: PaymentRefund | null;
+  actions: {
+    cancelOnly: boolean;
+    cancelAndRefund: boolean;
+    cancelAndRetryRefund: boolean;
+  };
 }
 
 export interface AdminPayoutRefund extends PaymentRefund {

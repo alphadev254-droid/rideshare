@@ -149,6 +149,9 @@ function formatRefund(refund: {
   webhookReceivedAt?: Date | null;
   failedAt?: Date | null;
   failureReason?: string | null;
+  requestedByAdminId?: string | null;
+  refundDestinationOverridden?: boolean;
+  refundDestinationOverrideReason?: string | null;
   requestedAt: Date;
   processedAt: Date | null;
 }) {
@@ -194,6 +197,9 @@ const refundSelect = {
   webhookReceivedAt: true,
   failedAt: true,
   failureReason: true,
+  requestedByAdminId: true,
+  refundDestinationOverridden: true,
+  refundDestinationOverrideReason: true,
   requestedAt: true,
   processedAt: true,
 } satisfies Prisma.PaymentRefundSelect;
@@ -669,6 +675,411 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
     },
     select: refundSelect,
   });
+  if (["success", "successful"].includes(String(payout.providerStatus ?? "").toLowerCase())) {
+    const finalized = await finalizeRefundPayout(pendingRefund.refund.id, true, undefined, {
+      providerStatus: payout.providerStatus,
+      providerReference: payout.providerReference,
+      providerTransactionId: payout.providerTransactionId,
+      providerPayload: payout.providerPayload,
+    });
+    if (finalized) return finalized;
+  }
+  await enqueueRefundTimeout(
+    pendingRefund.refund.id,
+    env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES * 60_000,
+  );
+
+  return formatRefund(refund);
+}
+
+const ACTIVE_OR_COMPLETED_REFUND_STATUSES: RefundStatus[] = ["requested", "processing", "completed"];
+
+function inferAdminOverrideOperatorName(method?: PaymentMethod | null) {
+  if (method === "airtel_money") return "Airtel Money";
+  if (method === "tnm_mpamba") return "TNM Mpamba";
+  return null;
+}
+
+export async function getAdminBookingCancelPreview(bookingId: string) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true,
+      status: true,
+      paymentStatus: true,
+      seatsBooked: true,
+      boardingPoint: true,
+      dropOffPoint: true,
+      codeUsed: true,
+      passenger: { select: { fullName: true, phone: true, email: true } },
+      trip: {
+        select: {
+          originName: true,
+          destinationName: true,
+          status: true,
+          startedAt: true,
+        },
+      },
+      payment: {
+        select: {
+          id: true,
+          status: true,
+          customerAmountMwk: true,
+          paymentMethod: true,
+          providerChannel: true,
+          providerOperatorRefId: true,
+          providerOperatorName: true,
+          providerMobileNumber: true,
+          providerPayload: true,
+          refunds: {
+            select: refundSelect,
+            orderBy: { requestedAt: "desc" },
+            take: 5,
+          },
+        },
+      },
+    },
+  });
+  if (!booking) throw new AppError(404, "Booking not found");
+
+  const payment = booking.payment;
+  const activeRefund =
+    payment?.refunds.find((refund) =>
+      ACTIVE_OR_COMPLETED_REFUND_STATUSES.includes(refund.status),
+    ) ?? null;
+  const hasUnfinishedRefund =
+    Boolean(activeRefund) && activeRefund?.status !== "completed";
+  const lastFailedRefund =
+    payment?.refunds.find((refund) => refund.status === "failed") ?? null;
+  const payloadPayment = payment
+    ? extractPaychanguMobilePaymentDetails(payment.providerPayload)
+    : null;
+  const defaultRefundPhone = payment
+    ? normalizedPayoutMobileOrNull(payment.providerMobileNumber) ??
+      payloadPayment?.mobileNumber ??
+      null
+    : null;
+  const canCancel =
+    booking.status !== "cancelled" &&
+    !booking.codeUsed &&
+    !booking.trip.startedAt &&
+    !["in_transit", "completed", "cancelled"].includes(booking.trip.status);
+  const canRefund =
+    canCancel &&
+    Boolean(payment) &&
+    booking.paymentStatus === "held_in_escrow" &&
+    payment?.status === "escrow_held" &&
+    !activeRefund;
+
+  return {
+    bookingId: booking.id,
+    bookingStatus: booking.status,
+    paymentStatus: booking.paymentStatus,
+    passenger: booking.passenger,
+    route: `${booking.boardingPoint || booking.trip.originName} -> ${booking.dropOffPoint || booking.trip.destinationName}`,
+    seatsBooked: booking.seatsBooked,
+    canCancel,
+    canRefund,
+    cancelBlockedReason: canCancel
+      ? null
+      : "Booking has already boarded, started, completed or been cancelled",
+    payment: payment
+      ? {
+          id: payment.id,
+          status: payment.status,
+          customerAmountMwk: payment.customerAmountMwk.toString(),
+          paymentMethod: payment.paymentMethod,
+          providerChannel: payment.providerChannel,
+          providerOperatorRefId: payment.providerOperatorRefId ?? payloadPayment?.operatorRefId ?? null,
+          providerOperatorName: payment.providerOperatorName ?? payloadPayment?.operatorName ?? null,
+          providerMobileNumber: defaultRefundPhone,
+        }
+      : null,
+    refund: activeRefund ? formatRefund(activeRefund) : null,
+    failedRefund: lastFailedRefund ? formatRefund(lastFailedRefund) : null,
+    actions: {
+      cancelOnly:
+        canCancel &&
+        !hasUnfinishedRefund &&
+        (booking.paymentStatus !== "held_in_escrow" || activeRefund?.status === "completed"),
+      cancelAndRefund: canRefund,
+      cancelAndRetryRefund: canRefund && Boolean(lastFailedRefund),
+    },
+  };
+}
+
+export async function adminCancelBookingOnly(
+  bookingId: string,
+  adminId: string,
+  reason?: string,
+) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true,
+      tripId: true,
+      segmentId: true,
+      seatsBooked: true,
+      status: true,
+      codeUsed: true,
+      paymentStatus: true,
+      trip: { select: { status: true, startedAt: true } },
+      payment: {
+        select: {
+          refunds: {
+            where: { status: { in: ["requested", "processing"] } },
+            select: { id: true, status: true },
+            take: 1,
+          },
+        },
+      },
+    },
+  });
+  if (!booking) throw new AppError(404, "Booking not found");
+  if (booking.status === "cancelled") {
+    const current = await prisma.booking.findUniqueOrThrow({
+      where: { id: bookingId },
+      select: bookingDetailSelect,
+    });
+    return formatBooking(current, { showBoardingCode: true });
+  }
+  if (
+    booking.codeUsed ||
+    booking.trip.startedAt ||
+    ["in_transit", "completed", "cancelled"].includes(booking.trip.status)
+  ) {
+    throw new AppError(400, "This booking cannot be cancelled because the trip has already boarded or started");
+  }
+  if (booking.payment?.refunds.length) {
+    throw new AppError(400, "A refund is already processing. The booking will cancel when that refund is confirmed");
+  }
+  if (booking.paymentStatus === "held_in_escrow") {
+    const completedRefund = await prisma.paymentRefund.findFirst({
+      where: { bookingId, status: "completed" },
+      select: { id: true },
+    });
+    if (!completedRefund) {
+      throw new AppError(400, "Paid escrow-held bookings must use cancel and refund");
+    }
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    if (!booking.segmentId) {
+      await tx.trip.update({
+        where: { id: booking.tripId },
+        data: { availableSeats: { increment: booking.seatsBooked } },
+      });
+    }
+    return tx.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: "cancelled",
+        rawSecretCode: null,
+      },
+      select: bookingDetailSelect,
+    });
+  });
+
+  console.log(
+    "[BOOKING] Admin cancelled booking without starting refund:",
+    stringifyLogPayload({ bookingId, adminId, reason }),
+  );
+  return formatBooking(updated, { showBoardingCode: true });
+}
+
+export async function adminCancelBookingAndRefund(
+  bookingId: string,
+  adminId: string,
+  input: {
+    reason?: string;
+    overridePhone?: string;
+    overridePaymentMethod?: PaymentMethod;
+    overrideReason?: string;
+  },
+) {
+  const pendingRefund = await prisma.$transaction(async (tx) => {
+    const booking = await tx.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        id: true,
+        tripId: true,
+        segmentId: true,
+        seatsBooked: true,
+        status: true,
+        paymentStatus: true,
+        codeUsed: true,
+        trip: { select: { status: true, startedAt: true } },
+        payment: {
+          select: {
+            id: true,
+            status: true,
+            bookingId: true,
+            passengerId: true,
+            driverId: true,
+            customerAmountMwk: true,
+            paymentMethod: true,
+            providerReference: true,
+            providerChannel: true,
+            providerOperatorRefId: true,
+            providerOperatorName: true,
+            providerMobileNumber: true,
+            providerPayload: true,
+            refunds: {
+              where: { status: { in: ACTIVE_OR_COMPLETED_REFUND_STATUSES } },
+              select: refundSelect,
+              orderBy: { requestedAt: "desc" },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+    if (!booking) throw new AppError(404, "Booking not found");
+    if (booking.status === "cancelled") throw new AppError(400, "Booking is already cancelled");
+    if (
+      booking.codeUsed ||
+      booking.trip.startedAt ||
+      ["in_transit", "completed", "cancelled"].includes(booking.trip.status)
+    ) {
+      throw new AppError(400, "This booking cannot be cancelled because the trip has already boarded or started");
+    }
+    if (!booking.payment) throw new AppError(400, "This booking has no completed payment to refund");
+    if (booking.paymentStatus !== "held_in_escrow" || booking.payment.status !== "escrow_held") {
+      throw new AppError(400, "Only escrow-held bookings can be cancelled with automatic refund");
+    }
+    const existingRefund = booking.payment.refunds[0] ?? null;
+    if (existingRefund) {
+      return { refund: existingRefund, skipPayout: true };
+    }
+
+    const payloadPayment = extractPaychanguMobilePaymentDetails(booking.payment.providerPayload);
+    const overridePhone = input.overridePhone
+      ? normalizedPayoutMobileOrNull(input.overridePhone)
+      : null;
+    if (input.overridePhone && !overridePhone) {
+      throw new AppError(400, "Enter a valid Malawi mobile money number for the refund override");
+    }
+    if (
+      overridePhone &&
+      input.overridePaymentMethod &&
+      !["airtel_money", "tnm_mpamba"].includes(input.overridePaymentMethod)
+    ) {
+      throw new AppError(400, "Refund override must use Airtel Money or TNM Mpamba");
+    }
+    const refundPhone =
+      overridePhone ??
+      normalizedPayoutMobileOrNull(booking.payment.providerMobileNumber) ??
+      payloadPayment.mobileNumber;
+    if (!refundPhone) {
+      throw new AppError(
+        400,
+        "Cannot automatically refund because no valid refund mobile money number is available",
+      );
+    }
+    if (overridePhone && !input.overrideReason?.trim()) {
+      throw new AppError(400, "Reason is required when refunding to a different number");
+    }
+
+    const paymentMethod = input.overridePaymentMethod ?? booking.payment.paymentMethod;
+    const operatorRefId = overridePhone
+      ? null
+      : booking.payment.providerOperatorRefId ?? payloadPayment.operatorRefId;
+    const operatorName = overridePhone
+      ? inferAdminOverrideOperatorName(paymentMethod)
+      : booking.payment.providerOperatorName ?? payloadPayment.operatorName;
+    const providerChannel = booking.payment.providerChannel ?? payloadPayment.channel;
+    const refundId = randomUUID();
+    const chargeId = `RF-${refundId}`;
+    const created = await tx.paymentRefund.create({
+      data: {
+        id: refundId,
+        paymentId: booking.payment.id,
+        bookingId: booking.id,
+        passengerId: booking.payment.passengerId,
+        driverId: booking.payment.driverId,
+        status: "processing",
+        reason: input.reason?.trim() || "Admin cancel and refund",
+        originalCustomerAmountMwk: booking.payment.customerAmountMwk,
+        refundableBaseMwk: booking.payment.customerAmountMwk,
+        convenienceFeeRate: 0,
+        convenienceFeeMwk: 0,
+        driverConvenienceShareRate: 0,
+        driverConvenienceShareMwk: 0,
+        platformConvenienceFeeMwk: 0,
+        refundAmountMwk: booking.payment.customerAmountMwk,
+        paymentMethod,
+        providerChannel,
+        providerOperatorRefId: operatorRefId,
+        providerOperatorName: operatorName,
+        recipientPhone: refundPhone,
+        gatewayChargeId: chargeId,
+        providerReference: booking.payment.providerReference,
+        gatewayRequestedAt: new Date(),
+        requestedByAdminId: adminId,
+        refundDestinationOverridden: Boolean(overridePhone),
+        refundDestinationOverrideReason: input.overrideReason?.trim() || null,
+      },
+      select: refundSelect,
+    });
+
+    return {
+      refund: created,
+      skipPayout: false,
+      passengerPhone: refundPhone,
+      paymentMethod,
+      providerOperatorRefId: operatorRefId,
+      providerOperatorName: operatorName,
+      chargeId,
+    };
+  });
+
+  if (pendingRefund.skipPayout) return formatRefund(pendingRefund.refund);
+
+  let payout;
+  try {
+    payout = await initiatePaychanguMobileMoneyRefund({
+      paymentMethod: pendingRefund.paymentMethod,
+      operatorRefId: pendingRefund.providerOperatorRefId,
+      operatorName: pendingRefund.providerOperatorName,
+      passengerPhone: pendingRefund.passengerPhone,
+      amountMwk: pendingRefund.refund.refundAmountMwk,
+      chargeId: pendingRefund.chargeId,
+    });
+  } catch (error) {
+    await prisma.paymentRefund.update({
+      where: { id: pendingRefund.refund.id },
+      data: {
+        status: "failed",
+        failedAt: new Date(),
+        failureReason: error instanceof Error ? error.message : "PayChangu refund payout failed",
+      },
+    });
+    throw error;
+  }
+
+  const refund = await prisma.paymentRefund.update({
+    where: { id: pendingRefund.refund.id },
+    data: {
+      providerStatus: payout.providerStatus ?? (payout.uncertain ? "request_uncertain" : "pending"),
+      providerReference: payout.providerReference ?? undefined,
+      providerTransactionId: payout.providerTransactionId ?? undefined,
+      providerPayload: payout.providerPayload,
+      gatewayRespondedAt: payout.uncertain ? null : new Date(),
+      failureReason: payout.uncertain
+        ? "PayChangu refund payout response timed out locally; awaiting webhook or reconciliation"
+        : null,
+    },
+    select: refundSelect,
+  });
+  if (["success", "successful"].includes(String(payout.providerStatus ?? "").toLowerCase())) {
+    const finalized = await finalizeRefundPayout(pendingRefund.refund.id, true, undefined, {
+      providerStatus: payout.providerStatus,
+      providerReference: payout.providerReference,
+      providerTransactionId: payout.providerTransactionId,
+      providerPayload: payout.providerPayload,
+    });
+    if (finalized) return finalized;
+  }
   await enqueueRefundTimeout(
     pendingRefund.refund.id,
     env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES * 60_000,
@@ -692,7 +1103,7 @@ export async function finalizeRefundPayout(
   const refund = await prisma.paymentRefund.findUnique({
     where: { id: refundId },
     include: {
-      booking: { select: { id: true, tripId: true, segmentId: true, seatsBooked: true } },
+      booking: { select: { id: true, tripId: true, segmentId: true, seatsBooked: true, status: true } },
     },
   });
   if (!refund) {
@@ -725,7 +1136,7 @@ export async function finalizeRefundPayout(
     const current = await tx.paymentRefund.findUnique({
       where: { id: refundId },
       include: {
-        booking: { select: { id: true, tripId: true, segmentId: true, seatsBooked: true } },
+        booking: { select: { id: true, tripId: true, segmentId: true, seatsBooked: true, status: true } },
       },
     });
     if (!current) throw new AppError(404, "Refund not found");
@@ -754,7 +1165,7 @@ export async function finalizeRefundPayout(
       where: { id: current.bookingId },
       data: { status: "cancelled", paymentStatus: "refunded", rawSecretCode: null },
     });
-    if (!current.booking.segmentId) {
+    if (current.booking.status !== "cancelled" && !current.booking.segmentId) {
       await tx.trip.update({
         where: { id: current.booking.tripId },
         data: { availableSeats: { increment: current.booking.seatsBooked } },
