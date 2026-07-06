@@ -949,7 +949,15 @@ export async function adminCancelBookingAndRefund(
     }
     const existingRefund = booking.payment.refunds[0] ?? null;
     if (existingRefund) {
-      return { refund: existingRefund, skipPayout: true };
+      return {
+        refund: existingRefund,
+        skipPayout: true,
+        passengerPhone: existingRefund.recipientPhone,
+        paymentMethod: existingRefund.paymentMethod,
+        providerOperatorRefId: existingRefund.providerOperatorRefId,
+        providerOperatorName: existingRefund.providerOperatorName,
+        chargeId: existingRefund.gatewayChargeId ?? `RF-${existingRefund.id}`,
+      };
     }
 
     const payloadPayment = extractPaychanguMobilePaymentDetails(booking.payment.providerPayload);
