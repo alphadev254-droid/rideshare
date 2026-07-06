@@ -34,9 +34,12 @@ import {
 import { handlePaychanguPayoutWebhook } from "../wallet/wallet.service.js";
 import { handlePaychanguRefundPayoutWebhook } from "../bookings/bookings.service.js";
 import type {
-  InitiatePaymentInput,
-  InitiateRidePaymentInput,
+  InitiatePaymentInput as SchemaInitiatePaymentInput,
+  InitiateRidePaymentInput as SchemaInitiateRidePaymentInput,
 } from "./payments.schemas.js";
+
+type InitiatePaymentInput = SchemaInitiatePaymentInput & { phone: string };
+type InitiateRidePaymentInput = SchemaInitiateRidePaymentInput & { phone: string };
 
 type RateValue = string | number | Prisma.Decimal;
 
