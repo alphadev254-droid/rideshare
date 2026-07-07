@@ -4,7 +4,8 @@ import { prisma } from "../../config/prisma.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../middleware/error-handler.js";
 import { generateCode, storeCode, hashCode, isCodeExpired } from "../../lib/secret-code.js";
-import { sendSecretCode } from "../../lib/sms.js";
+import { sendCustomEmail } from "../../lib/sms.js";
+import { boardingCodeEmail, boardingCodeText } from "../../lib/email-templates.js";
 import {
   extractPaychanguMobilePaymentDetails,
   fetchPaychanguPayoutDetails,
@@ -361,6 +362,7 @@ export async function resendCode(bookingId: string, passengerId: string) {
   });
   if (!booking) throw new AppError(404, "Booking not found");
   if (booking.codeUsed) throw new AppError(400, "Code already used");
+  if (!booking.passenger.email) throw new AppError(400, "No email is available for this passenger");
 
   const expired = await isCodeExpired(bookingId);
   if (expired) throw new AppError(400, "Code has expired. Please contact support");
@@ -375,9 +377,20 @@ export async function resendCode(bookingId: string, passengerId: string) {
   await storeCode(bookingId, newRawCode);
 
   const route = `${booking.trip.originName} -> ${booking.trip.destinationName}`;
-  await sendSecretCode(booking.passenger.phone ?? "", newRawCode, booking.trip.driver.user.fullName, route);
+  const emailParams = {
+    passengerName: booking.passenger.fullName,
+    code: newRawCode,
+    driverName: booking.trip.driver.user.fullName,
+    route,
+  };
+  await sendCustomEmail(
+    booking.passenger.email,
+    "Your ChepetsaRide boarding code",
+    boardingCodeText(emailParams),
+    boardingCodeEmail(emailParams),
+  );
 
-  return { message: "Code resent" };
+  return { message: "Code resent to email" };
 }
 
 export async function cancelBooking(bookingId: string, userId: string) {

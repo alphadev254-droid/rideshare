@@ -235,7 +235,7 @@ function BookingDetail() {
                 onClick={() => resend.mutate()}
                 disabled={resend.isPending}
               >
-                <RefreshCw className="h-3.5 w-3.5" /> {t("passengerBookingDetail.resendSms")}
+                <RefreshCw className="h-3.5 w-3.5" /> {t("passengerBookingDetail.resendEmail")}
               </Button>
             )}
           </div>

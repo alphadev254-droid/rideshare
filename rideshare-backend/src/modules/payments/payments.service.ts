@@ -12,7 +12,6 @@ import {
 import {
   sendCustomEmail,
   sendEmergencyAlert,
-  sendSecretCode,
 } from "../../lib/sms.js";
 import { sendPushNotification } from "../../lib/fcm.js";
 import {
@@ -29,6 +28,8 @@ import {
 import {
   bookingConfirmationEmail,
   bookingConfirmationText,
+  boardingCodeEmail,
+  boardingCodeText,
   driverBookingNotificationEmail,
   driverBookingNotificationText,
 } from "../../lib/email-templates.js";
@@ -129,6 +130,7 @@ type BookingNotification = {
   bookingId: string;
   rawCode: string;
   passengerPhone: string | null;
+  passengerEmail: string | null;
   passengerName: string;
   emergencyContactPhone: string | null;
   fcmToken: string | null;
@@ -1405,6 +1407,7 @@ async function finalizeVerifiedPayment(
           seatsBooked: true,
           passenger: {
             select: {
+              email: true,
               phone: true,
               fullName: true,
               emergencyContactPhone: true,
@@ -1447,6 +1450,7 @@ async function finalizeVerifiedPayment(
         bookingId: createdBooking.id,
         rawCode: rawCode!,
         passengerPhone: createdBooking.passenger.phone,
+        passengerEmail: createdBooking.passenger.email,
         passengerName: createdBooking.passenger.fullName,
         emergencyContactPhone: createdBooking.passenger.emergencyContactPhone,
         fcmToken: createdBooking.passenger.fcmToken,
@@ -1533,23 +1537,31 @@ async function finalizeVerifiedPayment(
   await sendSuccessfulPaymentEmails(row);
 
   if (sentNotification) {
+    const boardingCodeParams = {
+      passengerName: sentNotification.passengerName,
+      code: sentNotification.rawCode,
+      driverName: sentNotification.driverName,
+      route: sentNotification.route,
+    };
     await Promise.allSettled([
-      enqueueOrRunNotification(
-        {
-          type: "secret_code",
-          phone: sentNotification.passengerPhone ?? "",
-          code: sentNotification.rawCode,
-          driverName: sentNotification.driverName,
-          route: sentNotification.route,
-        },
-        () =>
-          sendSecretCode(
-            sentNotification.passengerPhone ?? "",
-            sentNotification.rawCode,
-            sentNotification.driverName,
-            sentNotification.route,
-          ),
-      ),
+      sentNotification.passengerEmail
+        ? enqueueOrRunNotification(
+            {
+              type: "email",
+              to: sentNotification.passengerEmail,
+              subject: "Your ChepetsaRide boarding code",
+              text: boardingCodeText(boardingCodeParams),
+              html: boardingCodeEmail(boardingCodeParams),
+            },
+            () =>
+              sendCustomEmail(
+                sentNotification.passengerEmail ?? "",
+                "Your ChepetsaRide boarding code",
+                boardingCodeText(boardingCodeParams),
+                boardingCodeEmail(boardingCodeParams),
+              ),
+          )
+        : Promise.resolve(),
       sentNotification.emergencyContactPhone
         ? enqueueOrRunNotification(
             {

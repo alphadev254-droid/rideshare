@@ -111,7 +111,7 @@ export function bookingConfirmationEmail(params: {
       { label: "Transaction ref", value: params.txRef },
     ])}
     <div style="background-color:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 16px;margin:16px 0;">
-      <p style="margin:0;color:#c2410c;font-size:14px;font-weight:600;">Your boarding code has been sent separately via SMS.</p>
+      <p style="margin:0;color:#c2410c;font-size:14px;font-weight:600;">Your boarding code has been sent to your email.</p>
       <p style="margin:4px 0 0;color:#9a3412;font-size:13px;">Share it <strong>only</strong> with your driver at the boarding point.</p>
     </div>
     <p style="margin:16px 0 0;color:${MUTED_COLOR};font-size:14px;">Thank you for choosing ChepetsaRide!</p>
@@ -217,7 +217,30 @@ export function adminCustomEmail(params: {
 
 /** Build a plain-text fallback from the same data, for email clients that don't render HTML */
 export function bookingConfirmationText(params: Parameters<typeof bookingConfirmationEmail>[0]): string {
-  return `Hi ${params.passengerName},\n\nYour payment was successful and your ride booking is confirmed.\n\nRoute: ${params.route}\nDeparture: ${params.departureLabel}\nAmount paid: MWK ${params.customerAmount}\nBooking ID: ${params.bookingId}\nTransaction ref: ${params.txRef}\n\nYour boarding code has been sent separately. Share it only with your driver at the boarding point.\n\nThank you for using ChepetsaRide.`;
+  return `Hi ${params.passengerName},\n\nYour payment was successful and your ride booking is confirmed.\n\nRoute: ${params.route}\nDeparture: ${params.departureLabel}\nAmount paid: MWK ${params.customerAmount}\nBooking ID: ${params.bookingId}\nTransaction ref: ${params.txRef}\n\nYour boarding code has been sent to your email. Share it only with your driver at the boarding point.\n\nThank you for using ChepetsaRide.`;
+}
+
+export function boardingCodeEmail(params: {
+  passengerName: string;
+  code: string;
+  driverName: string;
+  route: string;
+}) {
+  const body = `
+    ${greeting(params.passengerName)}
+    <p style="margin:0 0 8px;color:${TEXT_COLOR};font-size:16px;line-height:1.6;">Use this code when boarding your ChepetsaRide trip.</p>
+    ${highlightBox(`<span style="font-size:32px;font-weight:800;letter-spacing:6px;color:${BRAND_COLOR_DARK};">${escapeHtml(params.code)}</span>`)}
+    ${detailsTable([
+      { label: "Driver", value: params.driverName },
+      { label: "Route", value: params.route },
+    ])}
+    <p style="margin:8px 0 0;color:${MUTED_COLOR};font-size:13px;text-align:center;">Share this code only with your driver at the boarding point.</p>
+  `;
+  return baseTemplate(body);
+}
+
+export function boardingCodeText(params: Parameters<typeof boardingCodeEmail>[0]): string {
+  return `Hi ${params.passengerName},\n\nYour ChepetsaRide boarding code is ${params.code}.\n\nDriver: ${params.driverName}\nRoute: ${params.route}\n\nShare this code only with your driver at the boarding point.`;
 }
 
 export function driverBookingNotificationText(params: Parameters<typeof driverBookingNotificationEmail>[0]): string {
