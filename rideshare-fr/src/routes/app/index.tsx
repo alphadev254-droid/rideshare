@@ -221,7 +221,7 @@ function PassengerHome() {
     }
     if (needsEmergencyContact) {
       if (!emergencyPhone.trim()) {
-        toast.error("Emergency phone number is required before reserving");
+        toast.error(t("trips.toast.emergencyPhoneRequired"));
         return;
       }
       try {

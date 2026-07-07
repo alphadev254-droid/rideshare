@@ -642,7 +642,10 @@ function operatorRefForDirectCharge(method: PaymentMethod) {
   return "";
 }
 
-function normalizeMobileForDirectCharge(phone: string) {
+function normalizeMobileForDirectCharge(phone: string | null | undefined) {
+  if (!phone || !phone.trim()) {
+    throw new AppError(400, "Payment phone number is required");
+  }
   const digits = phone.replace(/\D/g, "");
   if (digits.startsWith("265") && digits.length === 12) return `0${digits.slice(3)}`;
   if (digits.length === 9) return `0${digits}`;
@@ -650,7 +653,7 @@ function normalizeMobileForDirectCharge(phone: string) {
   return phone.trim();
 }
 
-function inferMobileMoneyMethod(method: PaymentMethod, phone: string): PaymentMethod {
+function inferMobileMoneyMethod(method: PaymentMethod, phone: string | null | undefined): PaymentMethod {
   const local = normalizeMobileForDirectCharge(phone);
   if (/^0?8[89]/.test(local)) return "tnm_mpamba";
   if (/^0?9[789]/.test(local)) return "airtel_money";
