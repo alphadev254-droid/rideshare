@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { CheckCircle2, Loader2, XCircle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { paymentService } from "@/lib/api";
+import { extractApiError, paymentService } from "@/lib/api";
 import { formatMwk } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 
@@ -21,14 +21,24 @@ function PaymentCallback() {
     queryKey: ["payments", "status", txRef],
     queryFn: () => paymentService.status(txRef),
     enabled: !!txRef,
-    // Poll every 3 s while pending, stop once final
-    refetchInterval: (q) => (q.state.data?.state === "pending" ? 3000 : false),
+    retry: false,
+    refetchInterval: (q) => {
+      if (q.state.error) return false;
+      return q.state.data?.state === "pending" ? 3000 : false;
+    },
   });
 
-  const state = query.data?.state ?? (query.isLoading ? "pending" : "failed");
+  const state = query.isError ? "failed" : query.data?.state ?? (query.isLoading ? "pending" : "failed");
   const isFinal = state === "finalized";
   const isFailed = state === "failed" || search.status === "failed";
   const transaction = query.data?.transaction;
+  const failureReason =
+    transaction && "failureReason" in transaction
+      ? (transaction as { failureReason?: string | null }).failureReason
+      : null;
+  const failedText = query.isError
+    ? extractApiError(query.error, t("paymentCallback.failedText"))
+    : failureReason || t("paymentCallback.failedText");
   const bookingId = transaction?.bookingId;
   const fareAmount =
     transaction && "fareAmountMwk" in transaction
@@ -80,7 +90,7 @@ function PaymentCallback() {
         {isFinal
           ? t("paymentCallback.successText")
           : isFailed
-            ? t("paymentCallback.failedText")
+            ? failedText
             : t("paymentCallback.pendingText")}
       </p>
 

@@ -777,6 +777,12 @@ function statusIsFailed(status: unknown) {
   );
 }
 
+function normalizeCurrencyCode(value: unknown) {
+  const code = String(value ?? "").trim().toUpperCase();
+  if (code === "MK") return "MWK";
+  return code;
+}
+
 function recordFrom(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -1237,7 +1243,10 @@ async function finalizeVerifiedPayment(
   if (providerTxRef && providerTxRef !== pending.txRef) {
     throw new AppError(400, "Payment reference mismatch");
   }
-  if (verification.currency && verification.currency !== pending.currency) {
+  if (
+    verification.currency &&
+    normalizeCurrencyCode(verification.currency) !== normalizeCurrencyCode(pending.currency)
+  ) {
     throw new AppError(400, "Payment currency mismatch");
   }
   if (Number(verification.amount ?? 0) < Number(pending.customerAmountMwk)) {
@@ -1596,6 +1605,9 @@ export async function verifyAndFinalizeByTxRef(txRef: string) {
 
   const pending = await getPendingByTxRef(txRef);
   if (!pending) throw new AppError(404, "Pending transaction not found");
+  if (RETRYABLE_PENDING_PAYMENT_STATUSES.includes(pending.status as (typeof RETRYABLE_PENDING_PAYMENT_STATUSES)[number])) {
+    return { state: "failed", transaction: formatPending(pending) };
+  }
 
   const verification = await verifyPaychanguTransaction(txRef);
   if (!verification)
