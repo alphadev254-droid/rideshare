@@ -199,18 +199,14 @@ function PassengerHome() {
         method: paymentMethod,
       });
     },
-    onSuccess: (payment: PendingPayment & { checkoutUrl?: string | null }) => {
-      toast.success("Opening secure payment.");
+    onSuccess: (payment: PendingPayment) => {
+      toast.success("Payment prompt sent. Approve it on your phone.");
       setSelectedTrip(null);
-      if (payment?.checkoutUrl) {
-        window.location.assign(payment.checkoutUrl);
-        return;
-      }
       if (payment?.txRef) {
         window.location.assign(`/app/payments/callback?tx_ref=${encodeURIComponent(payment.txRef)}`);
         return;
       }
-      toast.error("Could not start payment confirmation");
+      toast.error(t("trips.toast.paymentStartFailed"));
     },
     onError: (error: Error) => {
       toast.error(error instanceof ApiError ? error.message : t("trips.toast.paymentFailed"));

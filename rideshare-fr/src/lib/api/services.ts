@@ -277,13 +277,13 @@ export const bookingService = {
 };
 
 // ─── Payments ─────────────────────────────────────────────────────
-const DEFAULT_CHECKOUT_PAYMENT_METHOD: PaymentMethod = "airtel_money";
+const DEFAULT_DIRECT_PAYMENT_METHOD: PaymentMethod = "airtel_money";
 
 export const paymentService = {
   initiate: (body: { bookingId: string; method?: PaymentMethod; phone: string }) =>
-    api.post<PendingPayment & { paymentUrl: string; checkoutUrl: string }>(
+    api.post<PendingPayment>(
       "/payments/initiate",
-      { ...body, method: body.method ?? DEFAULT_CHECKOUT_PAYMENT_METHOD },
+      { ...body, method: body.method ?? DEFAULT_DIRECT_PAYMENT_METHOD },
     ),
   initiateRide: (body: {
     tripId: string;
@@ -295,17 +295,14 @@ export const paymentService = {
     seatsBooked?: number;
     travelerNames?: string[];
   }) =>
-    api.post<PendingPayment & { paymentUrl: string; checkoutUrl: string }>(
+    api.post<PendingPayment>(
       "/payments/initiate-ride",
-      { ...body, method: body.method ?? DEFAULT_CHECKOUT_PAYMENT_METHOD },
+      { ...body, method: body.method ?? DEFAULT_DIRECT_PAYMENT_METHOD },
     ),
   verify: (paymentId: string) =>
     api.get<{ state: string; transaction: Payment | PendingPayment | null }>(`/payments/verify/${paymentId}`),
-  callback: (txRef: string) =>
-    api.get<{ state: string; transaction: Payment | PendingPayment | null }>("/payments/callback/paychangu", {
-      query: { tx_ref: txRef },
-      auth: false,
-    }),
+  status: (txRef: string) =>
+    api.get<{ state: string; transaction: Payment | PendingPayment | null }>(`/payments/verify/${txRef}`),
   byBooking: (bookingId: string) => api.get<Payment | PendingPayment>(`/payments/${bookingId}`),
   myTransactions: (query?: { page?: number; limit?: number }) =>
     api.get<Payment[]>("/payments/transactions/my", {

@@ -357,8 +357,6 @@ export interface PendingPayment {
   customerAmountMwk: string;
   driverAmountMwk: string;
   status: string;
-  checkoutUrl?: string | null;
-  paymentUrl?: string | null;
   failureReason?: string | null;
   createdAt: string;
 }

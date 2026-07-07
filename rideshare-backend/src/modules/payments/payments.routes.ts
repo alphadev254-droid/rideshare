@@ -6,7 +6,6 @@ import {
   initiatePaymentController,
   initiateRidePaymentController,
   paychanguWebhookController,
-  paychanguCallbackController,
   verifyPaymentController,
   getPaymentStatusController,
   adminRefundController,
@@ -22,7 +21,6 @@ const router = Router();
 router.post("/initiate", authenticate, validate(initiatePaymentSchema), initiatePaymentController);
 router.post("/initiate-ride", authenticate, validate(initiateRidePaymentSchema), initiateRidePaymentController);
 router.post("/webhook/paychangu", paychanguWebhookController);
-router.get("/callback/paychangu", paychanguCallbackController);
 router.get("/transactions/my", authenticate, listPassengerTransactionsController);
 router.get("/transactions/driver", authenticate, requireRole("driver"), listDriverTransactionsController);
 router.get("/transactions/admin", authenticate, requireRole("admin"), listAdminTransactionsController);

@@ -270,7 +270,6 @@ function formatPending(row: PendingPaymentRow) {
     driverAmountMwk: row.driverAmountMwk.toString(),
     currency: row.currency,
     status: row.status,
-    checkoutUrl: row.checkoutUrl,
     gatewayReference: row.gatewayReference,
     reservationExpiresAt: row.reservationExpiresAt,
     reservationReleasedAt: row.reservationReleasedAt,
@@ -590,53 +589,6 @@ function calculatePaymentBreakdown(fareAmountMwk: number) {
   };
 }
 
-async function createPaychanguCheckout(params: {
-  txRef: string;
-  amount: number;
-  currency: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  callbackUrl: string;
-  returnUrl: string;
-  meta: Record<string, string>;
-}) {
-  try {
-    const res = await axios.post(
-      `${env.PAYCHANGU_BASE_URL}/payment`,
-      {
-        tx_ref: params.txRef,
-        amount: params.amount,
-        currency: params.currency,
-        email: params.email,
-        first_name: params.firstName,
-        last_name: params.lastName,
-        callback_url: params.callbackUrl,
-        return_url: params.returnUrl,
-        customization: {
-          title: "ChepetsaRide booking payment",
-          description: "Ride fare and processing fee",
-        },
-        meta: params.meta,
-      },
-      { headers: paychanguHeaders() },
-    );
-
-    const checkoutUrl = res.data?.data?.checkout_url;
-    if (!checkoutUrl)
-      throw new AppError(502, "PayChangu did not return a checkout URL");
-    return checkoutUrl as string;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const message =
-        (error.response?.data as { message?: string } | undefined)?.message ??
-        "PayChangu rejected the payment request";
-      throw new AppError(error.response?.status === 400 ? 400 : 502, message);
-    }
-    throw error;
-  }
-}
-
 function normalizeMobileForDirectCharge(phone: string | null | undefined) {
   if (!phone || !phone.trim()) {
     throw new AppError(400, "Payment phone number is required");
@@ -742,13 +694,77 @@ function assertPaychanguMinimum(amountMwk: number) {
 }
 
 async function verifyPaychanguTransaction(txRef: string) {
-  const res = await axios.get(
-    `${env.PAYCHANGU_BASE_URL}/verify-payment/${txRef}`,
-    {
-      headers: paychanguHeaders(),
-    },
-  );
-  return res.data?.data as Record<string, unknown> | undefined;
+  try {
+    const res = await axios.get(
+      `${env.PAYCHANGU_BASE_URL}/mobile-money/payments/${txRef}/verify`,
+      {
+        headers: paychanguHeaders(),
+      },
+    );
+    const body = recordFrom(res.data);
+    const data = recordFrom(body.data);
+    const transaction = recordFrom(data.transaction);
+    return Object.keys(transaction).length > 0
+      ? transaction
+      : Object.keys(data).length > 0
+        ? data
+        : body;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 400) {
+      const data = error.response.data as { message?: unknown } | undefined;
+      const message = typeof data?.message === "string" ? data.message : "";
+      if (
+        message.toLowerCase().includes("not found") ||
+        message.toLowerCase().includes("does not exist")
+      ) {
+        console.warn(
+          "[PAYCHANGU] Direct charge verification pending because PayChangu did not find the charge yet:",
+          JSON.stringify({ txRef, message }),
+        );
+        return undefined;
+      }
+    }
+    throw error;
+  }
+}
+
+async function finalizeProviderPaymentPayload(txRef: string, verification: Record<string, unknown>) {
+  const finalized = await getPaymentByTxRef(txRef);
+  if (finalized)
+    return { state: "finalized", transaction: formatPayment(finalized) };
+
+  const pending = await getPendingByTxRef(txRef);
+  if (!pending) throw new AppError(404, "Pending transaction not found");
+
+  if (statusIsFailed(verification.status)) {
+    await prisma.$transaction(async (tx) => {
+      await releasePendingSeatHold(tx, pending, {
+        status: "failed",
+        releaseReason: "payment_failed",
+        providerPayload: toJson(verification),
+        failureReason: "Payment failed at PayChangu",
+      });
+    });
+    const failedPending = await getPendingByTxRef(txRef);
+    return {
+      state: "failed",
+      transaction: failedPending ? formatPending(failedPending) : formatPending({ ...pending, status: "failed" }),
+    };
+  }
+
+  if (!statusIsSuccessful(verification.status)) {
+    return { state: "pending", transaction: formatPending(pending) };
+  }
+
+  const payment = await finalizeVerifiedPayment(pending, verification);
+  if (!payment) {
+    const updatedPending = await getPendingByTxRef(txRef);
+    return {
+      state: "failed",
+      transaction: updatedPending ? formatPending(updatedPending) : null,
+    };
+  }
+  return { state: "finalized", transaction: formatPayment(payment) };
 }
 
 function statusIsSuccessful(status: unknown) {
@@ -792,6 +808,7 @@ function extractPaychanguPaymentDetails(
   fallbackMethod: PaymentMethod,
 ) {
   const authorization = recordFrom(verification.authorization);
+  const customer = recordFrom(verification.customer);
   const mobileMoney = recordFrom(verification.mobile_money);
   const authMobileMoney = recordFrom(authorization.mobile_money);
 
@@ -814,13 +831,17 @@ function extractPaychanguPaymentDetails(
     authorization.provider,
     authorization.operator,
     authorization.operator_name,
+    authMobileMoney.operator,
     authMobileMoney.name,
     mobileMoney.name,
   );
   const mobileNumber = stringFrom(
     authorization.mobile_number,
     authorization.mobile,
+    customer.phone,
     verification.mobile,
+    authMobileMoney.mobile_number,
+    authMobileMoney.mobile,
     mobileMoney.mobile,
   );
 
@@ -903,8 +924,6 @@ export async function initiatePayment(
   ) {
     return {
       ...formatPending(existingPending),
-      paymentUrl: existingPending.checkoutUrl,
-      checkoutUrl: existingPending.checkoutUrl,
     };
   }
   if (
@@ -921,7 +940,6 @@ export async function initiatePayment(
     booking.passenger.fullName ?? "Customer"
   ).split(" ");
   const lastName = rest.join(" ") || firstName;
-  const checkoutUrl = null;
 
   let pending = await prisma.pendingPayment.upsert({
     where: { bookingId },
@@ -940,7 +958,7 @@ export async function initiatePayment(
       driverAmountMwk: BigInt(breakdown.driverAmountMwk),
       currency: "MWK",
       status: "pending",
-      checkoutUrl,
+      checkoutUrl: null,
     },
     update: {
       txRef,
@@ -953,7 +971,7 @@ export async function initiatePayment(
       customerAmountMwk: BigInt(breakdown.customerAmountMwk),
       driverAmountMwk: BigInt(breakdown.driverAmountMwk),
       status: "pending",
-      checkoutUrl,
+      checkoutUrl: null,
       gatewayReference: null,
       providerPayload: Prisma.DbNull,
       failureReason: null,
@@ -1011,7 +1029,7 @@ export async function initiatePayment(
     delayMs: Math.max(1, env.PAYMENT_VERIFY_POLL_INTERVAL_SECONDS) * 1000,
   });
 
-  return { ...formatPending(pending), paymentUrl: null, checkoutUrl: null };
+  return formatPending(pending);
 }
 
 export async function initiateRidePayment(
@@ -1081,7 +1099,7 @@ export async function initiateRidePayment(
     orderBy: { createdAt: "desc" },
   });
   if (existingPending) {
-    const sameCheckout =
+    const samePaymentRequest =
       existingPending.segmentId === (input.segmentId ?? null) &&
       existingPending.seatsBooked === input.seatsBooked &&
       existingPending.boardingPoint === (segment?.fromStop.pickupPoint ?? input.boardingPoint) &&
@@ -1090,16 +1108,14 @@ export async function initiateRidePayment(
           input.dropOffPoint ??
           trip.dropOffPoint ??
           trip.destinationName);
-    if (!sameCheckout) {
+    if (!samePaymentRequest) {
       throw new AppError(
         409,
-        "You already have a payment checkout pending for this trip. Finish that payment before changing seats or route.",
+        "You already have a payment request pending for this trip. Finish that payment before changing seats or route.",
       );
     }
     return {
       ...formatPending(existingPending),
-      paymentUrl: existingPending.checkoutUrl,
-      checkoutUrl: existingPending.checkoutUrl,
     };
   }
 
@@ -1117,7 +1133,6 @@ export async function initiateRidePayment(
     " ",
   );
   const lastName = rest.join(" ") || firstName;
-  const checkoutUrl = null;
   const reservationExpiresAt = reservationExpiryDate();
   const boardingPoint = segment?.fromStop.pickupPoint ?? input.boardingPoint;
   const dropOffPoint =
@@ -1164,7 +1179,7 @@ export async function initiateRidePayment(
         driverAmountMwk: BigInt(breakdown.driverAmountMwk),
         currency: "MWK",
         status: "pending",
-        checkoutUrl,
+        checkoutUrl: null,
         reservationExpiresAt,
       },
     });
@@ -1210,7 +1225,7 @@ export async function initiateRidePayment(
     delayMs: Math.max(1, env.PAYMENT_VERIFY_POLL_INTERVAL_SECONDS) * 1000,
   });
 
-  return { ...formatPending(pending), paymentUrl: null, checkoutUrl: null };
+  return formatPending(pending);
 }
 
 async function finalizeVerifiedPayment(
@@ -1218,7 +1233,8 @@ async function finalizeVerifiedPayment(
   verification: Record<string, unknown>,
 ) {
   if (!statusIsSuccessful(verification.status)) return null;
-  if (verification.tx_ref && verification.tx_ref !== pending.txRef) {
+  const providerTxRef = stringFrom(verification.tx_ref, verification.charge_id);
+  if (providerTxRef && providerTxRef !== pending.txRef) {
     throw new AppError(400, "Payment reference mismatch");
   }
   if (verification.currency && verification.currency !== pending.currency) {
@@ -1258,7 +1274,13 @@ async function finalizeVerifiedPayment(
   }
 
   const providerReference = String(verification.reference ?? "");
-  const providerPayment = extractPaychanguPaymentDetails(verification, pending.paymentMethod);
+  const extractedProviderPayment = extractPaychanguPaymentDetails(verification, pending.paymentMethod);
+  const providerPayment = {
+    ...extractedProviderPayment,
+    operatorRefId: extractedProviderPayment.operatorRefId ?? pending.providerOperatorRefId,
+    operatorName: extractedProviderPayment.operatorName ?? pending.providerOperatorName,
+    mobileNumber: pending.providerMobileNumber ?? extractedProviderPayment.mobileNumber,
+  };
   let bookingId = pending.bookingId;
   let notification: BookingNotification | null = null;
   const rawCode = pending.bookingId ? null : generateCode();
@@ -1579,35 +1601,7 @@ export async function verifyAndFinalizeByTxRef(txRef: string) {
   if (!verification)
     return { state: "pending", transaction: formatPending(pending) };
 
-  if (statusIsFailed(verification.status)) {
-    await prisma.$transaction(async (tx) => {
-      await releasePendingSeatHold(tx, pending, {
-        status: "failed",
-        releaseReason: "payment_failed",
-        providerPayload: toJson(verification),
-        failureReason: "Payment failed at PayChangu",
-      });
-    });
-    const failedPending = await getPendingByTxRef(txRef);
-    return {
-      state: "failed",
-      transaction: failedPending ? formatPending(failedPending) : formatPending({ ...pending, status: "failed" }),
-    };
-  }
-
-  if (!statusIsSuccessful(verification.status)) {
-    return { state: "pending", transaction: formatPending(pending) };
-  }
-
-  const payment = await finalizeVerifiedPayment(pending, verification);
-  if (!payment) {
-    const updatedPending = await getPendingByTxRef(txRef);
-    return {
-      state: "failed",
-      transaction: updatedPending ? formatPending(updatedPending) : null,
-    };
-  }
-  return { state: "finalized", transaction: formatPayment(payment) };
+  return finalizeProviderPaymentPayload(txRef, verification);
 }
 
 export async function handlePaychanguWebhook(
@@ -1652,9 +1646,15 @@ export async function handlePaychanguWebhook(
     return { received: true, payout: result };
   }
 
-  const txRef = String(payload.tx_ref ?? nested.tx_ref ?? "");
+  const txRef = String(
+    payload.tx_ref ??
+      nested.tx_ref ??
+      payload.charge_id ??
+      nested.charge_id ??
+      "",
+  );
   if (!txRef) return { received: true };
-  await enqueuePaymentWebhook(txRef);
+  await enqueuePaymentWebhook(txRef, { source: "webhook" });
   return { received: true, queued: true, txRef };
 }
 

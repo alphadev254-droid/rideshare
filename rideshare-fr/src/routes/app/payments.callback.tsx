@@ -18,8 +18,8 @@ function PaymentCallback() {
   const txRef = search.tx_ref ?? "";
 
   const query = useQuery({
-    queryKey: ["payments", "callback", txRef],
-    queryFn: () => paymentService.callback(txRef),
+    queryKey: ["payments", "status", txRef],
+    queryFn: () => paymentService.status(txRef),
     enabled: !!txRef,
     // Poll every 3 s while pending, stop once final
     refetchInterval: (q) => (q.state.data?.state === "pending" ? 3000 : false),

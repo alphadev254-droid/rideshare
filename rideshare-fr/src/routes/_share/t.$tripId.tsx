@@ -110,13 +110,14 @@ function TripSharePage() {
         travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean),
       });
     },
-    onSuccess: (payment: PendingPayment & { checkoutUrl?: string | null }) => {
+    onSuccess: (payment: PendingPayment) => {
       clearPendingTripId();
-      if (payment?.checkoutUrl) {
-        window.location.assign(payment.checkoutUrl);
+      toast.success("Payment prompt sent. Approve it on your phone.");
+      if (payment?.txRef) {
+        window.location.assign(`/app/payments/callback?tx_ref=${encodeURIComponent(payment.txRef)}`);
         return;
       }
-      toast.error("Could not open payment checkout");
+      toast.error("Could not start payment confirmation");
     },
     onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : "Payment failed"),
   });

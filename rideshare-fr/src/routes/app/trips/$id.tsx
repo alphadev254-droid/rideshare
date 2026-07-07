@@ -85,9 +85,9 @@ function TripDetail() {
         method: payMethod,
       });
     },
-    onSuccess: (payment: PendingPayment & { checkoutUrl?: string | null }) => {
-      toast.success(t("trips.toast.openingPayment"));
-      if (payment.checkoutUrl) window.location.assign(payment.checkoutUrl);
+    onSuccess: (payment: PendingPayment) => {
+      toast.success("Payment prompt sent. Approve it on your phone.");
+      if (payment.txRef) window.location.assign(`/app/payments/callback?tx_ref=${encodeURIComponent(payment.txRef)}`);
     },
     onError: (e: Error) => toast.error(e instanceof Error ? e.message : t("trips.toast.paymentFailed")),
   });

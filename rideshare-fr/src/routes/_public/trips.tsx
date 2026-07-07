@@ -121,10 +121,9 @@ function PublicTripsPage() {
 
   const book = useMutation({
     mutationFn: (t: Trip) => paymentService.initiateRide({ tripId: t.id, segmentId: t.segmentId ?? undefined, boardingPoint: t.pickupPoint || t.originName, dropOffPoint: t.dropOffPoint || t.destinationName, phone: paymentPhone, method: paymentMethod, seatsBooked, travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean) }),
-    onSuccess: (p: PendingPayment & { checkoutUrl?: string | null }) => {
-      toast.success(t("trips.toast.openingPayment"));
+    onSuccess: (p: PendingPayment) => {
+      toast.success("Payment prompt sent. Approve it on your phone.");
       setViewTrip(null);
-      if (p?.checkoutUrl) { window.location.assign(p.checkoutUrl); return; }
       if (p?.txRef) { window.location.assign(`/app/payments/callback?tx_ref=${encodeURIComponent(p.txRef)}`); return; }
       toast.error(t("trips.toast.paymentStartFailed"));
     },

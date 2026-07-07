@@ -97,9 +97,9 @@ function BookingDetail() {
       }
       return paymentService.initiate({ bookingId: id, phone: payPhone, method: payMethod });
     },
-    onSuccess: (res: PendingPayment & { checkoutUrl?: string | null }) => {
-      toast.success(t("passengerBookingDetail.paymentInitiated"));
-      if (res.checkoutUrl) window.open(res.checkoutUrl, "_blank", "noopener,noreferrer");
+    onSuccess: (res: PendingPayment) => {
+      toast.success("Payment prompt sent. Approve it on your phone.");
+      if (res.txRef) window.location.assign(`/app/payments/callback?tx_ref=${encodeURIComponent(res.txRef)}`);
       qc.invalidateQueries({ queryKey: ["booking", id] });
     },
     onError: (e: Error) => toast.error(e.message || t("passengerBookingDetail.paymentFailed")),

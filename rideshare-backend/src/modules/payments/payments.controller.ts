@@ -78,20 +78,6 @@ function safeJsonStringify(value: unknown) {
   }
 }
 
-export async function paychanguCallbackController(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const txRef = String(req.query.tx_ref ?? req.query.transaction_id ?? "");
-    const data = await paymentsService.verifyAndFinalizeByTxRef(txRef);
-    res.json({ success: true, data });
-  } catch (err) {
-    next(err);
-  }
-}
-
 export async function verifyPaymentController(
   req: AuthRequest,
   res: Response,
