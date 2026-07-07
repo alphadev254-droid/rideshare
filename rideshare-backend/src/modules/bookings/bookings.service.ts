@@ -12,7 +12,7 @@ import {
   initiatePaychanguMobileMoneyRefund,
   normalizedPayoutMobileOrNull,
 } from "../../lib/paychangu.js";
-import { enqueueRefundTimeout } from "../../jobs/queue.js";
+import { enqueueRefundTimeout, enqueueRefundVerification } from "../../jobs/queue.js";
 import { creditRefundConvenienceShare } from "../wallet/wallet.service.js";
 import type { CreateBookingInput } from "./bookings.schemas.js";
 
@@ -82,8 +82,16 @@ const bookingDetailSelect = {
       netAmountMwk: true,
       createdAt: true,
       refunds: {
-        where: { status: { in: ["requested", "processing", "completed"] } },
-        select: { id: true, status: true, requestedAt: true, processedAt: true },
+        orderBy: { requestedAt: "desc" },
+        select: {
+          id: true,
+          status: true,
+          refundAmountMwk: true,
+          convenienceFeeMwk: true,
+          gatewayChargeId: true,
+          requestedAt: true,
+          processedAt: true,
+        },
         take: 1,
       },
     },
@@ -292,6 +300,11 @@ function formatBooking(
           ...booking.payment,
           customerAmountMwk: toMoney(booking.payment.customerAmountMwk),
           netAmountMwk: toMoney(booking.payment.netAmountMwk),
+          refunds: booking.payment.refunds.map((refund) => ({
+            ...refund,
+            refundAmountMwk: toMoney(refund.refundAmountMwk),
+            convenienceFeeMwk: toMoney(refund.convenienceFeeMwk),
+          })),
         }
       : null,
   };
@@ -454,8 +467,6 @@ export async function getRefundPreview(bookingId: string, userId: string) {
           id: true,
           status: true,
           customerAmountMwk: true,
-          fareAmountMwk: true,
-          providerFeeMwk: true,
         },
       },
       trip: { select: { status: true, startedAt: true, departureTime: true } },
@@ -477,18 +488,11 @@ export async function getRefundPreview(bookingId: string, userId: string) {
   return {
     bookingId: booking.id,
     paymentId: booking.payment.id,
-    fareAmountMwk: booking.payment.fareAmountMwk.toString(),
-    providerFeeMwk: booking.payment.providerFeeMwk.toString(),
     originalCustomerAmountMwk: booking.payment.customerAmountMwk.toString(),
-    refundableBaseMwk: amounts.refundableBaseMwk.toString(),
-    convenienceFeeRate: amounts.convenienceFeeRate.toString(),
     convenienceFeeMwk: amounts.convenienceFeeMwk.toString(),
-    driverConvenienceShareRate: amounts.driverConvenienceShareRate.toString(),
-    driverConvenienceShareMwk: amounts.driverConvenienceShareMwk.toString(),
-    platformConvenienceFeeMwk: amounts.platformConvenienceFeeMwk.toString(),
     refundAmountMwk: amounts.refundAmountMwk.toString(),
     policy:
-      "A convenience fee is deducted from the amount paid. The remaining amount is marked for refund, and the driver receives their configured share of the convenience fee.",
+      "A convenience fee is deducted from the amount paid. The remaining amount is marked for refund.",
   };
 }
 
@@ -688,15 +692,7 @@ export async function requestBookingRefund(bookingId: string, userId: string, re
     },
     select: refundSelect,
   });
-  if (["success", "successful"].includes(String(payout.providerStatus ?? "").toLowerCase())) {
-    const finalized = await finalizeRefundPayout(pendingRefund.refund.id, true, undefined, {
-      providerStatus: payout.providerStatus,
-      providerReference: payout.providerReference,
-      providerTransactionId: payout.providerTransactionId,
-      providerPayload: payout.providerPayload,
-    });
-    if (finalized) return finalized;
-  }
+  await enqueueRefundVerification(pendingRefund.refund.id, { source: "request" });
   await enqueueRefundTimeout(
     pendingRefund.refund.id,
     env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES * 60_000,
@@ -1093,15 +1089,7 @@ export async function adminCancelBookingAndRefund(
     },
     select: refundSelect,
   });
-  if (["success", "successful"].includes(String(payout.providerStatus ?? "").toLowerCase())) {
-    const finalized = await finalizeRefundPayout(pendingRefund.refund.id, true, undefined, {
-      providerStatus: payout.providerStatus,
-      providerReference: payout.providerReference,
-      providerTransactionId: payout.providerTransactionId,
-      providerPayload: payout.providerPayload,
-    });
-    if (finalized) return finalized;
-  }
+  await enqueueRefundVerification(pendingRefund.refund.id, { source: "request" });
   await enqueueRefundTimeout(
     pendingRefund.refund.id,
     env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES * 60_000,
@@ -1228,44 +1216,90 @@ export async function handlePaychanguRefundPayoutWebhook(
 
   const refund = await prisma.paymentRefund.findFirst({
     where: { gatewayChargeId: chargeId },
-    select: { id: true },
+    select: { id: true, status: true },
   });
   if (!refund) return { handled: false, reason: "refund not found", chargeId };
 
-  const rawStatus = String(normalized.providerStatus ?? "");
-  const status = rawStatus.toLowerCase();
-  const isSuccess = status === "success" || status === "successful";
-  const isPending = status === "pending" || status === "processing";
   const providerPayload = JSON.parse(JSON.stringify(payload)) as Prisma.InputJsonValue;
-
-  if (isPending) {
+  if (refund.status !== "completed" && refund.status !== "failed" && refund.status !== "rejected") {
     await prisma.paymentRefund.update({
       where: { id: refund.id },
       data: {
-        providerStatus: normalized.providerStatus ?? "pending",
+        status: "processing",
+        failureReason: null,
+        webhookReceivedAt: new Date(),
+        providerStatus: normalized.providerStatus ?? undefined,
         providerReference: normalized.providerReference ?? undefined,
         providerTransactionId: normalized.providerTransactionId ?? undefined,
         providerPayload,
-        webhookReceivedAt: new Date(),
-        failureReason: null,
       },
     });
-    return { handled: true, refundId: refund.id, status: "processing" };
+    await enqueueRefundVerification(refund.id, { source: "webhook" });
+  } else {
+    await prisma.paymentRefund.update({
+      where: { id: refund.id },
+      data: {
+        webhookReceivedAt: new Date(),
+        providerPayload,
+      },
+    });
   }
 
-  const finalized = await finalizeRefundPayout(
-    refund.id,
-    isSuccess,
-    normalized.message ?? undefined,
-    {
-      providerStatus: normalized.providerStatus,
-      providerReference: normalized.providerReference,
-      providerTransactionId: normalized.providerTransactionId,
-      providerPayload,
-      webhookReceivedAt: new Date(),
+  return {
+    handled: true,
+    refundId: refund.id,
+    status: refund.status,
+    queuedVerification: refund.status !== "completed" && refund.status !== "failed" && refund.status !== "rejected",
+  };
+}
+
+export async function verifyAndFinalizeRefundPayout(refundId: string) {
+  const refund = await prisma.paymentRefund.findUnique({
+    where: { id: refundId },
+    select: { id: true, status: true, gatewayChargeId: true },
+  });
+  if (!refund) throw new AppError(404, "Refund not found");
+  if (refund.status === "completed" || refund.status === "failed" || refund.status === "rejected") {
+    const current = await prisma.paymentRefund.findUnique({ where: { id: refundId }, select: refundSelect });
+    return { state: "finalized" as const, refund: current ? formatRefund(current) : null };
+  }
+  if (!refund.gatewayChargeId) {
+    return { state: "pending" as const, reason: "missing-gateway-charge-id" };
+  }
+
+  const details = await fetchPaychanguPayoutDetails(refund.gatewayChargeId);
+  const status = String(details.providerStatus ?? "").toLowerCase();
+  const gateway = {
+    providerStatus: details.providerStatus,
+    providerReference: details.providerReference,
+    providerTransactionId: details.providerTransactionId,
+    providerPayload: details.providerPayload,
+  };
+
+  await prisma.paymentRefund.update({
+    where: { id: refundId },
+    data: {
+      providerStatus: details.providerStatus ?? undefined,
+      providerReference: details.providerReference ?? undefined,
+      providerTransactionId: details.providerTransactionId ?? undefined,
+      providerPayload: details.providerPayload,
     },
-  );
-  return { handled: true, refundId: refund.id, status: finalized?.status };
+  });
+
+  if (status === "success" || status === "successful") {
+    const finalized = await finalizeRefundPayout(refundId, true, undefined, gateway);
+    return { state: "finalized" as const, refund: finalized };
+  }
+  if (status === "failed" || status === "failure" || status === "rejected") {
+    const finalized = await finalizeRefundPayout(
+      refundId,
+      false,
+      "PayChangu refund payout failed",
+      gateway,
+    );
+    return { state: "finalized" as const, refund: finalized };
+  }
+  return { state: "pending" as const, refundId, providerStatus: details.providerStatus };
 }
 
 export async function handleRefundPayoutTimeout(refundId: string) {
@@ -1279,40 +1313,19 @@ export async function handleRefundPayoutTimeout(refundId: string) {
 
   if (refund.gatewayChargeId) {
     try {
-      const details = await fetchPaychanguPayoutDetails(refund.gatewayChargeId);
-      const status = String(details.providerStatus ?? "").toLowerCase();
-      const gateway = {
-        providerStatus: details.providerStatus,
-        providerReference: details.providerReference,
-        providerTransactionId: details.providerTransactionId,
-        providerPayload: details.providerPayload,
-      };
-
-      if (status === "success" || status === "successful") {
-        return finalizeRefundPayout(refundId, true, undefined, gateway);
-      }
-
-      await prisma.paymentRefund.update({
-        where: { id: refundId },
-        data: {
-          providerStatus: details.providerStatus ?? undefined,
-          providerReference: details.providerReference ?? undefined,
-          providerTransactionId: details.providerTransactionId ?? undefined,
-          providerPayload: details.providerPayload,
+      const result = await verifyAndFinalizeRefundPayout(refundId);
+      if (result.state === "finalized") return result.refund;
+      return finalizeRefundPayout(
+        refundId,
+        false,
+        `No PayChangu refund confirmation received within ${env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES} minutes`,
+        {
+          providerStatus:
+            "providerStatus" in result && result.providerStatus
+              ? result.providerStatus
+              : "timeout_waiting_for_confirmation",
         },
-      });
-
-      if (status === "pending" || status === "processing") {
-        return { handled: false, id: refundId, reason: `paychangu-${status}` };
-      }
-      if (status === "failed" || status === "failure" || status === "rejected") {
-        return finalizeRefundPayout(
-          refundId,
-          false,
-          "PayChangu refund payout failed",
-          gateway,
-        );
-      }
+      );
     } catch (error) {
       console.warn(`[REFUND] Timeout reconciliation failed for ${refundId}:`, (error as Error).message);
     }
@@ -1327,7 +1340,13 @@ export async function handleRefundPayoutTimeout(refundId: string) {
 }
 
 export async function reconcileRefundForAdmin(refundId: string) {
-  return handleRefundPayoutTimeout(refundId);
+  const result = await verifyAndFinalizeRefundPayout(refundId);
+  if (result.state === "finalized") return result.refund;
+  const refund = await prisma.paymentRefund.findUnique({
+    where: { id: refundId },
+    select: refundSelect,
+  });
+  return refund ? formatRefund(refund) : null;
 }
 
 export async function listRefundsForAdmin(params: {

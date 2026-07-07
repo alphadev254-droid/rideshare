@@ -22,6 +22,12 @@ export type RefundTimeoutJob = {
   refundId: string;
 };
 
+export type RefundVerificationJob = {
+  refundId: string;
+  attempt?: number;
+  source?: "webhook" | "request" | "poll";
+};
+
 export type PaymentReservationSweepJob = {
   requestedAt: string;
 };
@@ -45,6 +51,7 @@ const NOTIFICATION_QUEUE_NAME = "notifications";
 const WITHDRAWAL_QUEUE_NAME = "withdrawals";
 const WITHDRAWAL_TIMEOUT_QUEUE_NAME = "withdrawals-timeout";
 const REFUND_TIMEOUT_QUEUE_NAME = "refunds-timeout";
+const REFUND_VERIFICATION_QUEUE_NAME = "refunds-verification";
 const PAYMENT_RESERVATION_SWEEP_QUEUE_NAME = "payments-reservation-sweep";
 
 const queuePrefix = `{${env.REDIS_QUEUE_PREFIX}}`;
@@ -74,6 +81,12 @@ export const withdrawalTimeoutQueue = new Queue<WithdrawalTimeoutJob>(WITHDRAWAL
 });
 
 export const refundTimeoutQueue = new Queue<RefundTimeoutJob>(REFUND_TIMEOUT_QUEUE_NAME, {
+  connection: getRedisConnection(),
+  prefix: queuePrefix,
+  defaultJobOptions,
+});
+
+export const refundVerificationQueue = new Queue<RefundVerificationJob>(REFUND_VERIFICATION_QUEUE_NAME, {
   connection: getRedisConnection(),
   prefix: queuePrefix,
   defaultJobOptions,
@@ -128,6 +141,23 @@ export async function enqueueRefundTimeout(refundId: string, delayMs: number) {
     "refund.timeout",
     { refundId },
     { jobId: `refund-timeout-${refundId}`, delay: delayMs, removeOnComplete: true, removeOnFail: true },
+  );
+}
+
+export async function enqueueRefundVerification(
+  refundId: string,
+  options: { delayMs?: number; attempt?: number; source?: "webhook" | "request" | "poll" } = {},
+) {
+  const attempt = options.attempt ?? 1;
+  const source = options.source ?? "request";
+  const jobId =
+    source === "poll"
+      ? `refund-verify-${refundId}-poll-${attempt}`
+      : `refund-verify-${refundId}-${source}-${Date.now()}`;
+  await refundVerificationQueue.add(
+    "refund.verify",
+    { refundId, attempt, source },
+    { jobId, delay: options.delayMs ?? 0 },
   );
 }
 
@@ -218,6 +248,28 @@ export function startQueueWorkers() {
   );
 
   workers.push(
+    new Worker<RefundVerificationJob>(
+      REFUND_VERIFICATION_QUEUE_NAME,
+      async (job) => {
+        const { verifyAndFinalizeRefundPayout } = await import("../modules/bookings/bookings.service.js");
+        const result = await verifyAndFinalizeRefundPayout(job.data.refundId);
+        const attempt = job.data.attempt ?? 1;
+        if (result.state === "pending" && attempt < env.PAYMENT_VERIFY_MAX_ATTEMPTS) {
+          await enqueueRefundVerification(job.data.refundId, {
+            attempt: attempt + 1,
+            source: "poll",
+            delayMs: Math.max(1, env.PAYMENT_VERIFY_POLL_INTERVAL_SECONDS) * 1000,
+          });
+        }
+      },
+      {
+        connection: getRedisConnection(),
+        prefix: queuePrefix,
+      },
+    ),
+  );
+
+  workers.push(
     new Worker<PaymentReservationSweepJob>(
       PAYMENT_RESERVATION_SWEEP_QUEUE_NAME,
       async () => {
@@ -287,6 +339,7 @@ export async function closeQueueWorkers() {
     withdrawalQueue.close(),
     withdrawalTimeoutQueue.close(),
     refundTimeoutQueue.close(),
+    refundVerificationQueue.close(),
     paymentReservationSweepQueue.close(),
   ]);
 }

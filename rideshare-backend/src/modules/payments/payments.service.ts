@@ -24,6 +24,7 @@ import {
   enqueueNotification,
   enqueuePaymentWebhook,
   enqueueRefundTimeout,
+  enqueueRefundVerification,
 } from "../../jobs/queue.js";
 import {
   bookingConfirmationEmail,
@@ -2137,6 +2138,7 @@ export async function adminRefund(paymentId: string) {
         : null,
     },
   });
+  await enqueueRefundVerification(pendingRefund.refund.id, { source: "request" });
   await enqueueRefundTimeout(
     pendingRefund.refund.id,
     env.WITHDRAWAL_PROCESSING_TIMEOUT_MINUTES * 60_000,

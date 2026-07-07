@@ -47,6 +47,10 @@ function BookingDetail() {
   const { data: booking, isLoading } = useQuery({
     queryKey: ["booking", id],
     queryFn: () => bookingService.byId(id),
+    refetchInterval: (query) => {
+      const refunds = query.state.data?.payment?.refunds ?? [];
+      return refunds.some((item) => item.status === "requested" || item.status === "processing") ? 3000 : false;
+    },
   });
 
   const [payPhone, setPayPhone] = useState(user?.phone ?? "");
@@ -61,11 +65,17 @@ function BookingDetail() {
   const [refundResult, setRefundResult] = useState<PaymentRefund | null>(null);
   const [selectedVehicleImage, setSelectedVehicleImage] = useState<string | null>(null);
   const needsEmergencyContact = !user?.emergencyContactPhone;
+  const latestBookingRefund = booking?.payment?.refunds?.[0] ?? null;
+  const latestRefund = latestBookingRefund ?? refundResult;
+  const activeRefundStatus = latestRefund?.status;
+  const refundIsProcessing = activeRefundStatus === "requested" || activeRefundStatus === "processing";
+  const refundIsCompleted = activeRefundStatus === "completed" || booking?.paymentStatus === "refunded";
+  const refundIsFailed = activeRefundStatus === "failed" || activeRefundStatus === "rejected";
 
   const refundPreview = useQuery({
     queryKey: ["booking", id, "refund-preview"],
     queryFn: () => bookingService.refundPreview(id),
-    enabled: refundOpen,
+    enabled: refundOpen && !latestRefund,
     retry: false,
   });
 
@@ -127,14 +137,15 @@ function BookingDetail() {
   const refund = useMutation({
     mutationFn: () => bookingService.requestRefund(id, { reason: refundReason.trim() || undefined }),
     onSuccess: (result) => {
-      toast.success(t("passengerBookingDetail.refundStarted"));
+      toast.success(t("passengerBookingDetail.cancelStarted"));
       setRefundResult(result);
       setRefundReason("");
       qc.invalidateQueries({ queryKey: ["booking", id] });
+      qc.refetchQueries({ queryKey: ["booking", id] });
       qc.invalidateQueries({ queryKey: ["bookings"] });
       qc.invalidateQueries({ queryKey: ["payments"] });
     },
-    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : t("passengerBookingDetail.refundFailed")),
+    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : t("passengerBookingDetail.cancelFailedToast")),
   });
 
   if (isLoading) return <LoadingState />;
@@ -481,9 +492,9 @@ function BookingDetail() {
 
           {canRequestRefund ? (
             <div className="rounded-md border border-border bg-card p-5">
-              <h3 className="label-eyebrow">{t("passengerBookingDetail.refund")}</h3>
+              <h3 className="label-eyebrow">{t("passengerBookingDetail.cancelBooking")}</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                {t("passengerBookingDetail.refundHelp")}
+                {t("passengerBookingDetail.cancelHelp")}
               </p>
               <Button
                 variant="outline"
@@ -493,7 +504,7 @@ function BookingDetail() {
                   setRefundOpen(true);
                 }}
               >
-                <RotateCcw className="h-4 w-4" /> {t("passengerBookingDetail.requestRefund")}
+                <RotateCcw className="h-4 w-4" /> {t("passengerBookingDetail.cancelBooking")}
               </Button>
             </div>
           ) : null}
@@ -526,23 +537,39 @@ function BookingDetail() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{refundResult ? t("passengerBookingDetail.refundProcessing") : t("passengerBookingDetail.requestRefund")}</DialogTitle>
+            <DialogTitle>{latestRefund ? t("passengerBookingDetail.cancelStatus") : t("passengerBookingDetail.cancelBooking")}</DialogTitle>
             <DialogDescription>
-              {refundResult
-                ? t("passengerBookingDetail.refundSent")
-                : t("passengerBookingDetail.reviewRefund")}
+              {latestRefund
+                ? t("passengerBookingDetail.cancelTrackingHelp")
+                : t("passengerBookingDetail.reviewCancel")}
             </DialogDescription>
           </DialogHeader>
 
-          {refundResult ? (
+          {latestRefund ? (
             <div className="space-y-4">
-              <div className="rounded-md border border-primary/40 bg-primary/5 p-4">
+              <div className={`rounded-md border p-4 ${
+                refundIsCompleted
+                  ? "border-primary/40 bg-primary/5"
+                  : refundIsFailed
+                    ? "border-destructive/40 bg-destructive/5"
+                    : "border-primary/40 bg-primary/5"
+              }`}>
                 <div className="flex items-start gap-3">
-                  <RefreshCw className="mt-0.5 h-5 w-5 animate-spin text-primary" />
+                  <RefreshCw className={`mt-0.5 h-5 w-5 text-primary ${refundIsProcessing ? "animate-spin" : ""}`} />
                   <div>
-                    <p className="font-semibold">{t("passengerBookingDetail.refundBeingProcessed")}</p>
+                    <p className="font-semibold">
+                      {refundIsCompleted
+                        ? t("passengerBookingDetail.cancelCompleted")
+                        : refundIsFailed
+                          ? t("passengerBookingDetail.cancelFailed")
+                          : t("passengerBookingDetail.cancelProcessing")}
+                    </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {t("passengerBookingDetail.refundTrackingHelp")}
+                      {refundIsCompleted
+                        ? t("passengerBookingDetail.cancelCompletedHelp")
+                        : refundIsFailed
+                          ? t("passengerBookingDetail.cancelFailedHelp")
+                          : t("passengerBookingDetail.cancelTrackingHelp")}
                     </p>
                   </div>
                 </div>
@@ -551,23 +578,23 @@ function BookingDetail() {
               <dl className="grid grid-cols-2 gap-3 rounded-md border border-border bg-surface-2 p-4 text-sm">
                 <div>
                   <dt className="text-xs text-muted-foreground">{t("transactions.status")}</dt>
-                  <dd className="font-semibold capitalize">{refundResult.status.replace("_", " ")}</dd>
+                  <dd className="font-semibold capitalize">{latestRefund.status.replace("_", " ")}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.refundAmount")}</dt>
-                  <dd className="font-semibold text-primary">{formatMwk(refundResult.refundAmountMwk)}</dd>
+                  <dd className="font-semibold text-primary">{formatMwk(latestRefund.refundAmountMwk)}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.convenienceFee")}</dt>
-                  <dd className="font-semibold">{formatMwk(refundResult.convenienceFeeMwk)}</dd>
+                  <dd className="font-semibold">{formatMwk(latestRefund.convenienceFeeMwk)}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">{t("driverWallet.requested")}</dt>
-                  <dd className="font-semibold">{formatDateTime(refundResult.requestedAt)}</dd>
+                  <dd className="font-semibold">{formatDateTime(latestRefund.requestedAt)}</dd>
                 </div>
                 <div className="col-span-2">
                   <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.trackingId")}</dt>
-                  <dd className="break-all font-mono text-xs">{refundResult.gatewayChargeId ?? refundResult.id}</dd>
+                  <dd className="break-all font-mono text-xs">{latestRefund.gatewayChargeId ?? latestRefund.id}</dd>
                 </div>
               </dl>
             </div>
@@ -595,10 +622,6 @@ function BookingDetail() {
                     <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.refundAmount")}</dt>
                     <dd className="font-semibold text-primary">{formatMwk(refundPreview.data.refundAmountMwk)}</dd>
                   </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.driverFeeShare")}</dt>
-                    <dd className="font-semibold">{formatMwk(refundPreview.data.driverConvenienceShareMwk)}</dd>
-                  </div>
                 </dl>
               </div>
               <p className="text-sm text-muted-foreground">{refundPreview.data.policy}</p>
@@ -617,12 +640,12 @@ function BookingDetail() {
             <Button variant="outline" onClick={() => setRefundOpen(false)}>
               {t("passengerBookingDetail.close")}
             </Button>
-            {!refundResult ? (
+            {!latestRefund ? (
               <Button
                 onClick={() => refund.mutate()}
                 disabled={refund.isPending || refundPreview.isLoading || !refundPreview.data}
               >
-                {refund.isPending ? t("passengerBookingDetail.startingRefund") : t("passengerBookingDetail.confirmRefund")}
+                {refund.isPending ? t("passengerBookingDetail.startingCancel") : t("passengerBookingDetail.confirmCancel")}
               </Button>
             ) : null}
           </DialogFooter>

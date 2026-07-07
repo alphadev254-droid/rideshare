@@ -21,7 +21,7 @@ import type {
   PaymentMethod,
   PaymentStatus,
   PaymentRefund,
-  RefundPreview,
+  PassengerRefundPreview,
   Review,
   AdminReview,
   Trip,
@@ -254,7 +254,7 @@ export const bookingService = {
     ),
   byTrip: (tripId: string) => api.get<Booking[]>(`/bookings/trip/${tripId}`),
   byId: (id: string) => api.get<Booking>(`/bookings/${id}`),
-  refundPreview: (id: string) => api.get<RefundPreview>(`/bookings/${id}/refund-preview`),
+  refundPreview: (id: string) => api.get<PassengerRefundPreview>(`/bookings/${id}/refund-preview`),
   requestRefund: (id: string, body: { reason?: string }) =>
     api.post<PaymentRefund>(`/bookings/${id}/refund`, body),
   resendCode: (id: string) => api.post<{ message: string }>(`/bookings/${id}/resend-code`),

@@ -295,6 +295,9 @@ export interface Booking {
     refunds?: Array<{
       id: string;
       status: RefundStatus;
+      refundAmountMwk: string;
+      convenienceFeeMwk: string;
+      gatewayChargeId?: string | null;
       requestedAt: string;
       processedAt?: string | null;
     }>;
@@ -452,6 +455,12 @@ export interface RefundPreview {
   refundAmountMwk: string;
   policy: string;
 }
+
+export interface PassengerRefundPreview
+  extends Pick<
+    RefundPreview,
+    "bookingId" | "paymentId" | "originalCustomerAmountMwk" | "convenienceFeeMwk" | "refundAmountMwk" | "policy"
+  > {}
 
 export interface PaymentRefund extends Omit<
   RefundPreview,
