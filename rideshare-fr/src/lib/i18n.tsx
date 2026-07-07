@@ -354,7 +354,7 @@ const translations: Record<AppLanguage, TranslationMap> = {
     "paymentCallback.confirmed": "Booking confirmed!",
     "paymentCallback.notCompleted": "Payment not completed",
     "paymentCallback.confirming": "Confirming payment...",
-    "paymentCallback.successText": "Your seat is reserved. Your boarding code has been sent by SMS. Share it only with the driver when you board.",
+    "paymentCallback.successText": "Your seat is reserved. Your boarding code has been sent to your email. Share it only with the driver when you board.",
     "paymentCallback.failedText": "Your payment was not completed and no booking was created. You can try again.",
     "paymentCallback.pendingText": "We are checking with PayChangu. This usually takes a few seconds.",
     "paymentCallback.redirecting": "Taking you to your booking in a moment...",

@@ -45,15 +45,15 @@ function PaymentCallback() {
       ? (transaction as { fareAmountMwk: string }).fareAmountMwk
       : null;
 
-  // Auto-redirect to booking page 2 s after success
+  // Auto-redirect to bookings page 4 s after success
   useEffect(() => {
-    if (isFinal && bookingId) {
+    if (isFinal) {
       const timer = setTimeout(() => {
-        navigate({ to: "/app/bookings/$id", params: { id: bookingId } });
-      }, 2200);
+        navigate({ to: "/app/bookings" });
+      }, 4000);
       return () => clearTimeout(timer);
     }
-  }, [isFinal, bookingId, navigate]);
+  }, [isFinal, navigate]);
 
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center px-4 text-center">
@@ -103,7 +103,7 @@ function PaymentCallback() {
       )}
 
       {/* Auto-redirect notice */}
-      {isFinal && bookingId && (
+      {isFinal && (
         <p className="mt-4 text-xs text-muted-foreground">
           {t("paymentCallback.redirecting")}
         </p>
@@ -111,9 +111,9 @@ function PaymentCallback() {
 
       {/* CTA */}
       <div className="mt-6 flex flex-col gap-3 w-full max-w-xs">
-        {isFinal && bookingId ? (
+        {isFinal ? (
           <Button asChild>
-            <Link to="/app/bookings/$id" params={{ id: bookingId }}>
+            <Link to="/app/bookings">
               {t("paymentCallback.viewBooking")} <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
