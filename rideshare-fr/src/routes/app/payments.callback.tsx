@@ -5,12 +5,14 @@ import { CheckCircle2, Loader2, XCircle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { paymentService } from "@/lib/api";
 import { formatMwk } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/payments/callback")({
   component: PaymentCallback,
 });
 
 function PaymentCallback() {
+  const { t } = useI18n();
   const search = Route.useSearch() as { tx_ref?: string; status?: string };
   const navigate = useNavigate();
   const txRef = search.tx_ref ?? "";
@@ -67,25 +69,25 @@ function PaymentCallback() {
       {/* Heading */}
       <h1 className="mt-6 font-display text-2xl font-semibold">
         {isFinal
-          ? "Booking confirmed!"
+          ? t("paymentCallback.confirmed")
           : isFailed
-            ? "Payment not completed"
-            : "Confirming payment…"}
+            ? t("paymentCallback.notCompleted")
+            : t("paymentCallback.confirming")}
       </h1>
 
       {/* Sub-text */}
       <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-xs">
         {isFinal
-          ? "Your seat is reserved. Your boarding code has been sent by SMS — share it only with the driver when you board."
+          ? t("paymentCallback.successText")
           : isFailed
-            ? "Your payment was not completed and no booking was created. You can try again."
-            : "We are checking with PayChangu. This usually takes a few seconds."}
+            ? t("paymentCallback.failedText")
+            : t("paymentCallback.pendingText")}
       </p>
 
       {/* Fare summary on success */}
       {isFinal && fareAmount && (
         <div className="mt-4 rounded-lg border border-border bg-surface-2 px-6 py-3 text-sm">
-          <span className="text-muted-foreground">Amount paid: </span>
+          <span className="text-muted-foreground">{t("transactions.amountPaid")}: </span>
           <span className="font-semibold">{formatMwk(fareAmount)}</span>
         </div>
       )}
@@ -93,7 +95,7 @@ function PaymentCallback() {
       {/* Auto-redirect notice */}
       {isFinal && bookingId && (
         <p className="mt-4 text-xs text-muted-foreground">
-          Taking you to your booking in a moment…
+          {t("paymentCallback.redirecting")}
         </p>
       )}
 
@@ -102,21 +104,21 @@ function PaymentCallback() {
         {isFinal && bookingId ? (
           <Button asChild>
             <Link to="/app/bookings/$id" params={{ id: bookingId }}>
-              View booking <ArrowRight className="ml-2 h-4 w-4" />
+              {t("paymentCallback.viewBooking")} <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
         ) : isFailed ? (
           <>
             <Button asChild>
-              <Link to="/app">Find a ride</Link>
+              <Link to="/app">{t("passengerNav.findRide")}</Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link to="/app/bookings">My bookings</Link>
+              <Link to="/app/bookings">{t("passengerNav.bookings")}</Link>
             </Button>
           </>
         ) : (
           /* Still pending — show a subtle spinner message, no button yet */
-          <p className="text-xs text-muted-foreground">Please wait, do not close this page.</p>
+          <p className="text-xs text-muted-foreground">{t("paymentCallback.wait")}</p>
         )}
       </div>
     </div>

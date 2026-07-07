@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import { Camera, Check, Loader2, Pencil, X } from "lucide-react";
 import { SecureImage } from "@/components/secure-image";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/profile")({
   component: Profile,
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/app/profile")({
 type EditableField = "fullName" | "ecName" | "ecPhone";
 
 function Profile() {
+  const { t } = useI18n();
   const { user, setUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -48,11 +50,11 @@ function Profile() {
   const uploadPhoto = useMutation({
     mutationFn: (file: File) => userService.uploadUserAvatar(file),
     onSuccess: (res: { url: string; profilePhotoUrl?: string }) => {
-      toast.success("Photo updated");
+      toast.success(t("passengerProfile.photoUpdated"));
       setUser({ ...user!, profilePhotoUrl: res.profilePhotoUrl ?? res.url });
       setPhotoPreview(null);
     },
-    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : "Upload failed"),
+    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : t("driverProfile.uploadFailed")),
   });
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -73,9 +75,9 @@ function Profile() {
       setUser(u);
       setSaved({ fullName: values.fullName, ecName: values.ecName, ecPhone: values.ecPhone });
       setEditing(null);
-      toast.success("Profile updated");
+      toast.success(t("passengerProfile.updated"));
     },
-    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : "Save failed"),
+    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : t("passengerProfile.saveFailed")),
   });
 
   function cancelField(field: EditableField) {
@@ -88,9 +90,9 @@ function Profile() {
   return (
     <div className="space-y-6 pb-24">
       <PageHeader
-        eyebrow="Account"
-        title="Profile"
-        description="Tap the pencil next to any field to edit it."
+        eyebrow={t("driverProfile.eyebrow")}
+        title={t("passengerProfile.title")}
+        description={t("driverProfile.description")}
       />
 
       {/* Photo */}
@@ -124,9 +126,9 @@ function Profile() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Identity */}
         <div className="space-y-1 rounded-md border border-border bg-card p-6">
-          <h3 className="label-eyebrow mb-3">Identity</h3>
+          <h3 className="label-eyebrow mb-3">{t("driverProfile.identity")}</h3>
           <EditableRow
-            label="Full name"
+            label={t("driverProfile.fullName")}
             value={values.fullName}
             isEditing={editing === "fullName"}
             onEdit={() => setEditing("fullName")}
@@ -134,17 +136,17 @@ function Profile() {
             onCancel={() => cancelField("fullName")}
             onChange={(v) => setValues((s) => ({ ...s, fullName: v }))}
           />
-          <StaticRow label="Phone" value={user.phone} mono />
-          <StaticRow label="Role" value={user.role} capitalize />
+          <StaticRow label={t("driverProfile.phone")} value={user.phone} mono />
+          <StaticRow label={t("driverProfile.role")} value={user.role} capitalize />
         </div>
 
         {/* Emergency contact */}
         <div className="space-y-1 rounded-md border border-border bg-card p-6">
-          <h3 className="label-eyebrow mb-3">Emergency contact</h3>
+          <h3 className="label-eyebrow mb-3">{t("driverProfile.emergency")}</h3>
           <EditableRow
-            label="Contact name"
+            label={t("driverProfile.contactName")}
             value={values.ecName}
-            placeholder="Add a name"
+            placeholder={t("driverProfile.addName")}
             isEditing={editing === "ecName"}
             onEdit={() => setEditing("ecName")}
             onConfirm={() => setEditing(null)}
@@ -152,9 +154,9 @@ function Profile() {
             onChange={(v) => setValues((s) => ({ ...s, ecName: v }))}
           />
           <EditableRow
-            label="Contact phone"
+            label={t("driverProfile.contactPhone")}
             value={values.ecPhone}
-            placeholder="Add a phone number"
+            placeholder={t("driverProfile.addPhone")}
             isEditing={editing === "ecPhone"}
             onEdit={() => setEditing("ecPhone")}
             onConfirm={() => setEditing(null)}
@@ -167,13 +169,13 @@ function Profile() {
       {/* Floating save bar */}
       {isDirty && (
         <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-card px-5 py-3 shadow-xl">
-          <span className="text-sm text-muted-foreground">Unsaved changes</span>
+          <span className="text-sm text-muted-foreground">{t("driverProfile.unsaved")}</span>
           <Button size="sm" variant="outline" onClick={() => { setValues(saved); setEditing(null); }}>
-            Discard
+            {t("driverProfile.discard")}
           </Button>
           <Button size="sm" disabled={save.isPending} onClick={() => save.mutate()}>
             {save.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
-            Save
+            {t("driverProfile.save")}
           </Button>
         </div>
       )}

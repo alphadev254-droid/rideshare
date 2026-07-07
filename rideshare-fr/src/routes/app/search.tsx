@@ -8,6 +8,7 @@ import { StatusPill } from "@/components/status-pill";
 import { formatMwk, formatTime, formatDate, formatDistanceKm, formatDuration } from "@/lib/format";
 import { ArrowRight, Car, Clock, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 
 interface SearchParams {
   originLat: number;
@@ -37,6 +38,7 @@ export const Route = createFileRoute("/app/search")({
 });
 
 function SearchPage() {
+  const { t } = useI18n();
   const search = Route.useSearch();
   const { data, isLoading, error } = useQuery({
     queryKey: ["trips", "search", search],
@@ -60,34 +62,34 @@ function SearchPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Results"
-        title={`${search.originName ?? "Origin"} → ${search.destName ?? "Destination"}`}
-        description={`${formatDate(search.date)}${search.seats ? ` · ${search.seats} seat${search.seats > 1 ? "s" : ""}` : ""}${search.comfortClass ? ` · ${search.comfortClass}` : ""}`}
+        eyebrow={t("passengerSearch.results")}
+        title={`${search.originName ?? t("passengerSearch.origin")} → ${search.destName ?? t("passengerSearch.destination")}`}
+        description={`${formatDate(search.date)}${search.seats ? ` · ${t("passengerSearch.seats", { seats: search.seats, plural: search.seats > 1 ? "s" : "" })}` : ""}${search.comfortClass ? ` · ${search.comfortClass}` : ""}`}
         actions={
           <Link to="/app">
             <Button variant="outline" size="sm" className="gap-1.5">
               <Search className="h-3.5 w-3.5" />
-              New search
+              {t("passengerSearch.newSearch")}
             </Button>
           </Link>
         }
       />
 
-      {isLoading && <LoadingState label="Searching trips" />}
+      {isLoading && <LoadingState label={t("passengerSearch.searching")} />}
       {error && (
         <EmptyState
-          title="Couldn't load trips"
-          description={error instanceof Error ? error.message : "Try again in a moment."}
+          title={t("passengerSearch.loadFailed")}
+          description={error instanceof Error ? error.message : t("passengerSearch.tryAgain")}
         />
       )}
       {data && data.length === 0 && (
         <EmptyState
           icon={<Car className="h-5 w-5" />}
-          title="No trips found"
-          description="Try a different date or relax the seat or class filters."
+          title={t("trips.none")}
+          description={t("passengerSearch.noTripsHint")}
           action={
             <Link to="/app">
-              <Button variant="outline">Adjust search</Button>
+              <Button variant="outline">{t("passengerSearch.adjustSearch")}</Button>
             </Link>
           }
         />
@@ -143,11 +145,11 @@ function SearchPage() {
                       {formatMwk(trip.farePerSeatMwk)}
                     </div>
                     <div className="label-eyebrow mt-0.5">
-                      {trip.availableSeats} available
+                      {trip.availableSeats} {t("driverDashboard.available")}
                     </div>
                   </div>
                   <Button size="sm" className="gap-1.5">
-                    View <ArrowRight className="h-3.5 w-3.5" />
+                    {t("driverCommon.view")} <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </Link>

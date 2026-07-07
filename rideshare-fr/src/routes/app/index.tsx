@@ -43,6 +43,7 @@ import { SecureImage } from "@/components/secure-image";
 import { useDebounce } from "@/hooks/use-debounce";
 import { clearPendingTripId, getPendingTripId } from "@/lib/pending-trip";
 import { TripOfferCard } from "@/components/trip-offer-card";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/")({
   component: PassengerHome,
@@ -71,6 +72,7 @@ function availableDays(year: string, month: string) {
 }
 
 function PassengerHome() {
+  const { t } = useI18n();
   const activeTripId = typeof window === "undefined" ? undefined : (getPendingTripId() ?? undefined);
   const { user, setUser } = useAuth();
   const [page, setPage] = useState(1);
@@ -207,14 +209,14 @@ function PassengerHome() {
       toast.error("Could not start payment confirmation");
     },
     onError: (error: Error) => {
-      toast.error(error instanceof ApiError ? error.message : "Payment failed");
+      toast.error(error instanceof ApiError ? error.message : t("trips.toast.paymentFailed"));
     },
   });
 
   async function reserveSelectedTrip() {
     if (!selectedTrip) return;
     if (!paymentPhone.trim()) {
-      toast.error("Payment phone number is required");
+      toast.error(t("trips.toast.paymentPhoneRequired"));
       return;
     }
     if (needsEmergencyContact) {
@@ -263,15 +265,15 @@ function PassengerHome() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow={`Welcome${user ? `, ${user.fullName.split(" ")[0]}` : ""}`}
-        title="Where are you going?"
-        description="Search verified intercity trips. Pay securely with mobile money."
+        eyebrow={user ? t("passengerHome.welcomeName", { name: user.fullName.split(" ")[0] }) : t("passengerHome.welcome")}
+        title={t("passengerHome.title")}
+        description={t("passengerHome.description")}
       />
 
       <div className="rounded-md border border-border bg-card p-5">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-4">
           <div className="space-y-1.5">
-            <Label className="label-eyebrow">From</Label>
+            <Label className="label-eyebrow">{t("trips.from")}</Label>
             <DistrictSearch
               selectedValue={origin}
               searchValue={originSearch}
@@ -281,11 +283,11 @@ function PassengerHome() {
               open={originDropdownOpen}
               onOpenChange={setOriginDropdownOpen}
               districts={filteredOriginDistricts}
-              placeholder="Search districts..."
+              placeholder={t("trips.searchPlaceholder")}
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="label-eyebrow">To</Label>
+            <Label className="label-eyebrow">{t("trips.to")}</Label>
             <DistrictSearch
               selectedValue={destination}
               searchValue={destSearch}
@@ -295,26 +297,26 @@ function PassengerHome() {
               open={destDropdownOpen}
               onOpenChange={setDestDropdownOpen}
               districts={filteredDestDistricts}
-              placeholder="Search districts..."
+              placeholder={t("trips.searchPlaceholder")}
             />
           </div>
           <div className="col-span-2 space-y-1.5 lg:col-span-1">
             <div className="flex items-center justify-between gap-2">
-              <Label className="label-eyebrow">Departure date</Label>
+              <Label className="label-eyebrow">{t("trips.departureDate")}</Label>
               {(dateYear || dateMonth || dateDay) && (
                 <button
                   type="button"
                   onClick={clearDate}
                   className="text-xs text-primary hover:underline"
                 >
-                  Clear
+                  {t("trips.clear")}
                 </button>
               )}
             </div>
             <div className="grid grid-cols-[1.15fr_1.25fr_0.9fr] gap-2">
               <Select value={dateYear} onValueChange={updateDateYear}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Year" />
+                  <SelectValue placeholder={t("trips.year")} />
                 </SelectTrigger>
                 <SelectContent>
                   {years.map((year) => (
@@ -326,7 +328,7 @@ function PassengerHome() {
               </Select>
               <Select value={dateMonth} onValueChange={updateDateMonth}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Month" />
+                  <SelectValue placeholder={t("trips.month")} />
                 </SelectTrigger>
                 <SelectContent>
                   {monthOptions.map((month) => (
@@ -338,7 +340,7 @@ function PassengerHome() {
               </Select>
               <Select value={dateDay} onValueChange={updateDateDay}>
                 <SelectTrigger disabled={!dateYear || !dateMonth}>
-                  <SelectValue placeholder="Day" />
+                  <SelectValue placeholder={t("trips.day")} />
                 </SelectTrigger>
                 <SelectContent>
                   {dayOptions.map((day) => (
@@ -351,13 +353,13 @@ function PassengerHome() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="label-eyebrow">Seats</Label>
+            <Label className="label-eyebrow">{t("trips.seats")}</Label>
             <Select value={seats} onValueChange={(v) => updateFilter(setSeats, v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="any">All</SelectItem>
+                <SelectItem value="any">{t("trips.all")}</SelectItem>
                 {[1, 2, 3, 4, 5].map((n) => (
                   <SelectItem key={n} value={String(n)}>
                     {n}
@@ -367,16 +369,16 @@ function PassengerHome() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="label-eyebrow">Class</Label>
+            <Label className="label-eyebrow">{t("trips.class")}</Label>
             <Select value={comfortClass} onValueChange={(v: string) => updateFilter(setComfortClass, v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="any">Any</SelectItem>
-                <SelectItem value="economy">Economy</SelectItem>
-                <SelectItem value="standard">Standard</SelectItem>
-                <SelectItem value="comfort">Comfort</SelectItem>
+                <SelectItem value="any">{t("trips.any")}</SelectItem>
+                <SelectItem value="economy">{t("trips.economy")}</SelectItem>
+                <SelectItem value="standard">{t("trips.standard")}</SelectItem>
+                <SelectItem value="comfort">{t("trips.comfort")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -386,22 +388,22 @@ function PassengerHome() {
       <section className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="font-display text-lg font-semibold">Available trips</h2>
+            <h2 className="font-display text-lg font-semibold">{t("trips.available")}</h2>
           </div>
           {publicTrips && (
             <div className="text-xs text-muted-foreground">
-              Page {publicTrips.page} of {totalPages} - {publicTrips.total} trips
+              {t("trips.page")} {publicTrips.page} {t("trips.of")} {totalPages} - {publicTrips.total} {t("trips.tripCount")}
             </div>
           )}
         </div>
 
         {isLoadingTrips ? (
           <div className="rounded-md border border-border bg-card p-6 text-sm text-muted-foreground">
-            Loading trips...
+            {t("trips.loading")}
           </div>
         ) : trips.length === 0 ? (
           <div className="rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            No scheduled trips are available right now.
+            {t("passengerHome.noTrips")}
           </div>
         ) : (
           <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -419,17 +421,17 @@ function PassengerHome() {
             disabled={page <= 1 || isLoadingTrips}
             onClick={() => setPage((current) => Math.max(1, current - 1))}
           >
-            Previous
+            {t("trips.previous")}
           </Button>
           <span className="text-xs text-muted-foreground">
-            {publicTrips ? `${publicTrips.items.length} shown` : "0 shown"}
+            {publicTrips ? `${publicTrips.items.length} ${t("trips.shown")}` : `0 ${t("trips.shown")}`}
           </span>
           <Button
             variant="outline"
             disabled={page >= totalPages || isLoadingTrips}
             onClick={() => setPage((current) => current + 1)}
           >
-            Next
+            {t("trips.next")}
           </Button>
         </div>
       </section>
@@ -506,6 +508,7 @@ function RideDetailsDialog({
   onOpenChange: (open: boolean) => void;
   onReserve: () => Promise<void> | void;
 }) {
+  const { t } = useI18n();
   if (!trip) return null;
   const totalFareMwk = Number(trip.farePerSeatMwk) * seatsBooked;
 
@@ -514,47 +517,47 @@ function RideDetailsDialog({
       <DialogContent className="max-h-[92svh] overflow-y-auto p-4 sm:max-w-xl sm:p-6">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
-            {trip.originName} to {trip.dropOffPoint || trip.destinationName}
+            {trip.originName} {t("tripCard.to")} {trip.dropOffPoint || trip.destinationName}
           </DialogTitle>
-          <DialogDescription>Departure time: {formatDateTime(trip.departureTime)}</DialogDescription>
+          <DialogDescription>{t("driverTripForm.departureTime")}: {formatDateTime(trip.departureTime)}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 rounded-md border border-border bg-card p-4 text-sm">
-            <Detail label="Fare" value={formatMwk(trip.farePerSeatMwk)} />
-            <Detail label="Available seats" value={String(trip.availableSeats)} />
-            <Detail label="Distance" value={formatDistanceKm(trip.distanceKm)} />
+            <Detail label={t("passengerBookings.fare")} value={formatMwk(trip.farePerSeatMwk)} />
+            <Detail label={t("passengerTrip.availableSeats")} value={String(trip.availableSeats)} />
+            <Detail label={t("driverRoute.distance")} value={formatDistanceKm(trip.distanceKm)} />
             <Detail
-              label="Duration"
+              label={t("passengerTrip.duration")}
               value={
-                trip.estimatedDurationMinutes ? formatDuration(trip.estimatedDurationMinutes) : "Not set"
+                trip.estimatedDurationMinutes ? formatDuration(trip.estimatedDurationMinutes) : t("driverCommon.notSet")
               }
             />
-            <Detail label="Class" value={trip.comfortClass} />
+            <Detail label={t("trips.class")} value={trip.comfortClass} />
             <Detail
-              label="Vehicle"
+              label={t("driverTripForm.vehicle")}
               value={
-                trip.vehicle ? `${trip.vehicle.make} ${trip.vehicle.model}` : "Vehicle details pending"
+                trip.vehicle ? `${trip.vehicle.make} ${trip.vehicle.model}` : t("passengerTrip.vehiclePending")
               }
             />
-            {trip.vehicle?.plateNumber && <Detail label="Plate" value={trip.vehicle.plateNumber} />}
-            {trip.vehicle?.color && <Detail label="Color" value={trip.vehicle.color} />}
+            {trip.vehicle?.plateNumber && <Detail label={t("passengerTrip.plate")} value={trip.vehicle.plateNumber} />}
+            {trip.vehicle?.color && <Detail label={t("driverVehicles.color")} value={trip.vehicle.color} />}
           </div>
 
           <div className="rounded-md border border-border bg-surface-2 p-4 text-sm">
-            <div className="label-eyebrow">Pickup and drop-off</div>
+            <div className="label-eyebrow">{t("passengerTrip.pickupDropoff")}</div>
             <div className="mt-3 space-y-2">
               <div className="flex items-start gap-2">
                 <MapPin className="mt-0.5 h-4 w-4 text-primary" />
                 <div>
-                  <div className="font-medium">Boarding point</div>
+                  <div className="font-medium">{t("trips.boardingPoint")}</div>
                   <div className="text-muted-foreground">{trip.pickupPoint || trip.originName}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <MapPin className="mt-0.5 h-4 w-4 text-primary" />
                 <div>
-                  <div className="font-medium">Drop-off point</div>
+                  <div className="font-medium">{t("trips.dropOffPoint")}</div>
                   <div className="text-muted-foreground">{trip.dropOffPoint || trip.destinationName}</div>
                 </div>
               </div>
@@ -563,14 +566,14 @@ function RideDetailsDialog({
 
           {needsEmergencyContact && (
             <div className="rounded-md border border-gold/40 bg-gold/5 p-4">
-              <div className="label-eyebrow text-gold">Emergency contact required</div>
+              <div className="label-eyebrow text-gold">{t("trips.emergencyRequired")}</div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label className="label-eyebrow">Contact name</Label>
+                  <Label className="label-eyebrow">{t("trips.contactName")}</Label>
                   <Input value={emergencyName} onChange={(e) => onEmergencyNameChange(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="label-eyebrow">Contact phone</Label>
+                  <Label className="label-eyebrow">{t("trips.contactPhone")}</Label>
                   <Input
                     value={emergencyPhone}
                     onChange={(e) => onEmergencyPhoneChange(e.target.value)}
@@ -582,9 +585,9 @@ function RideDetailsDialog({
           )}
 
           <div className="rounded-md border border-border bg-card p-4">
-            <div className="label-eyebrow">Payment</div>
+            <div className="label-eyebrow">{t("trips.payment")}</div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Your booking is created only after payment is confirmed.
+              {t("passengerTrip.paymentHelp")}
             </p>
             <div className="mt-3 space-y-3">
               <BookingSeatsFields
@@ -596,7 +599,7 @@ function RideDetailsDialog({
                 primaryName={primaryName}
               />
               <div className="space-y-1.5">
-                <Label className="label-eyebrow">Payment phone</Label>
+                <Label className="label-eyebrow">{t("trips.paymentPhone")}</Label>
                 <Input value={paymentPhone} onChange={(e) => onPaymentPhoneChange(e.target.value)} />
               </div>
             </div>
@@ -608,21 +611,21 @@ function RideDetailsDialog({
             onClick={onReserve}
           >
             {fullyBooked
-              ? "Fully booked"
+              ? t("trips.fullyBooked")
               : isBooking || isSavingEmergency
-                ? "Opening payment..."
-                : `Pay ${formatMwk(totalFareMwk)} and book ${seatsBooked} seat${seatsBooked === 1 ? "" : "s"}`}
+                ? t("trips.processingPayment")
+                : t("trips.payBook", { amount: formatMwk(totalFareMwk), seats: seatsBooked, plural: seatsBooked === 1 ? "" : "s" })}
           </Button>
 
           {(trip.vehicle?.imageUrls?.length ?? 0) > 0 && (
             <div className="space-y-2">
-              <div className="label-eyebrow">Vehicle photos</div>
+              <div className="label-eyebrow">{t("trips.vehiclePhotos")}</div>
               <div className="grid grid-cols-2 gap-2">
                 {(trip.vehicle?.imageUrls ?? []).slice(0, 4).map((url) => (
                   <SecureImage
                     key={url}
                     src={url}
-                    alt={`${trip.vehicle?.make ?? "Vehicle"} photo`}
+                    alt={`${trip.vehicle?.make ?? t("driverTripForm.vehicle")} ${t("passengerTrip.photo")}`}
                     className="aspect-[4/3] w-full rounded-md border border-border object-cover"
                   />
                 ))}

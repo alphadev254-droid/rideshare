@@ -18,6 +18,7 @@ import {
 import { formatDateTime, formatMwk } from "@/lib/format";
 import type { Payment } from "@/lib/api";
 import { TransactionDetail } from "./transaction-detail";
+import { useI18n } from "@/lib/i18n";
 
 export function TransactionList({
   transactions,
@@ -32,10 +33,12 @@ export function TransactionList({
   viewMode?: "link" | "dialog";
   variant?: "passenger" | "driver" | "admin";
 }) {
+  const { t } = useI18n();
+  const resolvedEmptyText = emptyText === "No transactions yet." ? t("transactions.none") : emptyText;
   if (transactions.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-        {emptyText}
+        {resolvedEmptyText}
       </div>
     );
   }
@@ -48,30 +51,30 @@ export function TransactionList({
           <Table className="min-w-[1500px]">
           <TableHeader>
             <TableRow>
-              <TableHead className="whitespace-nowrap">Passenger</TableHead>
-              <TableHead className="whitespace-nowrap">Email</TableHead>
-              <TableHead className="whitespace-nowrap">Phone</TableHead>
-              <TableHead className="whitespace-nowrap">Driver</TableHead>
-              <TableHead className="whitespace-nowrap">Trip</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Paid</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Tx Cost</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Tx Rate</TableHead>
-              <TableHead className="whitespace-nowrap text-right">System Fee</TableHead>
-              <TableHead className="whitespace-nowrap text-right">System Rate</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Driver Gets</TableHead>
-              <TableHead className="whitespace-nowrap">Status</TableHead>
-              <TableHead className="whitespace-nowrap">Paid At</TableHead>
+              <TableHead className="whitespace-nowrap">{t("transactions.passenger")}</TableHead>
+              <TableHead className="whitespace-nowrap">{t("transactions.email")}</TableHead>
+              <TableHead className="whitespace-nowrap">{t("transactions.phone")}</TableHead>
+              <TableHead className="whitespace-nowrap">{t("transactions.driver")}</TableHead>
+              <TableHead className="whitespace-nowrap">{t("transactions.trip")}</TableHead>
+              <TableHead className="whitespace-nowrap text-right">{t("transactions.paid")}</TableHead>
+              <TableHead className="whitespace-nowrap text-right">{t("transactions.txCost")}</TableHead>
+              <TableHead className="whitespace-nowrap text-right">{t("transactions.txRate")}</TableHead>
+              <TableHead className="whitespace-nowrap text-right">{t("transactions.systemFee")}</TableHead>
+              <TableHead className="whitespace-nowrap text-right">{t("transactions.systemRate")}</TableHead>
+              <TableHead className="whitespace-nowrap text-right">{t("transactions.driverGets")}</TableHead>
+              <TableHead className="whitespace-nowrap">{t("transactions.status")}</TableHead>
+              <TableHead className="whitespace-nowrap">{t("transactions.paidAt")}</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {transactions.map((tx) => (
               <TableRow key={tx.id}>
-                <TableCell className="whitespace-nowrap">{tx.passengerName ?? "Passenger"}</TableCell>
+                <TableCell className="whitespace-nowrap">{tx.passengerName ?? t("transactions.passenger")}</TableCell>
                 <TableCell className="max-w-56 truncate whitespace-nowrap">{tx.passengerEmail ?? "-"}</TableCell>
                 <TableCell className="whitespace-nowrap">{tx.passengerPhone ?? "-"}</TableCell>
-                <TableCell className="whitespace-nowrap">{tx.driverName ?? "Driver"}</TableCell>
-                <TableCell className="max-w-72 truncate whitespace-nowrap">{tx.route ?? "Ride payment"}</TableCell>
+                <TableCell className="whitespace-nowrap">{tx.driverName ?? t("transactions.driver")}</TableCell>
+                <TableCell className="max-w-72 truncate whitespace-nowrap">{tx.route ?? t("transactions.ridePayment")}</TableCell>
                 <TableCell className="whitespace-nowrap text-right tabular">{formatMwk(tx.customerAmountMwk)}</TableCell>
                 <TableCell className="whitespace-nowrap text-right tabular">{tx.providerFeeMwk ? formatMwk(tx.providerFeeMwk) : "-"}</TableCell>
                 <TableCell className="whitespace-nowrap text-right tabular">{rate(tx.providerFeeRate)}</TableCell>
@@ -80,7 +83,7 @@ export function TransactionList({
                 <TableCell className="whitespace-nowrap text-right tabular">{tx.driverAmountMwk ? formatMwk(tx.driverAmountMwk) : "-"}</TableCell>
                 <TableCell className="whitespace-nowrap"><StatusPill status={tx.status} /></TableCell>
                 <TableCell className="whitespace-nowrap">{formatDateTime(tx.createdAt)}</TableCell>
-                <TableCell className="text-right">{renderView(tx, detailBase, viewMode, variant)}</TableCell>
+                <TableCell className="text-right">{renderView(tx, detailBase, viewMode, variant, t)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -98,31 +101,31 @@ export function TransactionList({
           <Table className="min-w-[1120px]">
           <TableHeader>
             <TableRow>
-              <TableHead className="whitespace-nowrap">Passenger</TableHead>
-              <TableHead className="whitespace-nowrap">Phone</TableHead>
-              <TableHead className="whitespace-nowrap">Trip</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Fare</TableHead>
-              <TableHead className="whitespace-nowrap text-right">System Fee</TableHead>
-              <TableHead className="whitespace-nowrap text-right">System Rate</TableHead>
-              <TableHead className="whitespace-nowrap text-right">You Get</TableHead>
-              <TableHead className="whitespace-nowrap">Status</TableHead>
-              <TableHead className="whitespace-nowrap">Paid At</TableHead>
+              <TableHead className="whitespace-nowrap">{t("transactions.passenger")}</TableHead>
+              <TableHead className="whitespace-nowrap">{t("transactions.phone")}</TableHead>
+              <TableHead className="whitespace-nowrap">{t("transactions.trip")}</TableHead>
+              <TableHead className="whitespace-nowrap text-right">{t("transactions.fare")}</TableHead>
+              <TableHead className="whitespace-nowrap text-right">{t("transactions.systemFee")}</TableHead>
+              <TableHead className="whitespace-nowrap text-right">{t("transactions.systemRate")}</TableHead>
+              <TableHead className="whitespace-nowrap text-right">{t("transactions.youGet")}</TableHead>
+              <TableHead className="whitespace-nowrap">{t("transactions.status")}</TableHead>
+              <TableHead className="whitespace-nowrap">{t("transactions.paidAt")}</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {transactions.map((tx) => (
               <TableRow key={tx.id}>
-                <TableCell className="whitespace-nowrap">{tx.passengerName ?? "Passenger"}</TableCell>
+                <TableCell className="whitespace-nowrap">{tx.passengerName ?? t("transactions.passenger")}</TableCell>
                 <TableCell className="whitespace-nowrap">{tx.passengerPhone ?? "-"}</TableCell>
-                <TableCell className="max-w-80 truncate whitespace-nowrap">{tx.route ?? "Ride payment"}</TableCell>
+                <TableCell className="max-w-80 truncate whitespace-nowrap">{tx.route ?? t("transactions.ridePayment")}</TableCell>
                 <TableCell className="whitespace-nowrap text-right tabular">{formatMwk(tx.fareAmountMwk)}</TableCell>
                 <TableCell className="whitespace-nowrap text-right tabular">{tx.systemFeeMwk ? formatMwk(tx.systemFeeMwk) : "-"}</TableCell>
                 <TableCell className="whitespace-nowrap text-right tabular">{rate(tx.systemFeeRate)}</TableCell>
                 <TableCell className="whitespace-nowrap text-right tabular">{tx.driverAmountMwk ? formatMwk(tx.driverAmountMwk) : "-"}</TableCell>
                 <TableCell className="whitespace-nowrap"><StatusPill status={tx.status} /></TableCell>
                 <TableCell className="whitespace-nowrap">{formatDateTime(tx.createdAt)}</TableCell>
-                <TableCell className="text-right">{renderView(tx, detailBase, viewMode, variant)}</TableCell>
+                <TableCell className="text-right">{renderView(tx, detailBase, viewMode, variant, t)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -140,7 +143,7 @@ export function TransactionList({
         {transactions.map((tx) => (
           <div key={tx.id} className="grid gap-3 p-4 text-sm sm:grid-cols-[1.4fr_1fr_1fr_auto] sm:items-center">
             <div className="min-w-0">
-              <div className="font-medium">{tx.route ?? "Ride payment"}</div>
+              <div className="font-medium">{tx.route ?? t("transactions.ridePayment")}</div>
               <div className="mt-1 text-xs text-muted-foreground">{formatDateTime(tx.createdAt)}</div>
               <div className="mt-1 truncate font-mono text-xs text-muted-foreground">{tx.gatewayRef ?? tx.id}</div>
               {tx.passengerName && (
@@ -151,23 +154,23 @@ export function TransactionList({
               )}
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Amount paid</div>
+              <div className="text-xs text-muted-foreground">{t("transactions.amountPaid")}</div>
               <div className="font-semibold tabular">{formatMwk(tx.customerAmountMwk)}</div>
             </div>
             {tx.driverAmountMwk ? (
               <div>
-                <div className="text-xs text-muted-foreground">Driver amount</div>
+                <div className="text-xs text-muted-foreground">{t("transactions.driverAmount")}</div>
                 <div className="font-semibold tabular">{formatMwk(tx.driverAmountMwk)}</div>
               </div>
             ) : (
               <div>
-                <div className="text-xs text-muted-foreground">Transaction cost</div>
+                <div className="text-xs text-muted-foreground">{t("transactions.transactionCost")}</div>
                 <div className="font-semibold tabular">{tx.providerFeeMwk ? formatMwk(tx.providerFeeMwk) : "-"}</div>
               </div>
             )}
             <div className="flex items-center justify-between gap-2 sm:justify-end">
               <StatusPill status={tx.status} />
-              {renderView(tx, detailBase, viewMode, variant)}
+              {renderView(tx, detailBase, viewMode, variant, t)}
             </div>
           </div>
         ))}
@@ -188,11 +191,12 @@ function TransactionCards({
   viewMode: "link" | "dialog";
   variant: "passenger" | "driver" | "admin";
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-3 lg:hidden">
       {transactions.map((tx) => {
         const primaryAmount = (variant === "driver" ? tx.driverAmountMwk : tx.customerAmountMwk) ?? tx.customerAmountMwk;
-        const primaryLabel = variant === "driver" ? "You get" : variant === "admin" ? "Paid" : "Amount paid";
+        const primaryLabel = variant === "driver" ? t("transactions.youGet") : variant === "admin" ? t("transactions.paid") : t("transactions.amountPaid");
         const person =
           variant === "passenger"
             ? tx.driverName
@@ -203,7 +207,7 @@ function TransactionCards({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="truncate font-display text-base font-semibold">
-                  {tx.route ?? "Ride payment"}
+                  {tx.route ?? t("transactions.ridePayment")}
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {formatDateTime(tx.createdAt)}
@@ -218,29 +222,29 @@ function TransactionCards({
                 <div className="mt-0.5 font-display text-lg font-semibold tabular-nums text-gold">
                   {formatMwk(primaryAmount)}
                 </div>
-                {renderView(tx, detailBase, viewMode, variant)}
+                {renderView(tx, detailBase, viewMode, variant, t)}
               </div>
             </div>
 
             <div className="-mx-3 mt-3 space-y-1.5 border-t border-border px-3 pt-3 text-xs">
               {person && (
                 <MobileField
-                  label={variant === "passenger" ? "Driver" : "Passenger"}
+                  label={variant === "passenger" ? t("transactions.driver") : t("transactions.passenger")}
                   value={person}
                 />
               )}
               {variant === "driver" ? (
                 <>
-                  <MobileField label="Fare" value={formatMwk(tx.fareAmountMwk)} />
-                  <MobileField label="System fee" value={tx.systemFeeMwk ? formatMwk(tx.systemFeeMwk) : "-"} />
+                  <MobileField label={t("transactions.fare")} value={formatMwk(tx.fareAmountMwk)} />
+                  <MobileField label={t("transactions.systemFee")} value={tx.systemFeeMwk ? formatMwk(tx.systemFeeMwk) : "-"} />
                 </>
               ) : (
                 <>
-                  <MobileField label="Tx cost" value={tx.providerFeeMwk ? formatMwk(tx.providerFeeMwk) : "-"} />
-                  {tx.driverAmountMwk && <MobileField label="Driver gets" value={formatMwk(tx.driverAmountMwk)} />}
+                  <MobileField label={t("transactions.txCost")} value={tx.providerFeeMwk ? formatMwk(tx.providerFeeMwk) : "-"} />
+                  {tx.driverAmountMwk && <MobileField label={t("transactions.driverGets")} value={formatMwk(tx.driverAmountMwk)} />}
                 </>
               )}
-              <MobileField label="Reference" value={tx.gatewayRef ?? tx.id} mono />
+              <MobileField label={t("transactions.reference")} value={tx.gatewayRef ?? tx.id} mono />
             </div>
 
           </article>
@@ -272,16 +276,17 @@ function renderView(
   detailBase: "/app/transactions/$id" | "/driver/transactions/$id" | "/admin/payments/$id",
   viewMode: "link" | "dialog",
   variant: "passenger" | "driver" | "admin",
+  t: (key: string, values?: Record<string, string | number>) => string,
 ) {
   if (viewMode === "dialog") {
     return (
       <Dialog>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm">View</Button>
+          <Button variant="outline" size="sm">{t("driverCommon.view")}</Button>
         </DialogTrigger>
           <DialogContent className="max-h-[88vh] max-w-[min(1100px,calc(100vw-2rem))] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Transaction details</DialogTitle>
+              <DialogTitle>{t("transactions.details")}</DialogTitle>
             </DialogHeader>
                     <TransactionDetail transaction={tx} variant={variant} />
         </DialogContent>
@@ -291,7 +296,7 @@ function renderView(
 
   return (
     <Button variant="outline" size="sm" asChild>
-      <a href={detailBase.replace("$id", tx.id)}>View</a>
+      <a href={detailBase.replace("$id", tx.id)}>{t("driverCommon.view")}</a>
     </Button>
   );
 }

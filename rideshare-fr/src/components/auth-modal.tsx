@@ -1,11 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,26 +17,29 @@ import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { homeForRole } from "@/lib/role-home";
 import { getPendingTripId, getPendingTripReturn } from "@/lib/pending-trip";
+import { useI18n } from "@/lib/i18n";
 
 export function AuthModal() {
   const { open, mode, intentRole, pendingPhone, closeModal, setMode } = useAuthModal();
+  const { t } = useI18n();
+
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? null : closeModal())}>
       <DialogContent className="max-w-md border-border bg-card">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
-            {mode === "login" && "Welcome back"}
-            {mode === "register" && "Create your account"}
-            {mode === "verify" && "Verify your number"}
-            {mode === "forgot" && "Reset your password"}
-            {mode === "reset" && "Enter reset code"}
+            {mode === "login" && t("auth.login.title")}
+            {mode === "register" && t("auth.register.title")}
+            {mode === "verify" && t("auth.verify.title")}
+            {mode === "forgot" && t("auth.forgot.title")}
+            {mode === "reset" && t("auth.reset.title")}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            {mode === "login" && "Sign in with your phone or email and password."}
-            {mode === "register" && "We'll send a one-time code to your email."}
-            {mode === "verify" && `Enter the 6-digit code sent to your email.`}
-            {mode === "forgot" && "Enter your phone or email and we will send a reset code."}
-            {mode === "reset" && "Enter the code sent to your email and choose a new password."}
+            {mode === "login" && t("auth.login.description")}
+            {mode === "register" && t("auth.register.description")}
+            {mode === "verify" && t("auth.verify.description")}
+            {mode === "forgot" && t("auth.forgot.description")}
+            {mode === "reset" && t("auth.reset.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -56,9 +59,7 @@ export function AuthModal() {
             onSent={(phone) => setMode("verify", phone)}
           />
         )}
-        {mode === "verify" && pendingPhone && (
-          <VerifyForm phone={pendingPhone} onDone={closeModal} />
-        )}
+        {mode === "verify" && pendingPhone && <VerifyForm phone={pendingPhone} onDone={closeModal} />}
         {mode === "forgot" && (
           <ForgotPasswordForm
             onSwitch={() => setMode("login")}
@@ -77,12 +78,9 @@ export function AuthModal() {
   );
 }
 
-
 function navigateAfterAuth(navigate: ReturnType<typeof useNavigate>, user: Parameters<typeof homeForRole>[0]) {
   const returnPath = getPendingTripReturn();
   if (user.role === "passenger" && returnPath) {
-    // Return to the share page (e.g. /t/:tripId) where booking can be completed.
-    // Use window.location for arbitrary paths since TanStack Router requires typed routes.
     window.location.replace(returnPath);
     return;
   }
@@ -93,6 +91,7 @@ function navigateAfterAuth(navigate: ReturnType<typeof useNavigate>, user: Param
   }
   navigate({ to: homeForRole(user) });
 }
+
 function useSubmit() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,6 +109,7 @@ function LoginForm({
   onNeedsVerify: (phone: string) => void;
   onForgot: () => void;
 }) {
+  const { t } = useI18n();
   const { setSession } = useAuth();
   const navigate = useNavigate();
   const { loading, setLoading, error, setError } = useSubmit();
@@ -123,7 +123,7 @@ function LoginForm({
     try {
       const result = await authService.login({ identifier, password });
       if ("needsVerification" in result) {
-        toast.info("Account not verified Ã¢â‚¬â€ OTP sent to your email");
+        toast.info(t("auth.toast.notVerified"));
         onNeedsVerify(result.phone);
         return;
       }
@@ -132,7 +132,7 @@ function LoginForm({
       onDone();
       navigateAfterAuth(navigate, result.user);
     } catch (e) {
-      setError(extractApiError(e, "Unable to sign in"));
+      setError(extractApiError(e, t("auth.error.signIn")));
     } finally {
       setLoading(false);
     }
@@ -140,7 +140,7 @@ function LoginForm({
 
   return (
     <form className="space-y-4" onSubmit={submit}>
-      <Field id="identifier" label="Phone or email">
+      <Field id="identifier" label={t("auth.phoneOrEmail")}>
         <Input
           id="identifier"
           required
@@ -149,28 +149,28 @@ function LoginForm({
           onChange={(e) => setIdentifier(e.target.value)}
         />
       </Field>
-      <PasswordField id="login-password" label="Password" value={password} onChange={setPassword} />
+      <PasswordField id="login-password" label={t("auth.password")} value={password} onChange={setPassword} />
       <div className="text-right">
         <button
           type="button"
           className="text-xs text-primary underline-offset-4 hover:underline"
           onClick={onForgot}
         >
-          Forgot password?
+          {t("auth.forgotPassword")}
         </button>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" className="w-full" disabled={loading}>
-        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Sign in
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {t("auth.signIn")}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
-        New here?{" "}
+        {t("auth.newHere")}{" "}
         <button
           type="button"
           className="text-primary underline-offset-4 hover:underline"
           onClick={onSwitch}
         >
-          Create an account
+          {t("auth.createAccount")}
         </button>
       </p>
     </form>
@@ -184,6 +184,7 @@ function ForgotPasswordForm({
   onSwitch: () => void;
   onSent: (identifier: string) => void;
 }) {
+  const { t } = useI18n();
   const { loading, setLoading, error, setError } = useSubmit();
   const [identifier, setIdentifier] = useState("");
 
@@ -196,7 +197,7 @@ function ForgotPasswordForm({
       toast.success(result.message);
       onSent(identifier);
     } catch (e) {
-      setError(extractApiError(e, "Unable to request password reset"));
+      setError(extractApiError(e, t("auth.error.resetRequest")));
     } finally {
       setLoading(false);
     }
@@ -204,7 +205,7 @@ function ForgotPasswordForm({
 
   return (
     <form className="space-y-4" onSubmit={submit}>
-      <Field id="reset-identifier" label="Phone or email">
+      <Field id="reset-identifier" label={t("auth.phoneOrEmail")}>
         <Input
           id="reset-identifier"
           required
@@ -215,14 +216,14 @@ function ForgotPasswordForm({
       </Field>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" className="w-full" disabled={loading}>
-        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Send reset code
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {t("auth.sendReset")}
       </Button>
       <button
         type="button"
         className="w-full text-center text-sm text-primary underline-offset-4 hover:underline"
         onClick={onSwitch}
       >
-        Back to sign in
+        {t("auth.backToSignIn")}
       </button>
     </form>
   );
@@ -237,6 +238,7 @@ function ResetPasswordForm({
   onDone: () => void;
   onBack: () => void;
 }) {
+  const { t } = useI18n();
   const { loading, setLoading, error, setError } = useSubmit();
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
@@ -250,7 +252,7 @@ function ResetPasswordForm({
       toast.success(result.message);
       onDone();
     } catch (e) {
-      setError(extractApiError(e, "Unable to reset password"));
+      setError(extractApiError(e, t("auth.error.reset")));
     } finally {
       setLoading(false);
     }
@@ -258,7 +260,7 @@ function ResetPasswordForm({
 
   return (
     <form className="space-y-4" onSubmit={submit}>
-      <Field id="reset-otp" label="6-digit code">
+      <Field id="reset-otp" label={t("auth.code")}>
         <Input
           id="reset-otp"
           inputMode="numeric"
@@ -271,21 +273,21 @@ function ResetPasswordForm({
       </Field>
       <PasswordField
         id="new-password"
-        label="New password"
+        label={t("auth.newPassword")}
         value={password}
         onChange={setPassword}
         placeholder="At least 8 characters"
       />
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" className="w-full" disabled={loading}>
-        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Reset password
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {t("auth.resetPassword")}
       </Button>
       <button
         type="button"
         className="w-full text-center text-sm text-primary underline-offset-4 hover:underline"
         onClick={onBack}
       >
-        Send a new code
+        {t("auth.sendNewCode")}
       </button>
     </form>
   );
@@ -302,6 +304,7 @@ function RegisterForm({
   onForgot: () => void;
   onSent: (phone: string) => void;
 }) {
+  const { t } = useI18n();
   const { loading, setLoading, error, setError } = useSubmit();
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -315,10 +318,10 @@ function RegisterForm({
     setError(null);
     try {
       await authService.register({ phone, email, fullName, password, role });
-      toast.success("OTP sent to your email");
+      toast.success(t("auth.toast.otpSent"));
       onSent(phone);
     } catch (e) {
-      setError(extractApiError(e, "Unable to register"));
+      setError(extractApiError(e, t("auth.error.register")));
     } finally {
       setLoading(false);
     }
@@ -341,16 +344,16 @@ function RegisterForm({
               }`}
             >
               <span className="block text-sm font-semibold">
-                {isPassenger ? "Find a ride" : "Create trips"}
+                {isPassenger ? t("auth.findRide") : t("auth.createTrips")}
               </span>
               <span className="mt-0.5 block text-[11px] leading-4 opacity-80">
-                {isPassenger ? "Passenger account" : "Driver account"}
+                {isPassenger ? t("auth.passengerAccount") : t("auth.driverAccount")}
               </span>
             </button>
           );
         })}
       </div>
-      <Field id="fullName" label="Full name">
+      <Field id="fullName" label={t("auth.fullName")}>
         <Input
           id="fullName"
           required
@@ -359,7 +362,7 @@ function RegisterForm({
           placeholder="Chimwemwe Banda"
         />
       </Field>
-      <Field id="email" label="Email address">
+      <Field id="email" label={t("auth.email")}>
         <Input
           id="email"
           required
@@ -369,7 +372,7 @@ function RegisterForm({
           placeholder="you@example.com"
         />
       </Field>
-      <Field id="phone" label="Phone number">
+      <Field id="phone" label={t("auth.phone")}>
         <Input
           id="phone"
           required
@@ -380,24 +383,24 @@ function RegisterForm({
       </Field>
       <PasswordField
         id="reg-password"
-        label="Password"
+        label={t("auth.password")}
         value={password}
         onChange={setPassword}
         placeholder="At least 8 characters"
       />
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" className="w-full" disabled={loading}>
-        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Send OTP
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {t("auth.sendOtp")}
       </Button>
       <div className="space-y-2 text-center text-sm text-muted-foreground">
         <p>
-          Already registered?{" "}
+          {t("auth.alreadyRegistered")}{" "}
           <button
             type="button"
             className="text-primary underline-offset-4 hover:underline"
             onClick={onSwitch}
           >
-            Sign in
+            {t("auth.signIn")}
           </button>
         </p>
         <button
@@ -405,7 +408,7 @@ function RegisterForm({
           className="text-primary underline-offset-4 hover:underline"
           onClick={onForgot}
         >
-          Forgot password?
+          {t("auth.forgotPassword")}
         </button>
       </div>
     </form>
@@ -413,6 +416,7 @@ function RegisterForm({
 }
 
 function VerifyForm({ phone, onDone }: { phone: string; onDone: () => void }) {
+  const { t } = useI18n();
   const { setSession } = useAuth();
   const navigate = useNavigate();
   const { loading, setLoading, error, setError } = useSubmit();
@@ -425,11 +429,11 @@ function VerifyForm({ phone, onDone }: { phone: string; onDone: () => void }) {
     try {
       const tokens = await authService.verifyOtp({ phone, otp });
       setSession(tokens);
-      toast.success("You're verified");
+      toast.success(t("auth.toast.verified"));
       onDone();
       navigateAfterAuth(navigate, tokens.user);
     } catch (e) {
-      setError(extractApiError(e, "Invalid OTP"));
+      setError(extractApiError(e, t("auth.error.otp")));
     } finally {
       setLoading(false);
     }
@@ -439,9 +443,9 @@ function VerifyForm({ phone, onDone }: { phone: string; onDone: () => void }) {
     <form className="space-y-4" onSubmit={submit}>
       <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs text-primary">
         <ShieldCheck className="h-4 w-4" />
-        Secure verification via email Ã¢â‚¬â€ never share your code.
+        {t("auth.verifyNote")}
       </div>
-      <Field id="otp" label="6-digit code">
+      <Field id="otp" label={t("auth.code")}>
         <Input
           id="otp"
           inputMode="numeric"
@@ -450,18 +454,18 @@ function VerifyForm({ phone, onDone }: { phone: string; onDone: () => void }) {
           value={otp}
           onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
           className="text-center font-mono text-2xl tracking-[0.5em]"
-          placeholder="Ã¢â‚¬Â¢ Ã¢â‚¬Â¢ Ã¢â‚¬Â¢ Ã¢â‚¬Â¢ Ã¢â‚¬Â¢ Ã¢â‚¬Â¢"
+          placeholder="• • • • • •"
         />
       </Field>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" className="w-full" disabled={loading || otp.length !== 6}>
-        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Verify
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {t("auth.verifyButton")}
       </Button>
     </form>
   );
 }
 
-function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
+function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id} className="label-eyebrow">
@@ -510,9 +514,3 @@ function PasswordField({
     </Field>
   );
 }
-
-
-
-
-
-

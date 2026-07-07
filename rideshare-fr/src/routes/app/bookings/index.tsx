@@ -8,12 +8,14 @@ import { StatusPill } from "@/components/status-pill";
 import { formatDateTime, formatMwk } from "@/lib/format";
 import { CalendarClock, Eye, MapPinned, Ticket, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/bookings/")({
   component: BookingsList,
 });
 
 function BookingsList() {
+  const { t } = useI18n();
   const { data, isLoading } = useQuery({
     queryKey: ["bookings", "mine"],
     queryFn: () => bookingService.mine(),
@@ -21,16 +23,16 @@ function BookingsList() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="History" title="My bookings" description="All trips you've reserved." />
+      <PageHeader eyebrow={t("passengerBookings.eyebrow")} title={t("passengerBookings.title")} description={t("passengerBookings.description")} />
       {isLoading && <LoadingState />}
       {data && data.length === 0 && (
         <EmptyState
           icon={<Ticket className="h-5 w-5" />}
-          title="No bookings yet"
-          description="Find your first ride to see it here."
+          title={t("passengerBookings.none")}
+          description={t("passengerBookings.noneHint")}
           action={
             <Link to="/app">
-              <Button>Find a ride</Button>
+              <Button>{t("passengerNav.findRide")}</Button>
             </Link>
           }
         />
@@ -71,14 +73,17 @@ function BookingsList() {
                         </span>
                         <span className="inline-flex items-center gap-1.5">
                           <Users className="h-3.5 w-3.5 text-route" />
-                          {b.seatsBooked ?? 1} seat{(b.seatsBooked ?? 1) === 1 ? "" : "s"} booked
+                          {t("passengerBookings.seatsBooked", {
+                            seats: b.seatsBooked ?? 1,
+                            plural: (b.seatsBooked ?? 1) === 1 ? "" : "s",
+                          })}
                         </span>
                       </div>
                     </div>
 
                     <div className="flex w-24 shrink-0 flex-col items-end justify-between gap-3 border-l border-border pl-3 sm:w-32 sm:pl-5">
                       <div className="text-right">
-                        <div className="label-eyebrow">Fare</div>
+                        <div className="label-eyebrow">{t("passengerBookings.fare")}</div>
                         <div className="mt-1 font-display text-lg font-semibold tabular-nums text-gold sm:text-xl">
                           {formatMwk(b.fareMwk)}
                         </div>
@@ -89,14 +94,14 @@ function BookingsList() {
                           <Link to="/trips/$id/location" params={{ id: b.tripId }}>
                             <Button size="sm" variant="outline" className="gap-2">
                               <MapPinned className="h-4 w-4" />
-                              <span className="hidden sm:inline">Location</span>
+                              <span className="hidden sm:inline">{t("passengerBookings.location")}</span>
                             </Button>
                           </Link>
                         )}
                         <Link to="/app/bookings/$id" params={{ id: b.id }}>
                           <Button size="sm" className="gap-2">
                             <Eye className="h-4 w-4" />
-                            View
+                            {t("driverCommon.view")}
                           </Button>
                         </Link>
                       </div>

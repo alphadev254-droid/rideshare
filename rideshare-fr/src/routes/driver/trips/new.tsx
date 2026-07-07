@@ -17,12 +17,14 @@ import {
   validateMainTrip,
   validateRouteManifest,
 } from "@/components/driver-trips/trip-create-types";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/driver/trips/new")({
   component: NewTrip,
 });
 
 function NewTrip() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [step, setStep] = useState<1 | 2>(1);
@@ -57,17 +59,17 @@ function NewTrip() {
 
   const create = useMutation({
     mutationFn: () => {
-      if (!selectedVehicle) throw new Error("Choose an approved vehicle");
+      if (!selectedVehicle) throw new Error(t("driverTripForm.chooseVehicle"));
       const payload = buildTripPayload(form, selectedVehicle, segments);
       return tripService.create(payload);
     },
     onSuccess: (_trip: Trip) => {
-      toast.success("Trip published");
+      toast.success(t("driverTripNew.toastPublished"));
       queryClient.invalidateQueries({ queryKey: ["trips", "mine"] });
       navigate({ to: "/driver/trips" });
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Could not publish trip");
+      toast.error(error.message || t("driverTripNew.toastPublishFailed"));
     },
   });
 
@@ -84,7 +86,7 @@ function NewTrip() {
     const nextErrors = validateMainTrip(form, selectedVehicle);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
-      toast.error("Please complete the main trip details");
+      toast.error(t("driverTripNew.toastCompleteMain"));
       return;
     }
     if (segments.length === 0) {
@@ -139,7 +141,7 @@ function NewTrip() {
     };
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
-      toast.error("Please complete the route table");
+      toast.error(t("driverTripNew.toastCompleteRoutes"));
       return;
     }
     create.mutate();
@@ -151,28 +153,28 @@ function NewTrip() {
         to="/driver/trips"
         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="h-3.5 w-3.5" /> Back to trips
+        <ArrowLeft className="h-3.5 w-3.5" /> {t("driverCommon.backToTrips")}
       </Link>
 
       <PageHeader
-        eyebrow="My trips"
-        title="Publish a trip"
-        description="Start with the main journey, then build the routes passengers can book."
+        eyebrow={t("driverTrips.myTrips")}
+        title={t("driverTripNew.title")}
+        description={t("driverTripNew.description")}
       />
 
       {approvedVehicles.length === 0 && (
         <div className="rounded-md border border-gold/40 bg-gold/5 p-4 text-sm">
-          You need an active vehicle to publish trips.{" "}
+          {t("driverTripNew.needVehicle")}{" "}
           <Link to="/driver/vehicles" className="text-primary hover:underline">
-            Add one now
+            {t("driverTripNew.addOneNow")}
           </Link>
           .
         </div>
       )}
 
       <div className="flex gap-2 text-xs">
-        <StepPill active={step === 1} label="1. Main trip" />
-        <StepPill active={step === 2} label="2. Route manifest" />
+        <StepPill active={step === 1} label={t("driverTripNew.mainStep")} />
+        <StepPill active={step === 2} label={t("driverTripNew.routeStep")} />
       </div>
 
       {step === 1 ? (

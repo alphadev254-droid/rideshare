@@ -6,6 +6,7 @@ import {
   type DriverProfile,
   extractApiError,
 } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { SecureImage, SecureFileLink } from "@/components/secure-image";
 import { DatePickerField, isPastIsoDate } from "@/components/date-picker-field";
 import { PageHeader } from "@/components/page-header";
@@ -36,6 +37,7 @@ export const Route = createFileRoute("/driver/onboarding")({
 
 type DocType = "id_front" | "id_back" | "license_doc";
 type PendingFile = { file: File; preview: string; mime: string | null };
+type Translate = ReturnType<typeof useI18n>["t"];
 
 const docLabels: Record<DocType, { label: string; description: string }> = {
   id_front: { label: "ID — Front", description: "Front side of your national ID or passport" },
@@ -97,29 +99,30 @@ function getActiveFlowIndex(status: OnboardingStatus): number {
 }
 
 function OnboardingStatusBadge({ status }: { status: OnboardingStatus }) {
+  const { t } = useI18n();
   const config = {
     not_started: {
-      label: "Not started",
+      label: t("driverOnboarding.statusNotStarted"),
       icon: Clock,
       className: "border-border bg-surface-2 text-muted-foreground",
     },
     in_progress: {
-      label: "In progress",
+      label: t("driverOnboarding.statusInProgress"),
       icon: Clock,
       className: "border-border bg-surface-2 text-muted-foreground",
     },
     ready_to_submit: {
-      label: "Ready to submit",
+      label: t("driverOnboarding.statusReady"),
       icon: Send,
       className: "border-primary/30 bg-primary/10 text-primary",
     },
     under_review: {
-      label: "Waiting approval",
+      label: t("driverOnboarding.statusWaiting"),
       icon: ShieldAlert,
       className: "border-gold/30 bg-gold/10 text-gold",
     },
     approved: {
-      label: "Approved",
+      label: t("driverOnboarding.statusApproved"),
       icon: CheckCircle2,
       className: "border-primary/30 bg-primary/10 text-primary",
     },
@@ -141,11 +144,18 @@ function OnboardingStatusBadge({ status }: { status: OnboardingStatus }) {
 }
 
 function OnboardingFlowBar({ status }: { status: OnboardingStatus }) {
+  const { t } = useI18n();
   const activeIndex = getActiveFlowIndex(status);
+  const translatedStepLabels = [
+    t("driverOnboarding.completeProfile"),
+    t("driverOnboarding.submitReview"),
+    t("driverOnboarding.adminReview"),
+    t("driverOnboarding.startDriving"),
+  ];
 
   return (
     <div className="rounded-md border border-border bg-card p-4">
-      <p className="label-eyebrow mb-3">Application progress</p>
+      <p className="label-eyebrow mb-3">{t("driverOnboarding.applicationProgress")}</p>
       <ol className="grid gap-3 sm:grid-cols-4">
         {flowSteps.map((step, index) => {
           const isComplete = index < activeIndex || status === "approved";
@@ -174,9 +184,9 @@ function OnboardingFlowBar({ status }: { status: OnboardingStatus }) {
                       : "bg-muted text-muted-foreground",
                 )}
               >
-                {isComplete || isApprovedStep ? "✓" : index + 1}
+                {isComplete || isApprovedStep ? t("driverOnboarding.done") : index + 1}
               </span>
-              <span className="leading-snug">{step.label}</span>
+              <span className="leading-snug">{translatedStepLabels[index] ?? step.label}</span>
             </li>
           );
         })}
@@ -208,6 +218,7 @@ function FileUpload({
   accept?: string;
   disabled?: boolean;
 }) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [previewMime, setPreviewMime] = useState<string | null>(null);
@@ -243,9 +254,9 @@ function FileUpload({
     setUploading(true);
     try {
       await onUpload(file);
-      toast.success(`${label} uploaded`);
+      toast.success(t("driverOnboarding.toastUploaded", { label }));
     } catch (err) {
-      toast.error(extractApiError(err, `Failed to upload ${label}`));
+      toast.error(extractApiError(err, t("driverOnboarding.toastUploadFailed", { label })));
       setPreview(null);
       setPreviewMime(null);
     } finally {
@@ -268,7 +279,7 @@ function FileUpload({
         </div>
         {hasFile && (
           <span className="shrink-0 text-xs text-primary">
-            <BadgeCheck className="inline h-3.5 w-3.5" /> Uploaded
+            <BadgeCheck className="inline h-3.5 w-3.5" /> {t("driverOnboarding.uploaded")}
           </span>
         )}
       </div>
@@ -284,7 +295,7 @@ function FileUpload({
                 className="flex h-28 w-full items-center justify-center gap-2 rounded-md border border-border bg-surface-2 text-sm text-primary hover:underline"
               >
                 <FileText className="h-4 w-4" />
-                View uploaded PDF
+                {t("driverOnboarding.viewUploadedPdf")}
               </a>
             ) : currentUrl ? (
               <SecureFileLink
@@ -292,7 +303,7 @@ function FileUpload({
                 className="flex h-28 w-full items-center justify-center gap-2 rounded-md border border-border bg-surface-2 text-sm text-primary hover:underline"
               >
                 <FileText className="h-4 w-4" />
-                View uploaded PDF
+                {t("driverOnboarding.viewUploadedPdf")}
               </SecureFileLink>
             ) : null
           ) : shownPreview ? (
@@ -309,10 +320,10 @@ function FileUpload({
             />
           ) : null}
           {currentUrl && !shownPreview && (
-            <p className="mt-1 text-xs text-muted-foreground">Previously uploaded</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("driverOnboarding.previouslyUploaded")}</p>
           )}
           {pendingFile && (
-            <p className="mt-1 text-xs text-primary">Ready to upload when you continue</p>
+            <p className="mt-1 text-xs text-primary">{t("driverOnboarding.readyToUpload")}</p>
           )}
         </div>
       )}
@@ -338,7 +349,13 @@ function FileUpload({
           ) : (
             <Upload className="mr-2 h-3 w-3" />
           )}
-          {disabled ? "Locked" : uploading ? "Uploading..." : hasFile ? "Replace" : "Upload"}
+          {disabled
+            ? t("driverOnboarding.locked")
+            : uploading
+              ? t("driverOnboarding.uploading")
+              : hasFile
+                ? t("driverOnboarding.replace")
+                : t("driverOnboarding.upload")}
         </Button>
       </div>
     </div>
@@ -348,8 +365,17 @@ function FileUpload({
 // ─── Main Onboarding Page ───────────────────────────────────────────────────
 
 function Onboarding() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const translatedDocLabels: Record<DocType, { label: string; description: string }> = {
+    id_front: { label: t("driverOnboarding.idFront"), description: t("driverOnboarding.idFrontDescription") },
+    id_back: { label: t("driverOnboarding.idBack"), description: t("driverOnboarding.idBackDescription") },
+    license_doc: {
+      label: t("driverOnboarding.drivingLicense"),
+      description: t("driverOnboarding.drivingLicenseDescription"),
+    },
+  };
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["driver", "profile"],
@@ -384,7 +410,7 @@ function Onboarding() {
 
   function handleSubmitForReview() {
     if (!allFieldsComplete) {
-      toast.error("Fill in all required fields before submitting for review");
+      toast.error(t("driverOnboarding.toastCompleteRequired"));
       return;
     }
     requestReview.mutate();
@@ -415,11 +441,11 @@ function Onboarding() {
       }
     },
     onSuccess: () => {
-      toast.success("Driver documents saved");
+      toast.success(t("driverOnboarding.toastSaved"));
       clearPendingProfileFiles();
       qc.invalidateQueries({ queryKey: ["driver", "profile"] });
     },
-    onError: (err) => toast.error(extractApiError(err, "Failed to save driver documents")),
+    onError: (err) => toast.error(extractApiError(err, t("driverOnboarding.toastSaveFailed"))),
   });
 
   const uploadDoc = useMutation({
@@ -436,10 +462,10 @@ function Onboarding() {
   const requestReview = useMutation({
     mutationFn: () => driverService.requestReview(),
     onSuccess: async () => {
-      toast.success("Application submitted for review");
+      toast.success(t("driverOnboarding.toastSubmitted"));
       await qc.invalidateQueries({ queryKey: ["driver", "profile"] });
     },
-    onError: (err) => toast.error(extractApiError(err, "Failed to submit for review")),
+    onError: (err) => toast.error(extractApiError(err, t("driverOnboarding.toastSubmitFailed"))),
   });
 
   // ── Handlers ───────────────────────────────────────────────────────
@@ -519,9 +545,9 @@ function Onboarding() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="Setup"
-          title="Driver onboarding"
-          description="Your profile is verified and ready."
+          eyebrow={t("driverOnboarding.eyebrow")}
+          title={t("driverOnboarding.title")}
+          description={t("driverOnboarding.approvedDescription")}
           actions={<OnboardingStatusBadge status="approved" />}
         />
         <OnboardingFlowBar status="approved" />
@@ -532,32 +558,32 @@ function Onboarding() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => navigate({ to: "/driver/vehicles" })}>
-              Manage vehicles
+              {t("driverOnboarding.manageVehicles")}
             </Button>
-            <Button onClick={() => navigate({ to: "/driver" })}>Go to Dashboard</Button>
+            <Button onClick={() => navigate({ to: "/driver" })}>{t("driverOnboarding.goDashboard")}</Button>
           </div>
         </div>
         <div className="rounded-md border border-border bg-card p-5">
-          <h3 className="label-eyebrow mb-3">Your submitted data</h3>
+          <h3 className="label-eyebrow mb-3">{t("driverOnboarding.submittedData")}</h3>
           <dl className="grid gap-2 text-sm sm:grid-cols-2">
             <div>
-              <dt className="text-muted-foreground">License number</dt>
+              <dt className="text-muted-foreground">{t("driverOnboarding.licenseNumber")}</dt>
               <dd className="font-medium">{profile.licenseNumber}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">License expiry</dt>
+              <dt className="text-muted-foreground">{t("driverOnboarding.licenseExpiry")}</dt>
               <dd className="font-medium">
                 {new Date(profile.licenseExpiry).toLocaleDateString()}
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Documents</dt>
+              <dt className="text-muted-foreground">{t("driverOnboarding.documents")}</dt>
               <dd className="font-medium">ID (front & back) + License ✓</dd>
             </div>
             {(profile as any)?.vehicles?.length > 0 && (
               <div>
-                <dt className="text-muted-foreground">Vehicles</dt>
-                <dd className="font-medium">{(profile as any).vehicles.length} vehicle(s) registered</dd>
+                <dt className="text-muted-foreground">{t("driverOnboarding.vehicles")}</dt>
+                <dd className="font-medium">{t("driverOnboarding.vehiclesRegistered", { count: (profile as any).vehicles.length })}</dd>
               </div>
             )}
           </dl>
@@ -569,14 +595,14 @@ function Onboarding() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Setup"
-        title="Driver onboarding"
+        eyebrow={t("driverOnboarding.eyebrow")}
+        title={t("driverOnboarding.title")}
         description={
           status === "ready_to_submit"
-            ? "Everything is complete. Submit your profile for admin review."
+            ? t("driverOnboarding.readyDescription")
             : status === "under_review"
-              ? "Your application is with our team for review."
-              : "Fill in your license details and upload all required documents."
+              ? t("driverOnboarding.reviewDescription")
+              : t("driverOnboarding.description")
         }
         actions={<OnboardingStatusBadge status={status} />}
       />
@@ -585,8 +611,7 @@ function Onboarding() {
 
       {status === "in_progress" && (
         <div className="rounded-md border border-border bg-surface-2 p-4 text-sm text-muted-foreground">
-          Fill in your license details and upload all required documents. Once complete, submit for
-          review. You can manage vehicles separately on the Vehicles page.
+          {t("driverOnboarding.progressHelp")}
         </div>
       )}
 
@@ -595,12 +620,11 @@ function Onboarding() {
         <div className="flex items-start gap-3 rounded-md border border-gold/30 bg-gold/5 p-4 text-sm text-gold">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <p className="font-medium">Waiting for admin approval</p>
+            <p className="font-medium">{t("driverOnboarding.waitingApproval")}</p>
             <p className="mt-1 text-gold/90">
-              Submitted{" "}
-              {profile?.reviewRequestedAt ? formatDate(profile.reviewRequestedAt) : "recently"}.
-              Your profile is locked while we review it. You'll be able to manage vehicles and
-              publish trips once approved.
+              {t("driverOnboarding.submittedOn", {
+                date: profile?.reviewRequestedAt ? formatDate(profile.reviewRequestedAt) : t("driverOnboarding.recently"),
+              })}
             </p>
           </div>
         </div>
@@ -610,10 +634,10 @@ function Onboarding() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* License Info */}
         <div className="rounded-md border border-border bg-card p-4 sm:p-6">
-          <h3 className="label-eyebrow mb-4">License Information <span className="text-destructive">*</span></h3>
+          <h3 className="label-eyebrow mb-4">{t("driverOnboarding.licenseInformation")} <span className="text-destructive">*</span></h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="label-eyebrow">License number</Label>
+              <Label className="label-eyebrow">{t("driverOnboarding.licenseNumber")}</Label>
               <Input
                 required
                 disabled={!canEdit}
@@ -624,7 +648,7 @@ function Onboarding() {
             </div>
             <div className="space-y-1.5">
               <Label className="label-eyebrow" htmlFor="license-expiry">
-                Expiry date
+                {t("driverOnboarding.expiryDate")}
               </Label>
               <DatePickerField
                 id="license-expiry"
@@ -632,15 +656,15 @@ function Onboarding() {
                 disabled={!canEdit}
                 value={licenseExpiry}
                 onChange={setLicenseExpiry}
-                placeholder="Select license expiry date"
+                placeholder={t("driverOnboarding.selectLicenseExpiry")}
                 fromYear={new Date().getFullYear() - 5}
                 toYear={new Date().getFullYear() + 15}
               />
               <p className="text-xs text-muted-foreground">
-                Tap to open the calendar, then pick month, year, and day.
+                {t("driverOnboarding.calendarHelp")}
               </p>
               {licenseExpiry && isPastIsoDate(licenseExpiry) && (
-                <p className="text-xs text-destructive">Your license has expired.</p>
+                <p className="text-xs text-destructive">{t("driverOnboarding.licenseExpired")}</p>
               )}
             </div>
           </div>
@@ -648,18 +672,18 @@ function Onboarding() {
 
         {/* Profile Photo */}
         <div className="rounded-md border border-border bg-card p-4 sm:p-6">
-          <h3 className="label-eyebrow mb-4">Profile Photo <span className="text-destructive">*</span></h3>
+          <h3 className="label-eyebrow mb-4">{t("driverOnboarding.profilePhoto")} <span className="text-destructive">*</span></h3>
           <div className="max-w-sm">
             <FileUpload
               currentUrl={profile?.profilePhotoUrl}
               onUpload={handlePhotoUpload}
               onSelect={!hasProfile ? queueProfilePhoto : undefined}
               pendingFile={pendingPhoto}
-              label="Profile picture"
+              label={t("driverOnboarding.profilePicture")}
               description={
                 hasProfile
-                  ? "Upload a clear photo of your face"
-                  : "Choose a clear face photo. It will upload when you continue."
+                  ? t("driverOnboarding.profilePictureDescription")
+                  : t("driverOnboarding.profilePictureQueuedDescription")
               }
               icon={<Camera className="h-5 w-5" />}
               accept="image/jpeg,image/png,image/webp"
@@ -670,10 +694,9 @@ function Onboarding() {
 
         {/* ID & License Documents */}
         <div className="rounded-md border border-border bg-card p-4 sm:p-6">
-          <h3 className="label-eyebrow mb-4">Required Documents <span className="text-destructive">*</span></h3>
+          <h3 className="label-eyebrow mb-4">{t("driverOnboarding.requiredDocuments")} <span className="text-destructive">*</span></h3>
           <p className="mb-4 text-xs text-muted-foreground">
-            Choose clear images of your ID and driving license. If this is your first time here,
-            files upload together when you click Save.
+            {t("driverOnboarding.documentsHelp")}
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             <FileUpload
@@ -681,7 +704,7 @@ function Onboarding() {
               onUpload={(file) => handleDocUpload(file, "id_front")}
               onSelect={!hasProfile ? (file) => queueDocument("id_front", file) : undefined}
               pendingFile={pendingDocs.id_front}
-              {...docLabels.id_front}
+              {...translatedDocLabels.id_front}
               icon={<IdCard className="h-5 w-5" />}
               disabled={!canEdit}
             />
@@ -690,7 +713,7 @@ function Onboarding() {
               onUpload={(file) => handleDocUpload(file, "id_back")}
               onSelect={!hasProfile ? (file) => queueDocument("id_back", file) : undefined}
               pendingFile={pendingDocs.id_back}
-              {...docLabels.id_back}
+              {...translatedDocLabels.id_back}
               icon={<IdCard className="h-5 w-5" />}
               disabled={!canEdit}
             />
@@ -699,7 +722,7 @@ function Onboarding() {
               onUpload={(file) => handleDocUpload(file, "license_doc")}
               onSelect={!hasProfile ? (file) => queueDocument("license_doc", file) : undefined}
               pendingFile={pendingDocs.license_doc}
-              {...docLabels.license_doc}
+              {...translatedDocLabels.license_doc}
               icon={<FileText className="h-5 w-5" />}
               disabled={!canEdit}
             />
@@ -710,25 +733,29 @@ function Onboarding() {
           {canEdit && (
             <Button type="submit" disabled={!licenseFilled || submitLicense.isPending} className="w-full sm:w-auto">
               {submitLicense.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-              {submitLicense.isPending ? "Saving..." : hasProfile ? "Save changes" : "Save & continue"}
+              {submitLicense.isPending
+                ? t("driverOnboarding.saving")
+                : hasProfile
+                  ? t("driverOnboarding.saveChanges")
+                  : t("driverOnboarding.saveContinue")}
             </Button>
           )}
           {canEdit && isReady && (
             <Button type="button" onClick={() => setReviewMode(true)} className="w-full sm:w-auto">
               <Send className="mr-2 h-4 w-4" />
-              Review & submit
+              {t("driverOnboarding.reviewSubmit")}
             </Button>
           )}
           {isReady && reviewMode && (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Button type="button" variant="outline" onClick={() => setReviewMode(false)} className="w-full sm:w-auto">
                 <ChevronLeft className="mr-1 h-4 w-4" />
-                Back to edit
+                {t("driverOnboarding.backToEdit")}
               </Button>
               <Button type="button" disabled={requestReview.isPending} onClick={handleSubmitForReview} className="w-full sm:w-auto">
                 {requestReview.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Send className="mr-2 h-4 w-4" />
-                Submit for review
+                {t("driverOnboarding.submitForReview")}
               </Button>
             </div>
           )}

@@ -31,12 +31,14 @@ import { formatMwk, formatDateTime } from "@/lib/format";
 import { ArrowLeft, Car, CheckCircle2, KeyRound, RefreshCw, RotateCcw, Star, User as UserIcon, Navigation, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/bookings/$id")({
   component: BookingDetail,
 });
 
 function BookingDetail() {
+  const { t } = useI18n();
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const { user, setUser } = useAuth();
@@ -78,64 +80,64 @@ function BookingDetail() {
       }),
     onSuccess: (updatedUser: User) => {
       setUser(updatedUser);
-      toast.success("Emergency contact saved");
+      toast.success(t("passengerBookingDetail.emergencySaved"));
     },
-    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : "Could not save emergency contact"),
+    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : t("passengerBookingDetail.emergencySaveFailed")),
   });
 
   const pay = useMutation({
     mutationFn: async () => {
       if (needsEmergencyContact) {
-        if (!emergencyPhone.trim()) throw new Error("Emergency phone number is required before payment");
+        if (!emergencyPhone.trim()) throw new Error(t("passengerBookingDetail.emergencyPhoneRequired"));
         await saveEmergencyContact.mutateAsync();
       }
       return paymentService.initiate({ bookingId: id, phone: payPhone });
     },
     onSuccess: (res: PendingPayment & { checkoutUrl?: string | null }) => {
-      toast.success("Payment initiated");
+      toast.success(t("passengerBookingDetail.paymentInitiated"));
       if (res.checkoutUrl) window.open(res.checkoutUrl, "_blank", "noopener,noreferrer");
       qc.invalidateQueries({ queryKey: ["booking", id] });
     },
-    onError: (e: Error) => toast.error(e.message || "Payment failed"),
+    onError: (e: Error) => toast.error(e.message || t("passengerBookingDetail.paymentFailed")),
   });
 
   const resend = useMutation({
     mutationFn: () => bookingService.resendCode(id),
-    onSuccess: () => toast.success("Code re-sent via SMS"),
-    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : "Could not resend"),
+    onSuccess: () => toast.success(t("passengerBookingDetail.codeResent")),
+    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : t("passengerBookingDetail.codeResendFailed")),
   });
 
   const review = useMutation({
     mutationFn: () =>
       reviewService.create({ bookingId: id, rating, comment: comment || undefined }),
     onSuccess: () => {
-      toast.success("Thanks for the review!");
+      toast.success(t("passengerBookingDetail.reviewThanks"));
       setReviewed(true);
       setComment("");
       qc.invalidateQueries({ queryKey: ["booking", id] });
       qc.invalidateQueries({ queryKey: ["bookings"] });
     },
-    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : "Could not submit"),
+    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : t("passengerBookingDetail.reviewFailed")),
   });
 
   const refund = useMutation({
     mutationFn: () => bookingService.requestRefund(id, { reason: refundReason.trim() || undefined }),
     onSuccess: (result) => {
-      toast.success("Refund payout started");
+      toast.success(t("passengerBookingDetail.refundStarted"));
       setRefundResult(result);
       setRefundReason("");
       qc.invalidateQueries({ queryKey: ["booking", id] });
       qc.invalidateQueries({ queryKey: ["bookings"] });
       qc.invalidateQueries({ queryKey: ["payments"] });
     },
-    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : "Could not request refund"),
+    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : t("passengerBookingDetail.refundFailed")),
   });
 
   if (isLoading) return <LoadingState />;
   if (!booking)
     return (
       <div className="rounded-md border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
-        Booking not found.
+        {t("passengerBookingDetail.notFound")}
       </div>
     );
 
@@ -164,13 +166,13 @@ function BookingDetail() {
       <Link
         to="/app/bookings"
         className="mb-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground hover:border-primary hover:text-foreground"
-        aria-label="All bookings"
+        aria-label={t("passengerBookings.title")}
       >
         <ArrowLeft className="h-4 w-4" />
       </Link>
 
       <PageHeader
-        eyebrow="Booking"
+        eyebrow={t("passengerBookingDetail.eyebrow")}
         title={booking.boardingPoint}
         description={booking.dropOffPoint ? `→ ${booking.dropOffPoint}` : undefined}
         className="min-w-0 flex-1 flex-row items-end justify-between gap-3 border-b-0 pb-0 [&>div:first-child]:min-w-0 [&>div:first-child]:flex-1 [&_h1]:truncate"
@@ -190,7 +192,7 @@ function BookingDetail() {
               <div className="flex items-center gap-2 text-primary">
                 {boardingApproved ? <CheckCircle2 className="h-4 w-4" /> : <KeyRound className="h-4 w-4" />}
                 <span className="label-eyebrow">
-                  {boardingApproved ? "Boarding approved" : "Boarding code"}
+                  {boardingApproved ? t("passengerBookingDetail.boardingApproved") : t("passengerBookingDetail.boardingCode")}
                 </span>
               </div>
 
@@ -202,7 +204,7 @@ function BookingDetail() {
                     </div>
                   )}
                   <p className="mt-2 text-sm text-muted-foreground">
-                    The driver has verified your boarding code.
+                    {t("passengerBookingDetail.codeVerified")}
                   </p>
                 </>
               ) : booking.boardingCode ? (
@@ -211,12 +213,12 @@ function BookingDetail() {
                     {booking.boardingCode}
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Show this code to the driver when boarding. It must be verified before you enter.
+                    {t("passengerBookingDetail.showCode")}
                   </p>
                 </>
               ) : (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Your boarding code will show here after payment confirmation.
+                  {t("passengerBookingDetail.codeAfterPayment")}
                 </p>
               )}
             </div>
@@ -229,7 +231,7 @@ function BookingDetail() {
                 onClick={() => resend.mutate()}
                 disabled={resend.isPending}
               >
-                <RefreshCw className="h-3.5 w-3.5" /> Resend by SMS
+                <RefreshCw className="h-3.5 w-3.5" /> {t("passengerBookingDetail.resendSms")}
               </Button>
             )}
           </div>
@@ -239,28 +241,28 @@ function BookingDetail() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <div className="rounded-md border border-border bg-card p-5">
-            <h3 className="label-eyebrow">Summary</h3>
+            <h3 className="label-eyebrow">{t("passengerBookingDetail.summary")}</h3>
             <dl className="mt-3 grid grid-cols-2 gap-4 text-sm">
               <div>
-                <dt className="text-xs text-muted-foreground">Fare</dt>
+                <dt className="text-xs text-muted-foreground">{t("passengerBookings.fare")}</dt>
                 <dd className="mt-0.5 font-display text-lg font-semibold tabular">
                   {formatMwk(booking.fareMwk)}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Seats</dt>
-                <dd className="mt-0.5 font-medium">{booking.seatsBooked ?? 1} passenger{(booking.seatsBooked ?? 1) === 1 ? "" : "s"}</dd>
+                <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.seats")}</dt>
+                <dd className="mt-0.5 font-medium">{t("passengerBookingDetail.passengers", { count: booking.seatsBooked ?? 1, plural: (booking.seatsBooked ?? 1) === 1 ? "" : "s" })}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Booked</dt>
+                <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.booked")}</dt>
                 <dd className="mt-0.5">{formatDateTime(booking.createdAt)}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Boarding</dt>
+                <dt className="text-xs text-muted-foreground">{t("driverManifest.boarding")}</dt>
                 <dd className="mt-0.5">{booking.boardingPoint}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Drop-off</dt>
+                <dt className="text-xs text-muted-foreground">{t("driverManifest.dropoff")}</dt>
                 <dd className="mt-0.5">{booking.dropOffPoint ?? "—"}</dd>
               </div>
             </dl>
@@ -268,12 +270,12 @@ function BookingDetail() {
 
           {booking.travelers && booking.travelers.length > 0 && (
             <div className="rounded-md border border-border bg-card p-5">
-              <h3 className="label-eyebrow mb-3">Traveler manifest</h3>
+              <h3 className="label-eyebrow mb-3">{t("passengerBookingDetail.travelerManifest")}</h3>
               <div className="space-y-2 text-sm">
                 {booking.travelers.map((traveler) => (
                   <div key={traveler.id} className="flex items-center justify-between rounded-md bg-surface-2 px-3 py-2">
                     <span>{traveler.fullName}</span>
-                    {traveler.isPrimary && <span className="text-xs text-muted-foreground">Primary</span>}
+                    {traveler.isPrimary && <span className="text-xs text-muted-foreground">{t("passengerBookingDetail.primary")}</span>}
                   </div>
                 ))}
               </div>
@@ -284,23 +286,23 @@ function BookingDetail() {
             <div className="rounded-md border border-border bg-card p-5">
               <h3 className="label-eyebrow mb-3 flex items-center gap-2">
                 <Navigation className="h-3.5 w-3.5 text-muted-foreground" />
-                Trip details
+                {t("passengerBookingDetail.tripDetails")}
               </h3>
               <dl className="grid grid-cols-2 gap-4 text-sm">
                 <div className="col-span-2">
-                  <dt className="text-xs text-muted-foreground">Route</dt>
+                  <dt className="text-xs text-muted-foreground">{t("transactions.route")}</dt>
                   <dd className="mt-0.5 font-medium">
                     {booking.trip.originName} → {booking.trip.destinationName}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" /> Departure time
+                    <Calendar className="h-3 w-3" /> {t("driverTripForm.departureTime")}
                   </dt>
                   <dd className="mt-0.5">{formatDateTime(booking.trip.departureTime)}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Trip status</dt>
+                  <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.tripStatus")}</dt>
                   <dd className="mt-0.5">
                     <StatusPill status={booking.trip.status} />
                   </dd>
@@ -314,15 +316,15 @@ function BookingDetail() {
             <div className="rounded-md border border-border bg-card p-5">
               <h3 className="label-eyebrow mb-3 flex items-center gap-2">
                 <UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                Driver
+                {t("transactions.driver")}
               </h3>
               <dl className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <dt className="text-xs text-muted-foreground">Name</dt>
+                  <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.name")}</dt>
                   <dd className="mt-0.5 font-medium">{booking.trip.driver.user.fullName}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Phone</dt>
+                  <dt className="text-xs text-muted-foreground">{t("driverProfile.phone")}</dt>
                   <dd className="mt-0.5">
                     <a href={`tel:${booking.trip.driver.user.phone}`} className="text-primary hover:underline">
                       {booking.trip.driver.user.phone}
@@ -338,26 +340,26 @@ function BookingDetail() {
             <div className="rounded-md border border-border bg-card p-5">
               <h3 className="label-eyebrow mb-3 flex items-center gap-2">
                 <Car className="h-3.5 w-3.5 text-muted-foreground" />
-                Vehicle
+                {t("driverTripForm.vehicle")}
               </h3>
               <dl className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <dt className="text-xs text-muted-foreground">Make & model</dt>
+                  <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.makeModel")}</dt>
                   <dd className="mt-0.5 font-medium">
                     {booking.trip.vehicle.make} {booking.trip.vehicle.model}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Plate number</dt>
+                  <dt className="text-xs text-muted-foreground">{t("driverVehicles.plateNumber")}</dt>
                   <dd className="mt-0.5 font-mono">{booking.trip.vehicle.plateNumber}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Class</dt>
+                  <dt className="text-xs text-muted-foreground">{t("trips.class")}</dt>
                   <dd className="mt-0.5 capitalize">{booking.trip.vehicle.comfortClass}</dd>
                 </div>
                 {booking.trip.vehicle.color && (
                   <div>
-                    <dt className="text-xs text-muted-foreground">Color</dt>
+                    <dt className="text-xs text-muted-foreground">{t("driverVehicles.color")}</dt>
                     <dd className="mt-0.5 capitalize">{booking.trip.vehicle.color}</dd>
                   </div>
                 )}
@@ -365,7 +367,7 @@ function BookingDetail() {
 
               {(booking.trip.vehicle.imageUrls?.length ?? 0) > 0 && (
                 <div className="mt-4">
-                  <div className="label-eyebrow mb-2">Vehicle photos</div>
+                  <div className="label-eyebrow mb-2">{t("trips.vehiclePhotos")}</div>
                   <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
                     {booking.trip.vehicle.imageUrls?.map((url, index) => (
                       <button
@@ -373,7 +375,7 @@ function BookingDetail() {
                         type="button"
                         onClick={() => setSelectedVehicleImage(url)}
                         className="group aspect-square overflow-hidden rounded-md border border-border bg-surface-2 ring-focus sm:h-16 sm:w-16"
-                        aria-label={`View vehicle photo ${index + 1}`}
+                        aria-label={t("passengerBookingDetail.viewVehiclePhoto", { index: index + 1 })}
                       >
                         <SecureImage
                           src={url}
@@ -390,15 +392,15 @@ function BookingDetail() {
 
           {(canReview || booking.ratedDriver) && (
             <div className="rounded-md border border-border bg-card p-5">
-              <h3 className="label-eyebrow">Rate your trip</h3>
+              <h3 className="label-eyebrow">{t("passengerBookingDetail.rateTrip")}</h3>
               {booking.ratedDriver || reviewed ? (
                 <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
                   <Star className="h-4 w-4 fill-gold text-gold" />
-                  Thank you for your review!
+                  {t("passengerBookingDetail.reviewThanks")}
                 </div>
               ) : (
                 <>
-                  <p className="mt-1 text-xs text-muted-foreground">How was your ride?</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t("passengerBookingDetail.howRide")}</p>
                   <div className="mt-3 flex gap-1">
                     {[1, 2, 3, 4, 5].map((n) => (
                       <button
@@ -415,12 +417,12 @@ function BookingDetail() {
                   </div>
                   <Input
                     className="mt-3"
-                    placeholder="Optional comment"
+                    placeholder={t("passengerBookingDetail.optionalComment")}
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                   />
                   <Button className="mt-3" onClick={() => review.mutate()} disabled={review.isPending}>
-                    {review.isPending ? "Submitting..." : "Submit review"}
+                    {review.isPending ? t("passengerBookingDetail.submitting") : t("passengerBookingDetail.submitReview")}
                   </Button>
                 </>
               )}
@@ -431,19 +433,19 @@ function BookingDetail() {
         <aside className="space-y-4">
           {needsPayment ? (
             <div className="rounded-md border border-gold/40 bg-gold/5 p-5">
-              <h3 className="label-eyebrow text-gold">Payment required</h3>
-              <p className="mt-2 text-sm">Pay {formatMwk(booking.fareMwk)} to confirm your seat.</p>
+              <h3 className="label-eyebrow text-gold">{t("passengerBookingDetail.paymentRequired")}</h3>
+              <p className="mt-2 text-sm">{t("passengerBookingDetail.payToConfirm", { amount: formatMwk(booking.fareMwk) })}</p>
               <div className="mt-4 space-y-3">
                 {needsEmergencyContact && (
                   <div className="rounded-md border border-gold/40 bg-background/70 p-3">
-                    <div className="label-eyebrow text-gold">Emergency contact required</div>
+                    <div className="label-eyebrow text-gold">{t("trips.emergencyRequired")}</div>
                     <div className="mt-3 space-y-3">
                       <div className="space-y-1.5">
-                        <Label className="label-eyebrow">Contact name</Label>
+                        <Label className="label-eyebrow">{t("trips.contactName")}</Label>
                         <Input value={emergencyName} onChange={(e) => setEmergencyName(e.target.value)} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="label-eyebrow">Contact phone</Label>
+                        <Label className="label-eyebrow">{t("trips.contactPhone")}</Label>
                         <Input
                           value={emergencyPhone}
                           onChange={(e) => setEmergencyPhone(e.target.value)}
@@ -454,7 +456,7 @@ function BookingDetail() {
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <Label className="label-eyebrow">Phone</Label>
+                  <Label className="label-eyebrow">{t("driverProfile.phone")}</Label>
                   <Input value={payPhone} onChange={(e) => setPayPhone(e.target.value)} />
                 </div>
                 <Button
@@ -463,8 +465,8 @@ function BookingDetail() {
                   disabled={pay.isPending || saveEmergencyContact.isPending}
                 >
                   {pay.isPending || saveEmergencyContact.isPending
-                    ? "Initiating..."
-                    : `Pay ${formatMwk(booking.fareMwk)}`}
+                    ? t("passengerBookingDetail.initiating")
+                    : t("passengerBookingDetail.payAmount", { amount: formatMwk(booking.fareMwk) })}
                 </Button>
               </div>
             </div>
@@ -472,9 +474,9 @@ function BookingDetail() {
 
           {canRequestRefund ? (
             <div className="rounded-md border border-border bg-card p-5">
-              <h3 className="label-eyebrow">Refund</h3>
+              <h3 className="label-eyebrow">{t("passengerBookingDetail.refund")}</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                You can request a refund before boarding. A convenience fee applies.
+                {t("passengerBookingDetail.refundHelp")}
               </p>
               <Button
                 variant="outline"
@@ -484,7 +486,7 @@ function BookingDetail() {
                   setRefundOpen(true);
                 }}
               >
-                <RotateCcw className="h-4 w-4" /> Request refund
+                <RotateCcw className="h-4 w-4" /> {t("passengerBookingDetail.requestRefund")}
               </Button>
             </div>
           ) : null}
@@ -494,13 +496,13 @@ function BookingDetail() {
       <Dialog open={!!selectedVehicleImage} onOpenChange={(open) => !open && setSelectedVehicleImage(null)}>
         <DialogContent className="max-w-3xl border-border bg-card p-3">
           <DialogHeader className="sr-only">
-            <DialogTitle>Vehicle photo</DialogTitle>
-            <DialogDescription>Expanded vehicle image preview.</DialogDescription>
+            <DialogTitle>{t("passengerBookingDetail.vehiclePhoto")}</DialogTitle>
+            <DialogDescription>{t("passengerBookingDetail.vehiclePhotoDescription")}</DialogDescription>
           </DialogHeader>
           {selectedVehicleImage && (
             <SecureImage
               src={selectedVehicleImage}
-              alt="Vehicle photo"
+              alt={t("passengerBookingDetail.vehiclePhoto")}
               className="max-h-[75vh] w-full rounded-md object-contain"
             />
           )}
@@ -517,11 +519,11 @@ function BookingDetail() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{refundResult ? "Refund payout processing" : "Request refund"}</DialogTitle>
+            <DialogTitle>{refundResult ? t("passengerBookingDetail.refundProcessing") : t("passengerBookingDetail.requestRefund")}</DialogTitle>
             <DialogDescription>
               {refundResult
-                ? "Your refund request has been sent to PayChangu. We will update the booking when the payout is confirmed."
-                : "Review the refund policy and amount before confirming."}
+                ? t("passengerBookingDetail.refundSent")
+                : t("passengerBookingDetail.reviewRefund")}
             </DialogDescription>
           </DialogHeader>
 
@@ -531,9 +533,9 @@ function BookingDetail() {
                 <div className="flex items-start gap-3">
                   <RefreshCw className="mt-0.5 h-5 w-5 animate-spin text-primary" />
                   <div>
-                    <p className="font-semibold">Refund is being processed</p>
+                    <p className="font-semibold">{t("passengerBookingDetail.refundBeingProcessed")}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Keep this booking for tracking. If PayChangu confirms success, the booking will be cancelled and marked refunded.
+                      {t("passengerBookingDetail.refundTrackingHelp")}
                     </p>
                   </div>
                 </div>
@@ -541,23 +543,23 @@ function BookingDetail() {
 
               <dl className="grid grid-cols-2 gap-3 rounded-md border border-border bg-surface-2 p-4 text-sm">
                 <div>
-                  <dt className="text-xs text-muted-foreground">Status</dt>
+                  <dt className="text-xs text-muted-foreground">{t("transactions.status")}</dt>
                   <dd className="font-semibold capitalize">{refundResult.status.replace("_", " ")}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Refund amount</dt>
+                  <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.refundAmount")}</dt>
                   <dd className="font-semibold text-primary">{formatMwk(refundResult.refundAmountMwk)}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Convenience fee</dt>
+                  <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.convenienceFee")}</dt>
                   <dd className="font-semibold">{formatMwk(refundResult.convenienceFeeMwk)}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Requested</dt>
+                  <dt className="text-xs text-muted-foreground">{t("driverWallet.requested")}</dt>
                   <dd className="font-semibold">{formatDateTime(refundResult.requestedAt)}</dd>
                 </div>
                 <div className="col-span-2">
-                  <dt className="text-xs text-muted-foreground">Tracking ID</dt>
+                  <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.trackingId")}</dt>
                   <dd className="break-all font-mono text-xs">{refundResult.gatewayChargeId ?? refundResult.id}</dd>
                 </div>
               </dl>
@@ -568,37 +570,37 @@ function BookingDetail() {
             <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
               {refundPreview.error instanceof Error
                 ? refundPreview.error.message
-                : "Refund preview is not available."}
+                : t("passengerBookingDetail.refundPreviewUnavailable")}
             </div>
           ) : refundPreview.data ? (
             <div className="space-y-4">
               <div className="rounded-md border border-border bg-surface-2 p-4">
                 <dl className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <dt className="text-xs text-muted-foreground">Amount paid</dt>
+                    <dt className="text-xs text-muted-foreground">{t("transactions.amountPaid")}</dt>
                     <dd className="font-semibold">{formatMwk(refundPreview.data.originalCustomerAmountMwk)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground">Convenience fee</dt>
+                    <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.convenienceFee")}</dt>
                     <dd className="font-semibold">{formatMwk(refundPreview.data.convenienceFeeMwk)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground">Refund amount</dt>
+                    <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.refundAmount")}</dt>
                     <dd className="font-semibold text-primary">{formatMwk(refundPreview.data.refundAmountMwk)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground">Driver fee share</dt>
+                    <dt className="text-xs text-muted-foreground">{t("passengerBookingDetail.driverFeeShare")}</dt>
                     <dd className="font-semibold">{formatMwk(refundPreview.data.driverConvenienceShareMwk)}</dd>
                   </div>
                 </dl>
               </div>
               <p className="text-sm text-muted-foreground">{refundPreview.data.policy}</p>
               <div className="space-y-1.5">
-                <Label className="label-eyebrow">Reason</Label>
+                <Label className="label-eyebrow">{t("passengerBookingDetail.reason")}</Label>
                 <Textarea
                   value={refundReason}
                   onChange={(e) => setRefundReason(e.target.value)}
-                  placeholder="Optional"
+                  placeholder={t("passengerBookingDetail.optional")}
                 />
               </div>
             </div>
@@ -606,14 +608,14 @@ function BookingDetail() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setRefundOpen(false)}>
-              Close
+              {t("passengerBookingDetail.close")}
             </Button>
             {!refundResult ? (
               <Button
                 onClick={() => refund.mutate()}
                 disabled={refund.isPending || refundPreview.isLoading || !refundPreview.data}
               >
-                {refund.isPending ? "Starting refund..." : "Confirm refund"}
+                {refund.isPending ? t("passengerBookingDetail.startingRefund") : t("passengerBookingDetail.confirmRefund")}
               </Button>
             ) : null}
           </DialogFooter>

@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { useAuthModal } from "@/lib/auth-modal-context";
 import { Wallet, Calendar, Users, ArrowRight } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_public/drivers-info")({
   head: () => ({
@@ -20,60 +21,56 @@ export const Route = createFileRoute("/_public/drivers-info")({
 
 function DriversInfo() {
   const { openModal } = useAuthModal();
+  const { t } = useI18n();
+  const features = [
+    { icon: Wallet, tKey: "drivers.payouts.title", dKey: "drivers.payouts.description" },
+    { icon: Calendar, tKey: "drivers.schedule.title", dKey: "drivers.schedule.description" },
+    { icon: Users, tKey: "drivers.passengers.title", dKey: "drivers.passengers.description" },
+  ];
+  const requirements = [
+    "drivers.need.license",
+    "drivers.need.vehicle",
+    "drivers.need.phone",
+    "drivers.need.record",
+  ];
+
   return (
     <div className="mx-auto max-w-7xl px-6 py-16">
       <PageHeader
-        eyebrow="For drivers"
-        title="Share your planned trip. Get paid."
-        description="If you are already driving between towns, cities, districts or other destinations, publish your route, set your seats and let passengers book in advance."
+        eyebrow={t("drivers.eyebrow")}
+        title={t("drivers.title")}
+        description={t("drivers.description")}
         actions={
           <Button size="lg" onClick={() => openModal({ mode: "register", role: "driver" })}>
-            Apply to drive
+            {t("drivers.apply")}
           </Button>
         }
       />
 
       <div className="mt-10 grid gap-4 md:grid-cols-3">
-        {[
-          {
-            icon: Wallet,
-            t: "Mobile-money payouts",
-            d: "Withdraw your wallet balance to Airtel Money or TNM Mpamba anytime.",
-          },
-          {
-            icon: Calendar,
-            t: "You control the schedule",
-            d: "Publish trips when and where you're already driving. No quotas.",
-          },
-          {
-            icon: Users,
-            t: "Verified passengers",
-            d: "Passengers verify their phone and pay upfront before a booking is confirmed.",
-          },
-        ].map((f) => (
-          <div key={f.t} className="rounded-md border border-border bg-card p-6">
+        {features.map((f) => (
+          <div key={f.tKey} className="rounded-md border border-border bg-card p-6">
             <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
               <f.icon className="h-4 w-4" />
             </span>
-            <h3 className="mt-4 font-display text-lg font-semibold">{f.t}</h3>
-            <p className="mt-1.5 text-sm text-muted-foreground">{f.d}</p>
+            <h3 className="mt-4 font-display text-lg font-semibold">{t(f.tKey)}</h3>
+            <p className="mt-1.5 text-sm text-muted-foreground">{t(f.dKey)}</p>
           </div>
         ))}
       </div>
 
       <div className="mt-12 rounded-xl border border-border bg-card p-8">
-        <h2 className="font-display text-xl font-semibold">What you need</h2>
+        <h2 className="font-display text-xl font-semibold">{t("drivers.needTitle")}</h2>
         <ul className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-          <li>· Valid Malawian driver's licence</li>
-          <li>· Roadworthy vehicle with valid plates</li>
-          <li>· Smartphone with mobile-money account</li>
-          <li>· Clean criminal record</li>
+          {requirements.map((key) => (
+            <li key={key}>· {t(key)}</li>
+          ))}
         </ul>
         <Button
           className="mt-6 gap-2"
           onClick={() => openModal({ mode: "register", role: "driver" })}
         >
-          Start application <ArrowRight className="h-4 w-4" />
+          {t("drivers.startApplication")} <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
     </div>

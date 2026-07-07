@@ -28,12 +28,14 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/driver/trips/$id")({
   component: DriverTripDetail,
 });
 
 function DriverTripDetail() {
+  const { t } = useI18n();
   const { id } = Route.useParams();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const qc = useQueryClient();
@@ -60,7 +62,7 @@ function DriverTripDetail() {
   const start = useMutation({
     mutationFn: () => tripService.start(id),
     onSuccess: () => {
-      toast.success("Trip started — GPS tracking active");
+      toast.success(t("driverTripDetail.toastStarted"));
       qc.invalidateQueries({ queryKey: ["trip", id] });
       checkGpsPermission();
     },
@@ -68,21 +70,21 @@ function DriverTripDetail() {
   const complete = useMutation({
     mutationFn: () => tripService.complete(id),
     onSuccess: () => {
-      toast.success("Trip completed — payout released");
+      toast.success(t("driverTripDetail.toastCompleted"));
       qc.invalidateQueries({ queryKey: ["trip", id] });
     },
   });
   const cancel = useMutation({
     mutationFn: () => tripService.cancel(id),
     onSuccess: () => {
-      toast.success("Trip cancelled");
+      toast.success(t("driverTripDetail.toastCancelled"));
       qc.invalidateQueries({ queryKey: ["trip", id] });
     },
   });
   const setStatus = useMutation({
     mutationFn: (s: "boarding") => tripService.setStatus(id, s),
     onSuccess: () => {
-      toast.success("Passengers notified that you've arrived");
+      toast.success(t("driverTrips.toastArrived"));
       qc.invalidateQueries({ queryKey: ["trip", id] });
     },
   });
@@ -281,7 +283,7 @@ function DriverTripDetail() {
   if (!trip)
     return (
       <div className="rounded-md border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
-        Trip not found.
+        {t("driverCommon.tripNotFound")}
       </div>
     );
 
@@ -318,15 +320,15 @@ function DriverTripDetail() {
                 });
               }}
               className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground sm:flex-none"
-              title="Copy shareable trip link"
+              title={t("driverTripDetail.copyTripLink")}
             >
               {copiedTrip ? (
                 <>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Copied!
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> {t("driverTripDetail.copied")}
                 </>
               ) : (
                 <>
-                  <Copy className="h-3.5 w-3.5" /> Copy trip link
+                  <Copy className="h-3.5 w-3.5" /> {t("driverTripDetail.copyTripLink")}
                 </>
               )}
             </button>
@@ -343,15 +345,15 @@ function DriverTripDetail() {
                 });
               }}
               className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground sm:flex-none"
-              title="Copy link to all your trips"
+              title={t("driverTripDetail.copyDriverTrips")}
             >
               {copiedDriver ? (
                 <>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Copied!
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> {t("driverTripDetail.copied")}
                 </>
               ) : (
                 <>
-                  <Users className="h-3.5 w-3.5" /> Share all my trips
+                  <Users className="h-3.5 w-3.5" /> {t("driverTripDetail.copyDriverTrips")}
                 </>
               )}
             </button>
@@ -366,18 +368,18 @@ function DriverTripDetail() {
             <Navigation className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
             <div className="flex-1">
               <h3 className="font-display text-base font-semibold text-gold">
-                {gpsError ? "GPS Required" : "Enable Location Sharing"}
+                {gpsError ? t("driverTripDetail.gpsRequired") : t("driverTripDetail.enableLocation")}
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 {gpsError ??
-                  "Passengers need to see your live location during the trip. Allow GPS access to share your position."}
+                  t("driverTripDetail.gpsHelp")}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-row">
                 <Button onClick={requestGpsPermission}>
-                  {gpsError ? "Try again" : "Enable GPS"}
+                  {gpsError ? t("driverTripDetail.tryAgain") : t("driverTripDetail.enableGps")}
                 </Button>
                 <Button variant="outline" onClick={() => setGpsPromptOpen(false)}>
-                  Later
+                  {t("driverTripDetail.later")}
                 </Button>
               </div>
             </div>
@@ -392,13 +394,13 @@ function DriverTripDetail() {
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium">
-                {gpsAllowed && hasPoint ? "Live GPS active" : "Waiting for GPS signal..."}
+                {gpsAllowed && hasPoint ? t("driverTripDetail.liveGpsActive") : t("driverTripDetail.waitingGps")}
               </span>
             </div>
             <Button asChild variant="ghost" size="sm" className="gap-1 text-xs">
               <Link to="/trips/$id/location" params={{ id }}>
                 <Maximize2 className="h-3.5 w-3.5" />
-                View full map
+                {t("driverTripDetail.fullMap")}
               </Link>
             </Button>
           </div>
@@ -408,11 +410,11 @@ function DriverTripDetail() {
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center text-sm text-muted-foreground">
                   <Navigation className="mx-auto mb-2 h-8 w-8" />
-                  <p>GPS location pending</p>
+                  <p>{t("driverTripDetail.gpsPending")}</p>
                   <p className="mt-1 text-xs">
                     {gpsAllowed
-                      ? "Acquiring satellite signal..."
-                      : "Enable GPS to share your location"}
+                      ? t("driverTripDetail.acquiringSignal")
+                      : t("driverTripDetail.enableGpsShare")}
                   </p>
                 </div>
               </div>
@@ -426,7 +428,7 @@ function DriverTripDetail() {
         <Button asChild variant="outline" className="order-2 w-full gap-2 sm:order-none sm:w-auto">
           <Link to="/driver/trips/$id/passengers" params={{ id }}>
             <Users className="h-4 w-4" />
-            View passengers
+            {t("driverTripDetail.viewPassengers")}
             <span className="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-primary">
               {bookings?.length ?? 0}
             </span>
@@ -440,7 +442,7 @@ function DriverTripDetail() {
           >
             <Link to="/driver/trips/$id/edit" params={{ id }}>
               <Pencil className="h-4 w-4" />
-              Edit trip
+              {t("driverTripDetail.editTrip")}
             </Link>
           </Button>
         )}
@@ -451,7 +453,7 @@ function DriverTripDetail() {
             className="order-1 w-full gap-2 animate-pulse sm:order-none sm:w-auto"
           >
             <KeyRound className="h-4 w-4" />
-            <span>Notify passengers you've arrived</span>
+            <span>{t("driverTrips.notifyArrived")}</span>
           </Button>
         )}
         {trip.status === "boarding" && (
@@ -461,7 +463,7 @@ function DriverTripDetail() {
             className="order-1 col-span-2 w-full gap-2 animate-pulse sm:order-none sm:w-auto"
           >
             <Play className="h-4 w-4" />
-            Start trip and share GPS
+            {t("driverTrips.startTripGps")}
           </Button>
         )}
         {trip.status === "in_transit" && (
@@ -471,7 +473,7 @@ function DriverTripDetail() {
             className="order-1 w-full gap-2 sm:order-none sm:w-auto"
           >
             <CheckCircle2 className="h-4 w-4" />
-            Mark complete
+            {t("driverTripDetail.markComplete")}
           </Button>
         )}
         {trip.status !== "completed" && trip.status !== "cancelled" && (
@@ -481,7 +483,7 @@ function DriverTripDetail() {
             onClick={() => cancel.mutate()}
             disabled={cancel.isPending}
           >
-            <XCircle className="h-4 w-4" /> Cancel
+            <XCircle className="h-4 w-4" /> {t("driverCommon.cancel")}
           </Button>
         )}
       </div>
@@ -494,6 +496,7 @@ function DriverTripDetail() {
 }
 
 function RouteManifestView({ trip, bookings }: { trip: Trip; bookings: Booking[] }) {
+  const { t } = useI18n();
   const stops = getRouteStops(trip);
   const segments = getRouteSegments(trip);
   const mainSegment =
@@ -505,22 +508,22 @@ function RouteManifestView({ trip, bookings }: { trip: Trip; bookings: Booking[]
     <div className="rounded-md border border-border bg-card">
       <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row sm:items-start sm:justify-between sm:p-5">
         <div className="min-w-0">
-          <div className="label-eyebrow text-primary">Route manifest</div>
+          <div className="label-eyebrow text-primary">{t("driverRoute.routeManifest")}</div>
           <h3 className="mt-1.5 flex flex-wrap items-center gap-2 text-lg font-semibold tracking-normal sm:mt-2 sm:text-2xl">
             <span>{trip.originName}</span>
             <span className="text-muted-foreground">to</span>
             <span>{trip.destinationName}</span>
           </h3>
           <p className="mt-1.5 text-xs text-muted-foreground sm:mt-2 sm:text-sm">
-            Full trip: depart {formatClock(trip.departureTime)}
+            {t("driverRouteView.fullTripDepart")} {formatClock(trip.departureTime)}
             {trip.estimatedDurationMinutes
               ? ` - ${formatDuration(trip.estimatedDurationMinutes)}`
               : ""}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:min-w-56 sm:gap-3">
-          <MiniMetric label="Routes" value={String(segments.length || 1)} />
-          <MiniMetric label="Capacity" value={`${trip.totalSeats} seats`} />
+          <MiniMetric label={t("driverRouteView.routes")} value={String(segments.length || 1)} />
+          <MiniMetric label={t("driverRouteView.capacity")} value={`${trip.totalSeats} ${t("driverRouteView.seats")}`} />
         </div>
       </div>
 
@@ -557,7 +560,7 @@ function RouteManifestView({ trip, bookings }: { trip: Trip; bookings: Booking[]
               <span className="absolute -left-[34px] flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-border bg-card text-muted-foreground sm:-left-[38px] sm:h-8 sm:w-8">
                 <Plus className="h-4 w-4" />
               </span>
-              No extra bookable routes added.
+              {t("driverRouteView.noExtraRoutes")}
             </div>
           )}
 
@@ -583,6 +586,7 @@ function RouteSegmentCard({
   variant: "main" | "extra";
   bookedSeats: number;
 }) {
+  const { t } = useI18n();
   const isMain = variant === "main";
 
   return (
@@ -604,13 +608,13 @@ function RouteSegmentCard({
             {segment.fromStop.name} to {segment.toStop.name}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
-            {isMain ? "Main route passengers can book" : "Bookable route passengers can reserve"}
+            {isMain ? t("driverRouteView.mainBookable") : t("driverRouteView.extraBookable")}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-1.5 text-xs sm:gap-2 md:grid-cols-5">
-          <MiniMetric label="Vacancy" value={`${segment.maxSeats} seats`} />
-          <MiniMetric label="Booked" value={`${bookedSeats} seats`} />
-          <MiniMetric label="Amount" value={formatMwk(segment.farePerSeatMwk)} />
+          <MiniMetric label={t("driverRouteView.vacancy")} value={`${segment.maxSeats} ${t("driverRouteView.seats")}`} />
+          <MiniMetric label={t("driverRouteView.booked")} value={`${bookedSeats} ${t("driverRouteView.seats")}`} />
+          <MiniMetric label={t("driverRouteView.amount")} value={formatMwk(segment.farePerSeatMwk)} />
           <MiniMetric
             label="Distance"
             value={segment.distanceKm ? formatDistanceKm(segment.distanceKm) : "Not set"}

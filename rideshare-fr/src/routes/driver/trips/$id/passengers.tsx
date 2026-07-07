@@ -7,12 +7,14 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { PassengerManifestPanel } from "@/components/driver-trips/passenger-manifest-panel";
 import { formatDateTime } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/driver/trips/$id/passengers")({
   component: TripPassengersPage,
 });
 
 function TripPassengersPage() {
+  const { t } = useI18n();
   const { id } = Route.useParams();
   const { data: trip, isLoading: tripLoading } = useQuery({
     queryKey: ["trip", id],
@@ -27,7 +29,7 @@ function TripPassengersPage() {
   if (!trip) {
     return (
       <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive sm:p-6">
-        Trip not found.
+        {t("driverCommon.tripNotFound")}
       </div>
     );
   }
@@ -47,7 +49,7 @@ function TripPassengersPage() {
   return (
     <div className="space-y-3 sm:space-y-5">
       <PageHeader
-        eyebrow="Passenger manifest"
+        eyebrow={t("driverPassengers.title")}
         className="gap-3 pb-4"
         title={
           <span className="flex min-w-0 items-center gap-2">
@@ -55,7 +57,7 @@ function TripPassengersPage() {
               to="/driver/trips/$id"
               params={{ id }}
               className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
-              aria-label="Back to trip"
+              aria-label={t("driverCommon.back")}
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -68,17 +70,17 @@ function TripPassengersPage() {
         actions={
           <Button asChild variant="outline" size="sm">
             <Link to="/driver/trips/$id" params={{ id }}>
-              Trip timeline
+              {t("driverPassengers.timeline")}
             </Link>
           </Button>
         }
       />
 
       <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-        <ManifestMetric label="Bookings" value={String(passengerBookings.length)} />
-        <ManifestMetric label="Seats booked" value={String(totalSeats)} />
-        <ManifestMetric label="Checked in" value={String(checkedInCount)} />
-        <ManifestMetric label="To verify" value={String(awaitingVerificationCount)} />
+        <ManifestMetric label={t("driverPassengers.bookings")} value={String(passengerBookings.length)} />
+        <ManifestMetric label={t("driverPassengers.seatsBooked")} value={String(totalSeats)} />
+        <ManifestMetric label={t("driverPassengers.checkedIn")} value={String(checkedInCount)} />
+        <ManifestMetric label={t("driverPassengers.toVerify")} value={String(awaitingVerificationCount)} />
       </div>
 
       <PassengerManifestPanel trip={trip} bookings={passengerBookings} />

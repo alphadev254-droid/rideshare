@@ -4,12 +4,14 @@ import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { paymentService } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/transactions")({
   component: PassengerTransactions,
 });
 
 function PassengerTransactions() {
+  const { t } = useI18n();
   const { data, isLoading } = useQuery({
     queryKey: ["payments", "my"],
     queryFn: () => paymentService.myTransactions({ limit: 50 }),
@@ -17,7 +19,7 @@ function PassengerTransactions() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Payments" title="My transactions" description="Ride payments, fees and payment status." />
+      <PageHeader eyebrow={t("passengerTransactions.eyebrow")} title={t("passengerTransactions.title")} description={t("passengerTransactions.description")} />
       {isLoading ? (
         <LoadingState />
       ) : (

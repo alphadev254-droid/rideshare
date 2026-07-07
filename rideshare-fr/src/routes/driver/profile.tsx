@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { SecureImage } from "@/components/secure-image";
 import { Camera, Check, Loader2, Pencil, Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/driver/profile")({
   component: DriverProfile,
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/driver/profile")({
 type EditableField = "fullName" | "ecName" | "ecPhone";
 
 function DriverProfile() {
+  const { t } = useI18n();
   const { user, setUser, refreshUser } = useAuth();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [pendingPhoto, setPendingPhoto] = useState<{ file: File; preview: string } | null>(null);
@@ -69,7 +71,7 @@ function DriverProfile() {
       if (user) setUser({ ...user, profilePhotoUrl: res.profilePhotoUrl });
       await refreshUser();
     },
-    onError: (err: unknown) => toast.error(extractApiError(err, "Could not upload photo")),
+    onError: (err: unknown) => toast.error(extractApiError(err, t("driverProfile.uploadFailed"))),
   });
 
   function handlePhotoSelect(e: ChangeEvent<HTMLInputElement>) {
@@ -94,15 +96,15 @@ function DriverProfile() {
   return (
     <div className="space-y-6 pb-24">
       <PageHeader
-        eyebrow="Account"
-        title="Driver profile"
-        description="Tap the pencil next to any field to edit it."
+        eyebrow={t("driverProfile.eyebrow")}
+        title={t("driverProfile.title")}
+        description={t("driverProfile.description")}
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Photo card */}
         <div className="rounded-md border border-border bg-card p-6 flex flex-col items-center gap-4">
-          <h3 className="label-eyebrow self-start">Profile photo</h3>
+          <h3 className="label-eyebrow self-start">{t("driverProfile.photo")}</h3>
           {photoSrc ? (
             pendingPhoto ? (
               <img src={photoSrc} alt="Preview" className="aspect-square w-36 rounded-lg border border-border object-cover" />
@@ -121,14 +123,14 @@ function DriverProfile() {
             <div className="flex gap-2">
               <Button size="sm" onClick={() => uploadPhoto.mutate(pendingPhoto.file)} disabled={uploadPhoto.isPending}>
                 {uploadPhoto.isPending ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Upload className="mr-1 h-3 w-3" />}
-                Upload
+                {t("driverProfile.upload")}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setPendingPhoto(null)}>Cancel</Button>
             </div>
           ) : (
             <Button size="sm" variant="outline" onClick={() => photoInputRef.current?.click()}>
               <Camera className="mr-1 h-3 w-3" />
-              {user.profilePhotoUrl ? "Change photo" : "Upload photo"}
+              {user.profilePhotoUrl ? t("driverProfile.changePhoto") : t("driverProfile.uploadPhoto")}
             </Button>
           )}
         </div>
@@ -136,9 +138,9 @@ function DriverProfile() {
         {/* Fields */}
         <div className="space-y-4 lg:col-span-2">
           <div className="space-y-1 rounded-md border border-border bg-card p-6">
-            <h3 className="label-eyebrow mb-3">Identity</h3>
+            <h3 className="label-eyebrow mb-3">{t("driverProfile.identity")}</h3>
             <EditableRow
-              label="Full name"
+              label={t("driverProfile.fullName")}
               value={values.fullName}
               isEditing={editing === "fullName"}
               onEdit={() => setEditing("fullName")}
@@ -146,16 +148,16 @@ function DriverProfile() {
               onCancel={() => cancelField("fullName")}
               onChange={(v) => setValues((s) => ({ ...s, fullName: v }))}
             />
-            <StaticRow label="Phone" value={user.phone} mono />
-            <StaticRow label="Role" value="Driver" capitalize />
+            <StaticRow label={t("driverProfile.phone")} value={user.phone} mono />
+            <StaticRow label={t("driverProfile.role")} value={t("driverProfile.driver")} capitalize />
           </div>
 
           <div className="space-y-1 rounded-md border border-border bg-card p-6">
-            <h3 className="label-eyebrow mb-3">Emergency contact</h3>
+            <h3 className="label-eyebrow mb-3">{t("driverProfile.emergency")}</h3>
             <EditableRow
-              label="Contact name"
+              label={t("driverProfile.contactName")}
               value={values.ecName}
-              placeholder="Add a name"
+              placeholder={t("driverProfile.addName")}
               isEditing={editing === "ecName"}
               onEdit={() => setEditing("ecName")}
               onConfirm={() => setEditing(null)}
@@ -163,9 +165,9 @@ function DriverProfile() {
               onChange={(v) => setValues((s) => ({ ...s, ecName: v }))}
             />
             <EditableRow
-              label="Contact phone"
+              label={t("driverProfile.contactPhone")}
               value={values.ecPhone}
-              placeholder="Add a phone number"
+              placeholder={t("driverProfile.addPhone")}
               isEditing={editing === "ecPhone"}
               onEdit={() => setEditing("ecPhone")}
               onConfirm={() => setEditing(null)}
@@ -179,13 +181,13 @@ function DriverProfile() {
       {/* Floating save bar */}
       {isDirty && (
         <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-card px-5 py-3 shadow-xl">
-          <span className="text-sm text-muted-foreground">Unsaved changes</span>
+          <span className="text-sm text-muted-foreground">{t("driverProfile.unsaved")}</span>
           <Button size="sm" variant="outline" onClick={() => { setValues(saved); setEditing(null); }}>
-            Discard
+            {t("driverProfile.discard")}
           </Button>
           <Button size="sm" disabled={save.isPending} onClick={() => save.mutate()}>
             {save.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
-            Save
+            {t("driverProfile.save")}
           </Button>
         </div>
       )}

@@ -18,6 +18,7 @@ import { setPendingTripId } from "@/lib/pending-trip";
 import { SecureImage } from "@/components/secure-image";
 import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
 import { PwaInstallButton } from "@/components/pwa-install";
+import { useI18n } from "@/lib/i18n";
 
 const landingHeroImageUrl =
   (import.meta.env.VITE_LANDING_HERO_IMAGE_URL as string | undefined) ??
@@ -71,6 +72,7 @@ export const Route = createFileRoute("/_public/")({
 });
 
 function Landing() {
+  const { t } = useI18n();
   const { openModal } = useAuthModal();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -132,10 +134,10 @@ function Landing() {
               <div className="relative hidden grid-cols-4 px-1 pb-2 pt-6 text-center text-[11px] font-semibold uppercase tracking-wide sm:grid sm:text-xs">
                 <span className="absolute left-4 right-4 top-[3.625rem] h-px bg-border-strong" />
                 {[
-                  ["Shared routes", "bg-primary text-primary ring-primary/15"],
-                  ["Verified drivers", "bg-gold text-gold ring-gold/15"],
-                  ["Safe trips", "bg-route text-route ring-route/15"],
-                  ["Anywhere", "bg-foreground text-foreground ring-foreground/10"],
+                  [t("home.route.shared"), "bg-primary text-primary ring-primary/15"],
+                  [t("home.route.verified"), "bg-gold text-gold ring-gold/15"],
+                  [t("home.route.safe"), "bg-route text-route ring-route/15"],
+                  [t("home.route.anywhere"), "bg-foreground text-foreground ring-foreground/10"],
                 ].map(([label, classes]) => (
                   <span key={label} className="relative flex flex-col items-center gap-3">
                     <span className={`rounded bg-background/80 px-2 ${classes.split(" ")[1]}`}>
@@ -147,26 +149,24 @@ function Landing() {
               </div>
             </div>
             <h1 className="mt-2 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:hidden">
-              Shared rides across Malawi.
+              {t("home.hero.mobileTitle")}
             </h1>
             <h1 className="mt-2 hidden font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:block sm:text-6xl lg:text-7xl">
-              A driver going your way. <br />
-              <span className="text-primary">You book a seat, share the cost.</span>
+              {t("home.hero.title")} <br />
+              <span className="text-primary">{t("home.hero.highlight")}</span>
             </h1>
             <p className="mt-4 max-w-sm text-base text-muted-foreground sm:hidden">
-              Find verified intercity trips and book your seat securely.
+              {t("home.hero.mobileDescription")}
             </p>
             <p className="mt-4 hidden max-w-xl text-base text-muted-foreground sm:block sm:text-lg">
-              Drivers travelling between places publish planned trips and open available seats to
-              passengers. Book your seat, pay with Airtel Money or TNM Mpamba, and travel with
-              people going the same way.
+              {t("home.hero.description")}
             </p>
             <div className="mt-6 grid grid-cols-2 gap-3 sm:hidden">
               <Link to="/trips" className="min-w-0">
                 <Button size="lg" className="h-16 w-full flex-col items-start justify-center gap-0 bg-primary-strong px-4 text-left text-white hover:bg-[color-mix(in_oklch,var(--color-primary-strong)_82%,black)]">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Passenger</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">{t("home.passenger")}</span>
                   <span className="flex items-center gap-2 text-sm">
-                    Find a ride <ArrowRight className="h-4 w-4" />
+                    {t("home.findRide")} <ArrowRight className="h-4 w-4" />
                   </span>
                 </Button>
               </Link>
@@ -175,19 +175,19 @@ function Landing() {
                 onClick={handleCtaDrive}
                 className="h-16 w-full flex-col items-start justify-center gap-0 bg-primary-strong px-4 text-left text-white hover:bg-[color-mix(in_oklch,var(--color-primary-strong)_82%,black)]"
               >
-                <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Driver</span>
-                <span className="text-sm">Create a trip</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">{t("home.driver")}</span>
+                <span className="text-sm">{t("home.createTrip")}</span>
               </Button>
               <PwaInstallButton variant="outline" size="lg" className="col-span-2 gap-2" showWhenUnavailable />
             </div>
             <div className="mt-6 hidden flex-wrap gap-3 sm:flex">
               <Link to="/trips">
                 <Button size="lg" className="gap-2">
-                  Find a seat <ArrowRight className="h-4 w-4" />
+                  {t("home.findSeat")} <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
               <Button size="lg" variant="outline" onClick={handleCtaDrive}>
-                Publish a trip
+                {t("home.publishTrip")}
               </Button>
               <PwaInstallButton variant="outline" size="lg" className="gap-2" showWhenUnavailable />
             </div>
@@ -210,9 +210,9 @@ function Landing() {
         <div className="mx-auto max-w-7xl px-6 py-20">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="label-eyebrow">Available routes</div>
+              <div className="label-eyebrow">{t("home.availableRoutes")}</div>
               <h2 className="mt-2 max-w-2xl font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-                Pick a trip and go.
+                {t("home.pickTrip")}
               </h2>
             </div>
             {isAuthenticated && (
@@ -221,7 +221,7 @@ function Landing() {
                 search={{}}
                 className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
               >
-                See all trips <ArrowRight className="h-3.5 w-3.5" />
+                {t("home.seeAll")} <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             )}
           </div>
@@ -229,11 +229,11 @@ function Landing() {
           <div className="mt-10">
             {!shouldLoadTrips || isLoadingTrips ? (
               <div className="rounded-md border border-border bg-card p-6 text-sm text-muted-foreground">
-                Loading available trips...
+                {t("home.loadingTrips")}
               </div>
             ) : trips.length === 0 ? (
               <div className="rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                No scheduled trips are available right now. Check back soon.
+                {t("home.noTrips")}
               </div>
             ) : (
               <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -281,7 +281,7 @@ function Landing() {
 
                       <div className="mt-4 flex flex-wrap gap-2">
                         <span className="trust-chip">
-                          <ShieldCheck className="h-3.5 w-3.5" /> Verified
+                          <ShieldCheck className="h-3.5 w-3.5" /> {t("home.verified")}
                         </span>
                       </div>
 
@@ -291,12 +291,12 @@ function Landing() {
                             {formatMwk(trip.farePerSeatMwk)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {trip.availableSeats} seats available
+                            {trip.availableSeats} {t("home.seatsAvailable")}
                           </div>
                         </div>
                         <div className="flex shrink-0 gap-2">
                           <Button size="sm" variant="outline" onClick={() => setViewTrip(trip)}>
-                            View details
+                            {t("home.viewDetails")}
                           </Button>
                           <Button
                             size="sm"
@@ -304,7 +304,7 @@ function Landing() {
                             disabled={trip.availableSeats <= 0}
                             onClick={() => handleBookTrip(trip)}
                           >
-                            {trip.availableSeats <= 0 ? "Full" : "Book seat"}
+                            {trip.availableSeats <= 0 ? t("home.full") : t("home.bookSeat")}
                             <ArrowRight className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -322,14 +322,12 @@ function Landing() {
       <section className="border-b public-section bg-surface/25">
         <div className="mx-auto max-w-7xl px-6 py-16">
           <div className="max-w-3xl">
-            <div className="label-eyebrow">Popular shared ride routes</div>
+            <div className="label-eyebrow">{t("home.popularRoutes")}</div>
             <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-              Affordable rides between Malawi places.
+              {t("home.affordableRoutes")}
             </h2>
             <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-              Search planned trips from drivers travelling between towns, areas, cities and
-              districts like Lilongwe, Blantyre, Mzuzu, Zomba, Mangochi and Salima. Book an
-              available seat and share the cost instead of paying for the whole journey alone.
+              {t("home.popularDescription")}
             </p>
           </div>
 
@@ -349,7 +347,7 @@ function Landing() {
                   {route.note}
                 </p>
                 <span className="mt-3 inline-flex text-xs font-medium text-primary group-hover:underline">
-                  Find seats
+                  {t("home.findSeats")}
                 </span>
               </Link>
             ))}
@@ -357,12 +355,11 @@ function Landing() {
 
           <div className="mt-6 flex flex-col gap-3 rounded-xl border border-dashed border-route/35 bg-route/5 p-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs leading-5 text-muted-foreground sm:text-sm">
-              These are some of the routes. You can search more towns, areas, districts and pickup
-              places across Malawi.
+              {t("home.moreRoutes")}
             </p>
             <Link to="/trips" className="shrink-0">
               <Button size="sm" variant="outline" className="w-full gap-2 sm:w-auto">
-                Explore more places <ArrowRight className="h-3.5 w-3.5" />
+                {t("home.explorePlaces")} <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </Link>
           </div>
@@ -385,23 +382,23 @@ function Landing() {
       <section>
         <div className="mx-auto max-w-7xl px-6 py-20">
           <div className="public-card rounded-2xl border-primary/30 bg-primary/5 p-10 text-center sm:p-16">
-            <div className="label-eyebrow text-primary">Get started</div>
+            <div className="label-eyebrow text-primary">{t("home.ctaEyebrow")}</div>
             <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-              Ready to share the next ride?
+              {t("home.ctaTitle")}
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-              Find a seat on a planned trip, or publish your own route and earn from empty seats.
+              {t("home.ctaDescription")}
             </p>
             <div className="mt-7 flex flex-wrap justify-center gap-3">
               <Button size="lg" onClick={() => openModal({ mode: "register", role: "passenger" })}>
-                Sign up as passenger
+                {t("home.signUpPassenger")}
               </Button>
               <Button
                 size="lg"
                 variant="outline"
                 onClick={() => openModal({ mode: "register", role: "driver" })}
               >
-                Sign up as driver
+                {t("home.signUpDriver")}
               </Button>
             </div>
           </div>
@@ -422,6 +419,7 @@ function LandingTripDetailsDialog({
   onOpenChange: (open: boolean) => void;
   onBook: (trip: Trip) => void;
 }) {
+  const { t } = useI18n();
   if (!trip) return null;
   const fullyBooked = trip.availableSeats <= 0;
 
@@ -487,7 +485,7 @@ function LandingTripDetailsDialog({
           )}
 
           <Button className="h-11 w-full" disabled={fullyBooked} onClick={() => onBook(trip)}>
-            {fullyBooked ? "Fully booked" : "Sign in to book"}
+            {fullyBooked ? t("trips.fullyBooked") : t("trips.signInToBook")}
           </Button>
         </div>
       </DialogContent>

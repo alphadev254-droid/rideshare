@@ -8,6 +8,8 @@ import { LogOut, Loader2, Menu, User as UserIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PwaInstallSidebarAction } from "@/components/pwa-install";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { useI18n } from "@/lib/i18n";
 
 export interface NavItem {
   to: string;
@@ -24,6 +26,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ role, items, sidebarExtra }: DashboardLayoutProps) {
+  const { t } = useI18n();
   const { user, isLoading, logout } = useAuth();
   const { openModal } = useAuthModal();
   const navigate = useNavigate();
@@ -54,15 +57,15 @@ export function DashboardLayout({ role, items, sidebarExtra }: DashboardLayoutPr
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="max-w-sm rounded-md border border-border bg-card p-8 text-center">
           <UserIcon className="mx-auto h-6 w-6 text-muted-foreground" />
-          <h2 className="mt-3 font-display text-lg font-semibold">Sign in to continue</h2>
+          <h2 className="mt-3 font-display text-lg font-semibold">{t("dashboard.signInTitle")}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            You need an account to access this dashboard.
+            {t("dashboard.signInDescription")}
           </p>
           <Button
             className="mt-5 w-full"
             onClick={() => openModal({ mode: "login", role: modalRole })}
           >
-            Sign in
+            {t("nav.signIn")}
           </Button>
         </div>
       </div>
@@ -90,13 +93,16 @@ export function DashboardLayout({ role, items, sidebarExtra }: DashboardLayoutPr
           <div className="hidden lg:flex lg:items-center lg:gap-3">
             <span className="label-eyebrow">
               {role === "driver"
-                ? "Driver console"
+                ? t("dashboard.driverConsole")
                 : role === "admin"
-                  ? "Admin console"
-                  : "Passenger app"}
+                  ? t("dashboard.adminConsole")
+                  : t("dashboard.passengerApp")}
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <div className="hidden md:block">
+              <LanguageSwitcher />
+            </div>
             <div className="hidden text-right sm:block">
               <div className="text-sm font-medium leading-tight">{user.fullName}</div>
               <div className="font-mono text-[11px] text-muted-foreground">{user.phone}</div>
@@ -143,6 +149,7 @@ function Sidebar({
   onClose: () => void;
   sidebarExtra?: ReactNode;
 }) {
+  const { t } = useI18n();
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   const isActive = (item: NavItem) =>
@@ -168,8 +175,11 @@ function Sidebar({
           </Link>
         </div>
         <div className="border-b border-sidebar-border px-5 py-4">
-          <div className="label-eyebrow">Mode</div>
+          <div className="label-eyebrow">{t("dashboard.mode")}</div>
           <div className="mt-1 font-display text-sm font-semibold capitalize">{role}</div>
+        </div>
+        <div className="border-b border-sidebar-border px-4 py-3 md:hidden">
+          <LanguageSwitcher compact />
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {items.map((item) => {
@@ -200,7 +210,7 @@ function Sidebar({
             to="/"
             className="block rounded-md border border-border bg-card px-3 py-2 text-xs text-muted-foreground hover:bg-surface-2"
           >
-            ← Back to homepage
+            ← {t("dashboard.backHome")}
           </Link>
         </div>
       </aside>

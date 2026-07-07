@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatDateTime, formatMwk } from "@/lib/format";
 import type { Payment } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export function TransactionDetail({
   transaction,
@@ -17,6 +18,7 @@ export function TransactionDetail({
   transaction: Payment;
   variant?: "passenger" | "driver" | "admin";
 }) {
+  const { t } = useI18n();
   const [jsonDialog, setJsonDialog] = useState<{ title: string; value: unknown } | null>(null);
   const isAdmin = variant === "admin";
   const showOperationalDetails = variant === "driver" || isAdmin;
@@ -27,68 +29,68 @@ export function TransactionDetail({
         <section className="rounded-md border border-border bg-card p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="label-eyebrow">Payment</p>
-              <h2 className="mt-1 font-display text-xl font-semibold">{transaction.route ?? "Ride payment"}</h2>
+              <p className="label-eyebrow">{t("transactions.payment")}</p>
+              <h2 className="mt-1 font-display text-xl font-semibold">{transaction.route ?? t("transactions.ridePayment")}</h2>
               <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{transaction.gatewayRef ?? transaction.id}</p>
             </div>
             <StatusPill status={transaction.status} />
           </div>
         </section>
 
-        <DetailSection title="Amounts">
-          <DetailItem label="Customer paid" value={formatMwk(transaction.customerAmountMwk)} strong />
-          <DetailItem label="Ride fare" value={formatMwk(transaction.fareAmountMwk)} />
-          <DetailItem label="Transaction cost" value={`${formatMwk(transaction.providerFeeMwk)} (${rate(transaction.providerFeeRate)})`} />
-          <DetailItem label="System fee" value={`${formatMwk(transaction.systemFeeMwk)} (${rate(transaction.systemFeeRate)})`} />
-          <DetailItem label="Driver receives" value={formatMwk(transaction.driverAmountMwk)} strong />
-          <DetailItem label="Gross amount" value={formatMwk(transaction.grossAmountMwk)} />
-          <DetailItem label="Commission" value={`${formatMwk(transaction.commissionMwk)} (${rate(transaction.commissionRate)})`} />
-          <DetailItem label="Net amount" value={formatMwk(transaction.netAmountMwk)} />
+        <DetailSection title={t("transactions.amounts")}>
+          <DetailItem label={t("transactions.customerPaid")} value={formatMwk(transaction.customerAmountMwk)} strong />
+          <DetailItem label={t("transactions.rideFare")} value={formatMwk(transaction.fareAmountMwk)} />
+          <DetailItem label={t("transactions.transactionCost")} value={`${formatMwk(transaction.providerFeeMwk)} (${rate(transaction.providerFeeRate)})`} />
+          <DetailItem label={t("transactions.systemFee")} value={`${formatMwk(transaction.systemFeeMwk)} (${rate(transaction.systemFeeRate)})`} />
+          <DetailItem label={t("transactions.driverReceives")} value={formatMwk(transaction.driverAmountMwk)} strong />
+          <DetailItem label={t("transactions.grossAmount")} value={formatMwk(transaction.grossAmountMwk)} />
+          <DetailItem label={t("transactions.commission")} value={`${formatMwk(transaction.commissionMwk)} (${rate(transaction.commissionRate)})`} />
+          <DetailItem label={t("transactions.netAmount")} value={formatMwk(transaction.netAmountMwk)} />
         </DetailSection>
 
-        <DetailSection title="People">
-          <DetailItem label="Passenger" value={transaction.passengerName} />
-          <DetailItem label="Passenger phone" value={transaction.passengerPhone} />
-          <DetailItem label="Passenger email" value={transaction.passengerEmail} />
-          <DetailItem label="Passenger ID" value={showOperationalDetails ? transaction.passengerId : null} wide />
-          <DetailItem label="Driver" value={transaction.driverName} />
-          <DetailItem label="Driver ID" value={showOperationalDetails ? transaction.driverId : null} wide />
+        <DetailSection title={t("transactions.people")}>
+          <DetailItem label={t("transactions.passenger")} value={transaction.passengerName} />
+          <DetailItem label={t("transactions.passengerPhone")} value={transaction.passengerPhone} />
+          <DetailItem label={t("transactions.passengerEmail")} value={transaction.passengerEmail} />
+          <DetailItem label={t("transactions.passengerId")} value={showOperationalDetails ? transaction.passengerId : null} wide />
+          <DetailItem label={t("transactions.driver")} value={transaction.driverName} />
+          <DetailItem label={t("transactions.driverId")} value={showOperationalDetails ? transaction.driverId : null} wide />
         </DetailSection>
 
-        <DetailSection title="Trip and booking">
-          <DetailItem label="Route" value={transaction.route} wide />
-          <DetailItem label="From" value={transaction.originName} />
-          <DetailItem label="To" value={transaction.destinationName} />
-          <DetailItem label="Departure" value={formatDateTime(transaction.departureTime)} />
-          <DetailItem label="Booking ID" value={showOperationalDetails ? transaction.bookingId : null} wide />
+        <DetailSection title={t("transactions.tripBooking")}>
+          <DetailItem label={t("transactions.route")} value={transaction.route} wide />
+          <DetailItem label={t("transactions.from")} value={transaction.originName} />
+          <DetailItem label={t("transactions.to")} value={transaction.destinationName} />
+          <DetailItem label={t("transactions.departure")} value={formatDateTime(transaction.departureTime)} />
+          <DetailItem label={t("transactions.bookingId")} value={showOperationalDetails ? transaction.bookingId : null} wide />
         </DetailSection>
 
-        <DetailSection title="Gateway">
-          <DetailItem label="Payment method" value={transaction.paymentMethod?.replaceAll("_", " ")} />
-          <DetailItem label="Status" value={transaction.status} />
-          <DetailItem label="Payment ID" value={transaction.id} wide />
-          <DetailItem label="Gateway ref" value={transaction.gatewayRef} wide />
-          <DetailItem label="Provider ref" value={transaction.providerReference} wide />
+        <DetailSection title={t("transactions.gateway")}>
+          <DetailItem label={t("transactions.paymentMethod")} value={transaction.paymentMethod?.replaceAll("_", " ")} />
+          <DetailItem label={t("transactions.status")} value={transaction.status} />
+          <DetailItem label={t("transactions.paymentId")} value={transaction.id} wide />
+          <DetailItem label={t("transactions.gatewayRef")} value={transaction.gatewayRef} wide />
+          <DetailItem label={t("transactions.providerRef")} value={transaction.providerReference} wide />
         </DetailSection>
 
-        <DetailSection title="Timeline">
-          <DetailItem label="Created" value={formatDateTime(transaction.createdAt)} />
-          <DetailItem label="Verified" value={formatDateTime(transaction.verifiedAt)} />
-          <DetailItem label="Held in escrow" value={formatDateTime(transaction.escrowHeldAt)} />
-          <DetailItem label="Released" value={formatDateTime(transaction.releasedAt)} />
-          <DetailItem label="Refunded" value={formatDateTime(transaction.refundedAt)} />
+        <DetailSection title={t("transactions.timeline")}>
+          <DetailItem label={t("transactions.created")} value={formatDateTime(transaction.createdAt)} />
+          <DetailItem label={t("transactions.verified")} value={formatDateTime(transaction.verifiedAt)} />
+          <DetailItem label={t("transactions.heldEscrow")} value={formatDateTime(transaction.escrowHeldAt)} />
+          <DetailItem label={t("transactions.released")} value={formatDateTime(transaction.releasedAt)} />
+          <DetailItem label={t("transactions.refunded")} value={formatDateTime(transaction.refundedAt)} />
         </DetailSection>
 
         {isAdmin && jsonCell(transaction.providerPayload) !== "-" ? (
           <section className="rounded-md border border-border bg-card p-4">
-            <h3 className="label-eyebrow mb-3">Raw gateway data</h3>
+            <h3 className="label-eyebrow mb-3">{t("transactions.rawGatewayData")}</h3>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setJsonDialog({ title: "Payment provider payload", value: transaction.providerPayload })}
+              onClick={() => setJsonDialog({ title: t("transactions.providerPayload"), value: transaction.providerPayload })}
             >
-              View payload JSON
+              {t("transactions.viewPayloadJson")}
             </Button>
           </section>
         ) : null}

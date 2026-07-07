@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, LogOut, Menu, User as UserIcon, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Logo } from "./logo";
+import { LanguageSwitcher } from "./language-switcher";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,14 +15,15 @@ import {
 import { useAuthModal } from "@/lib/auth-modal-context";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 const links = [
-  { to: "/", label: "Home" },
-  { to: "/trips", label: "Trips" },
-  { to: "/safety", label: "Safety" },
-  { to: "/drivers-info", label: "For drivers" },
-  { to: "/about", label: "About" },
-  { to: "/contact", label: "Contact" },
+  { to: "/", labelKey: "nav.home" },
+  { to: "/trips", labelKey: "nav.trips" },
+  { to: "/safety", labelKey: "nav.safety" },
+  { to: "/drivers-info", labelKey: "nav.drivers" },
+  { to: "/about", labelKey: "nav.about" },
+  { to: "/contact", labelKey: "nav.contact" },
 ] as const;
 
 function dashboardPath(role: string) {
@@ -33,6 +35,7 @@ function profilePath(role: string) {
 }
 
 export function SiteHeader() {
+  const { t } = useI18n();
   const { openModal } = useAuthModal();
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
@@ -59,12 +62,13 @@ export function SiteHeader() {
               className="rounded px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
               activeProps={{ className: "text-foreground bg-surface-2" }}
             >
-              {l.label}
+              {t(l.labelKey)}
             </Link>
           ))}
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
+          <LanguageSwitcher />
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -83,12 +87,12 @@ export function SiteHeader() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to={dashboardPath(user.role)} className="flex items-center gap-2">
-                    <LayoutDashboard className="h-4 w-4" /> Dashboard
+                    <LayoutDashboard className="h-4 w-4" /> {t("nav.dashboard")}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to={profilePath(user.role)} className="flex items-center gap-2">
-                    <UserIcon className="h-4 w-4" /> My profile
+                    <UserIcon className="h-4 w-4" /> {t("nav.profile")}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -96,30 +100,33 @@ export function SiteHeader() {
                   className="text-destructive focus:text-destructive"
                   onClick={handleLogout}
                 >
-                  <LogOut className="mr-2 h-4 w-4" /> Sign out
+                  <LogOut className="mr-2 h-4 w-4" /> {t("nav.signOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <>
               <Button variant="ghost" size="sm" onClick={() => openModal({ mode: "login" })}>
-                Sign in
+                {t("nav.signIn")}
               </Button>
               <Button size="sm" onClick={() => openModal({ mode: "register" })}>
-                Get started
+                {t("nav.getStarted")}
               </Button>
             </>
           )}
         </div>
 
-        <button
-          type="button"
-          className="ring-focus rounded p-2 lg:hidden"
-          onClick={() => setOpen((o) => !o)}
-          aria-label="Toggle navigation"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          <LanguageSwitcher mobileNav />
+          <button
+            type="button"
+            className="ring-focus rounded p-2"
+            onClick={() => setOpen((o) => !o)}
+            aria-label={t("nav.toggle")}
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       <div
@@ -135,7 +142,7 @@ export function SiteHeader() {
               to={l.to}
               className="block rounded px-3 py-2 text-sm text-muted-foreground hover:bg-surface-2 hover:text-foreground"
             >
-              {l.label}
+              {t(l.labelKey)}
             </Link>
           ))}
           <div className="mt-3 space-y-2 border-t border-border pt-3">
@@ -149,12 +156,12 @@ export function SiteHeader() {
                 </div>
                 <Link to={dashboardPath(user.role)}>
                   <Button variant="outline" className="w-full justify-start gap-2">
-                    <LayoutDashboard className="h-4 w-4" /> Dashboard
+                    <LayoutDashboard className="h-4 w-4" /> {t("nav.dashboard")}
                   </Button>
                 </Link>
                 <Link to={profilePath(user.role)}>
                   <Button variant="ghost" className="w-full justify-start gap-2">
-                    <UserIcon className="h-4 w-4" /> My profile
+                    <UserIcon className="h-4 w-4" /> {t("nav.profile")}
                   </Button>
                 </Link>
                 <Button
@@ -162,15 +169,15 @@ export function SiteHeader() {
                   className="w-full justify-start gap-2 text-destructive hover:text-destructive"
                   onClick={handleLogout}
                 >
-                  <LogOut className="h-4 w-4" /> Sign out
+                  <LogOut className="h-4 w-4" /> {t("nav.signOut")}
                 </Button>
               </>
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" onClick={() => openModal({ mode: "login" })}>
-                  Sign in
+                  {t("nav.signIn")}
                 </Button>
-                <Button onClick={() => openModal({ mode: "register" })}>Get started</Button>
+                <Button onClick={() => openModal({ mode: "register" })}>{t("nav.getStarted")}</Button>
               </div>
             )}
           </div>

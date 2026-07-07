@@ -26,6 +26,7 @@ import { formatMwk, formatDateTime } from "@/lib/format";
 import { API_CONFIG } from "@/lib/api/config";
 import { ArrowUpCircle, Eye, Loader2, Mail, ShieldCheck, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/driver/wallet")({
   component: WalletPage,
@@ -34,6 +35,7 @@ export const Route = createFileRoute("/driver/wallet")({
 const PAYCHANGU_MIN_PAYOUT_MWK = 50;
 
 function WalletPage() {
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("airtel_money");
@@ -84,15 +86,15 @@ function WalletPage() {
     mutationFn: () => walletService.requestWithdrawalOtp(),
     onSuccess: (res: { sent: boolean; email: string; expiresAt: string; message: string }) => {
       setOtpSentTo(res.email);
-      toast.success("Withdrawal code sent to your email");
+      toast.success(t("driverWallet.codeSentEmail"));
     },
-    onError: (error: Error) => toast.error(error.message || "Could not send withdrawal code"),
+    onError: (error: Error) => toast.error(error.message || t("driverWallet.codeSendFailed")),
   });
 
   const withdraw = useMutation({
     mutationFn: () => walletService.withdraw({ amountMwk: Number(amount), phone, method, otp }),
     onSuccess: (res: { message: string; amountMwk: string; status: string; reference: string; id: string }) => {
-      toast.success("Withdrawal submitted - waiting for processing");
+      toast.success(t("driverWallet.withdrawSubmitted"));
       setAmount("");
       setPhone("");
       setOtp("");
@@ -101,29 +103,29 @@ function WalletPage() {
       qc.invalidateQueries({ queryKey: ["wallet"] });
       qc.invalidateQueries({ queryKey: ["wallet", "withdrawals"] });
     },
-    onError: (error: Error) => toast.error(error.message || "Withdrawal failed"),
+    onError: (error: Error) => toast.error(error.message || t("driverWallet.withdrawFailed")),
   });
 
   function validateWithdrawalBasics() {
     if (!amount.trim() || !Number.isFinite(amountNumber) || amountNumber <= 0) {
-      toast.error("Enter the amount you want to withdraw");
+      toast.error(t("driverWallet.enterAmount"));
       return false;
     }
     if (amountNumber > balanceNumber) {
-      toast.error("Withdrawal amount cannot be higher than your available balance");
+      toast.error(t("driverWallet.amountTooHigh"));
       return false;
     }
     if (!phone.trim()) {
-      toast.error("Enter the mobile money phone number for this withdrawal");
+      toast.error(t("driverWallet.enterPhone"));
       return false;
     }
     if (!/^(?:\+?265|0)?(?:88|98|99)\d{7}$/.test(phone.replace(/\s/g, ""))) {
-      toast.error("Enter a valid Malawi mobile money number, for example 0991234567");
+      toast.error(t("driverWallet.invalidPhone"));
       return false;
     }
     if (netPayout < PAYCHANGU_MIN_PAYOUT_MWK) {
       toast.error(
-        `After the withdrawal fee, PayChangu payout must be at least ${formatMwk(PAYCHANGU_MIN_PAYOUT_MWK)}`,
+        t("driverWallet.minPayoutAfterFee", { amount: formatMwk(PAYCHANGU_MIN_PAYOUT_MWK) }),
       );
       return false;
     }
@@ -139,7 +141,7 @@ function WalletPage() {
     e.preventDefault();
     if (!validateWithdrawalBasics()) return;
     if (otp.length !== 6) {
-      toast.error("Enter the 6-digit verification code sent to your email");
+      toast.error(t("driverWallet.enterCode"));
       return;
     }
     withdraw.mutate();
@@ -147,7 +149,7 @@ function WalletPage() {
 
   return (
     <div className="max-w-full space-y-5 overflow-x-hidden">
-      <PageHeader eyebrow="Money" title="Wallet" description="Earnings, balance and withdrawals." />
+      <PageHeader eyebrow={t("driverWallet.eyebrow")} title={t("driverWallet.title")} description={t("driverWallet.description")} />
 
       {isLoading ? (
         <LoadingState />
@@ -155,13 +157,13 @@ function WalletPage() {
         balance && (
           <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <CompactWalletStat
-              label="Available"
+              label={t("driverWallet.available")}
               value={formatMwk(balance.balanceMwk)}
               icon={<Wallet className="h-4 w-4" />}
               accent
             />
             <CompactWalletStat
-              label="Total earned"
+              label={t("driverWallet.totalEarned")}
               value={formatMwk(balance.totalEarnedMwk)}
               icon={<Wallet className="h-4 w-4" />}
             />
@@ -175,11 +177,11 @@ function WalletPage() {
             <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">
-                Withdrawal in progress - {formatMwk(activeWithdrawal.amountMwk)} via{" "}
+                {t("driverWallet.inProgress", { amount: formatMwk(activeWithdrawal.amountMwk) })}{" "}
                 {activeWithdrawal.provider.replace("_", " ")}
               </p>
               <p className="truncate text-xs text-muted-foreground">
-                Status: <span className="font-semibold capitalize">{activeWithdrawal.status.replace("_", " ")}</span>
+                {t("driverWallet.status")}: <span className="font-semibold capitalize">{activeWithdrawal.status.replace("_", " ")}</span>
                 {activeWithdrawal.failureReason ? (
                   <span className="ml-2 text-destructive">- {activeWithdrawal.failureReason}</span>
                 ) : null}
@@ -191,8 +193,8 @@ function WalletPage() {
 
       <Tabs defaultValue="withdraw" className="max-w-full overflow-hidden">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="withdraw">Withdraw</TabsTrigger>
-          <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
+          <TabsTrigger value="withdraw">{t("driverWallet.withdraw")}</TabsTrigger>
+          <TabsTrigger value="withdrawals">{t("driverWallet.withdrawals")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="withdraw">
@@ -200,11 +202,11 @@ function WalletPage() {
             onSubmit={submit}
             className="mx-auto max-w-xl space-y-3 rounded-md border border-border bg-card p-3 text-sm sm:p-4"
           >
-            <h3 className="label-eyebrow">Withdraw to mobile money</h3>
+            <h3 className="label-eyebrow">{t("driverWallet.withdrawMobile")}</h3>
 
             <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="min-w-0 space-y-1.5">
-                <Label className="label-eyebrow">Amount</Label>
+                <Label className="label-eyebrow">{t("driverWallet.amount")}</Label>
                 <Input
                   type="number"
                   required
@@ -221,7 +223,7 @@ function WalletPage() {
                 />
               </div>
               <div className="min-w-0 space-y-1.5">
-                <Label className="label-eyebrow">Method</Label>
+                <Label className="label-eyebrow">{t("driverWallet.method")}</Label>
                 <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)} disabled={withdraw.isPending}>
                   <SelectTrigger className="h-9 min-w-0 text-sm">
                     <SelectValue />
@@ -235,11 +237,11 @@ function WalletPage() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Minimum payout after fees: {formatMwk(PAYCHANGU_MIN_PAYOUT_MWK)}.
+              {t("driverWallet.minimumPayout", { amount: formatMwk(PAYCHANGU_MIN_PAYOUT_MWK) })}
             </p>
 
             <div className="min-w-0 space-y-1.5">
-              <Label className="label-eyebrow">Phone</Label>
+              <Label className="label-eyebrow">{t("driverWallet.phone")}</Label>
               <Input
                 value={phone}
                 onChange={(e) => {
@@ -258,11 +260,11 @@ function WalletPage() {
             {amountNumber > 0 && (
               <div className="rounded-md border border-border bg-surface-2 p-2.5 text-xs">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Withdrawal fee</span>
+                  <span className="text-muted-foreground">{t("driverWallet.withdrawalFee")}</span>
                   <span className="font-medium tabular">{formatMwk(withdrawalFee)}</span>
                 </div>
                 <div className="mt-1.5 flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Recipient receives</span>
+                  <span className="text-muted-foreground">{t("driverWallet.recipientReceives")}</span>
                   <span
                     className={
                       netPayout >= PAYCHANGU_MIN_PAYOUT_MWK
@@ -290,13 +292,13 @@ function WalletPage() {
                 ) : (
                   <Mail className="mr-2 h-4 w-4" />
                 )}
-                {requestOtp.isPending ? "Sending code..." : "Request verification code"}
+                {requestOtp.isPending ? t("driverWallet.sendingCode") : t("driverWallet.requestCode")}
               </Button>
             ) : (
               <div className="space-y-2 rounded-md border border-border bg-surface p-2.5">
                 <div className="flex min-w-0 items-center gap-2 text-xs text-primary">
                   <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                  <span className="min-w-0 truncate">Code sent to {otpSentTo}</span>
+                  <span className="min-w-0 truncate">{t("driverWallet.codeSentTo", { value: otpSentTo })}</span>
                 </div>
 
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
@@ -305,7 +307,7 @@ function WalletPage() {
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     inputMode="numeric"
                     maxLength={6}
-                    placeholder="6-digit code"
+                    placeholder={t("driverWallet.codePlaceholder")}
                     required
                     disabled={withdraw.isPending}
                     className="h-9 min-w-0 text-center text-base tracking-widest"
@@ -318,7 +320,7 @@ function WalletPage() {
                     disabled={requestOtp.isPending || withdraw.isPending}
                     className="shrink-0 px-3"
                   >
-                    Resend
+                    {t("driverWallet.resend")}
                   </Button>
                 </div>
 
@@ -326,10 +328,10 @@ function WalletPage() {
                   {withdraw.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
+                      {t("driverWallet.processing")}
                     </>
                   ) : (
-                    "Verify code & withdraw"
+                    t("driverWallet.verifyWithdraw")
                   )}
                 </Button>
               </div>
@@ -366,11 +368,12 @@ function WithdrawalsPanel({
   isLoading: boolean;
   onView: (withdrawal: WalletWithdrawal) => void;
 }) {
+  const { t } = useI18n();
   if (isLoading) return <LoadingState />;
   if (withdrawals.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
-        No withdrawals yet.
+        {t("driverWallet.noWithdrawals")}
       </div>
     );
   }
@@ -395,12 +398,12 @@ function WithdrawalsPanel({
               </div>
               <div className="grid gap-x-3 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
                 <span className="min-w-0 truncate capitalize">
-                  To: {withdrawal.provider.replace("_", " ")} - {withdrawal.phone}
+                  {t("driverWallet.to")}: {withdrawal.provider.replace("_", " ")} - {withdrawal.phone}
                 </span>
-                <span className="min-w-0 truncate">Date: {formatDateTime(withdrawal.createdAt)}</span>
-                <span className="min-w-0 truncate">Reference: {withdrawal.reference}</span>
+                <span className="min-w-0 truncate">{t("driverWallet.date")}: {formatDateTime(withdrawal.createdAt)}</span>
+                <span className="min-w-0 truncate">{t("driverWallet.reference")}: {withdrawal.reference}</span>
                 <span className="min-w-0 truncate">
-                  Completed: {formatDateTime(withdrawal.processedAt)}
+                  {t("driverWallet.completed")}: {formatDateTime(withdrawal.processedAt)}
                 </span>
               </div>
               {withdrawal.failureReason ? (
@@ -416,7 +419,7 @@ function WithdrawalsPanel({
               onClick={() => onView(withdrawal)}
             >
               <Eye className="h-4 w-4" />
-              View more
+              {t("driverWallet.viewMore")}
             </Button>
           </div>
         );
@@ -434,39 +437,40 @@ function WithdrawalDetailsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useI18n();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Withdrawal details</DialogTitle>
+          <DialogTitle>{t("driverWallet.withdrawalDetails")}</DialogTitle>
         </DialogHeader>
         {withdrawal ? (
           <div className="space-y-3 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface-2 p-3">
               <div>
-                <p className="label-eyebrow">Amount</p>
+                <p className="label-eyebrow">{t("driverWallet.amount")}</p>
                 <p className="font-mono text-xl font-semibold tabular">{formatMwk(withdrawal.amountMwk)}</p>
               </div>
               <StatusPill status={withdrawal.status} />
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2">
-              <Detail label="Account" value={`${withdrawal.provider.replace("_", " ")} - ${withdrawal.phone}`} />
-              <Detail label="Requested" value={formatDateTime(withdrawal.createdAt)} />
-              <Detail label="Processed" value={formatDateTime(withdrawal.processedAt)} />
-              <Detail label="Gateway requested" value={formatDateTime(withdrawal.gatewayRequestedAt)} />
-              <Detail label="Gateway responded" value={formatDateTime(withdrawal.gatewayRespondedAt)} />
-              <Detail label="Webhook received" value={formatDateTime(withdrawal.webhookReceivedAt)} />
-              <Detail label="Reference" value={withdrawal.reference} wide />
-              <Detail label="Charge ID" value={withdrawal.gatewayChargeId ?? "-"} wide />
-              <Detail label="Provider reference" value={withdrawal.providerReference ?? "-"} />
-              <Detail label="Provider transaction" value={withdrawal.providerTransactionId ?? "-"} />
-              <Detail label="Provider status" value={withdrawal.providerStatus ?? "-"} />
-              <Detail label="Wallet transaction" value={withdrawal.walletTransactionId ?? "-"} />
-              <Detail label="Balance before" value={formatMwk(withdrawal.balanceBeforeMwk)} />
-              <Detail label="Balance after" value={formatMwk(withdrawal.balanceAfterMwk)} />
+              <Detail label={t("driverWallet.account")} value={`${withdrawal.provider.replace("_", " ")} - ${withdrawal.phone}`} />
+              <Detail label={t("driverWallet.requested")} value={formatDateTime(withdrawal.createdAt)} />
+              <Detail label={t("driverWallet.processed")} value={formatDateTime(withdrawal.processedAt)} />
+              <Detail label={t("driverWallet.gatewayRequested")} value={formatDateTime(withdrawal.gatewayRequestedAt)} />
+              <Detail label={t("driverWallet.gatewayResponded")} value={formatDateTime(withdrawal.gatewayRespondedAt)} />
+              <Detail label={t("driverWallet.webhookReceived")} value={formatDateTime(withdrawal.webhookReceivedAt)} />
+              <Detail label={t("driverWallet.reference")} value={withdrawal.reference} wide />
+              <Detail label={t("driverWallet.chargeId")} value={withdrawal.gatewayChargeId ?? "-"} wide />
+              <Detail label={t("driverWallet.providerReference")} value={withdrawal.providerReference ?? "-"} />
+              <Detail label={t("driverWallet.providerTransaction")} value={withdrawal.providerTransactionId ?? "-"} />
+              <Detail label={t("driverWallet.providerStatus")} value={withdrawal.providerStatus ?? "-"} />
+              <Detail label={t("driverWallet.walletTransaction")} value={withdrawal.walletTransactionId ?? "-"} />
+              <Detail label={t("driverWallet.balanceBefore")} value={formatMwk(withdrawal.balanceBeforeMwk)} />
+              <Detail label={t("driverWallet.balanceAfter")} value={formatMwk(withdrawal.balanceAfterMwk)} />
               {withdrawal.failureReason ? (
-                <Detail label="Failure reason" value={withdrawal.failureReason} wide tone="destructive" />
+                <Detail label={t("driverWallet.failureReason")} value={withdrawal.failureReason} wide tone="destructive" />
               ) : null}
             </div>
           </div>

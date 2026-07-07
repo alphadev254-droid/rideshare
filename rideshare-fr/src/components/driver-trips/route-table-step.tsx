@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldError } from "./main-trip-step";
 import { dateTimeFromParts, minutesBetween, type MainTripDraft, type RouteSegmentDraft } from "./trip-create-types";
+import { useI18n } from "@/lib/i18n";
 
 export function RouteTableStep({
   form,
@@ -12,8 +13,8 @@ export function RouteTableStep({
   segments,
   errors,
   publishing,
-  publishLabel = "Publish trip",
-  publishingLabel = "Publishing...",
+  publishLabel,
+  publishingLabel,
   onBack,
   onAddRow,
   onRemoveRow,
@@ -33,6 +34,7 @@ export function RouteTableStep({
   onUpdateSegment: (key: string, patch: Partial<RouteSegmentDraft>) => void;
   onPublish: () => void;
 }) {
+  const { t } = useI18n();
   const bookableSeats = Number(form.totalSeats || 1);
   const totalDistance = segments.reduce((total, segment) => total + Number(segment.distanceKm || 0), 0);
   const fullDuration = getDurationMinutes(form.departureDate, form.departureTime, form.arrivalTime);
@@ -44,19 +46,19 @@ export function RouteTableStep({
       <div className="rounded-md border border-border bg-card">
         <div className="flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div>
-            <div className="label-eyebrow text-primary">Route manifest</div>
+            <div className="label-eyebrow text-primary">{t("driverRoute.routeManifest")}</div>
             <h2 className="mt-2 flex flex-wrap items-center gap-2 text-2xl font-semibold tracking-normal sm:text-3xl">
               <span>{form.originName}</span>
               <ArrowRight className="h-5 w-5 text-muted-foreground" />
               <span>{form.destinationName}</span>
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Full trip: depart {formatTimeLabel(form.departureTime)} - arrive {formatTimeLabel(form.arrivalTime)}
+              {t("driverRoute.fullTrip")}: {t("driverCommon.depart").toLowerCase()} {formatTimeLabel(form.departureTime)} - {t("driverCommon.arrive").toLowerCase()} {formatTimeLabel(form.arrivalTime)}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:min-w-64">
-            <Metric label="Distance" value={totalDistance ? `${totalDistance.toLocaleString("en-MW")} km` : "Add km"} />
-            <Metric label="Drive" value={fullDuration ? formatMinutes(fullDuration) : "Set time"} />
+            <Metric label={t("driverRoute.distance")} value={totalDistance ? `${totalDistance.toLocaleString("en-MW")} km` : t("driverRoute.addKm")} />
+            <Metric label={t("driverRoute.drive")} value={fullDuration ? formatMinutes(fullDuration) : t("driverRoute.setTime")} />
           </div>
         </div>
 
@@ -64,12 +66,12 @@ export function RouteTableStep({
           <div>
             <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-4">
               <div>
-                <div className="label-eyebrow">Your route</div>
+                <div className="label-eyebrow">{t("driverRoute.yourRoute")}</div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Add bookable routes along the journey. Each route vacancy must be {bookableSeats} or fewer.
+                  {t("driverRoute.help", { seats: bookableSeats })}
                 </p>
               </div>
-              <span className="text-xs text-muted-foreground">{routeRows.length + 2} points</span>
+              <span className="text-xs text-muted-foreground">{routeRows.length + 2} {t("driverRoute.points")}</span>
             </div>
 
             <div className="relative space-y-4 pl-11">
@@ -77,7 +79,7 @@ export function RouteTableStep({
               <Endpoint
                 tone="start"
                 title={form.originName}
-                subtitle={`Depart - ${formatTimeLabel(form.departureTime)}`}
+                subtitle={`${t("driverCommon.depart")} - ${formatTimeLabel(form.departureTime)}`}
               />
 
               {mainRoute && (
@@ -121,13 +123,13 @@ export function RouteTableStep({
                 <span className="absolute -left-[38px] flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-border bg-card text-muted-foreground group-hover:border-primary group-hover:text-primary">
                   <Plus className="h-4 w-4" />
                 </span>
-                <span>Add route along journey</span>
+                <span>{t("driverRoute.addRoute")}</span>
               </button>
 
               <Endpoint
                 tone="end"
                 title={form.destinationName}
-                subtitle={`Arrive - ${formatTimeLabel(form.arrivalTime)}`}
+                subtitle={`${t("driverCommon.arrive")} - ${formatTimeLabel(form.arrivalTime)}`}
               />
             </div>
 
@@ -138,10 +140,10 @@ export function RouteTableStep({
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
         <Button type="button" variant="outline" onClick={onBack}>
-          Back
+          {t("driverCommon.back")}
         </Button>
         <Button type="button" onClick={onPublish} disabled={publishing}>
-          {publishing ? publishingLabel : publishLabel}
+          {publishing ? (publishingLabel ?? t("driverRoute.publishing")) : (publishLabel ?? t("driverRoute.publishTrip"))}
         </Button>
       </div>
     </div>
@@ -165,7 +167,8 @@ function RouteCard({
   onRemove?: () => void;
   onUpdate: (patch: Partial<RouteSegmentDraft>) => void;
 }) {
-  const routeTitle = `${segment.from || "From"} to ${segment.to || "To"}`;
+  const { t } = useI18n();
+  const routeTitle = `${segment.from || t("driverRoute.from")} ${t("driverCommon.to")} ${segment.to || t("driverRoute.routeTo")}`;
 
   return (
     <div className={`relative rounded-md border p-2.5 shadow-sm sm:p-3 xl:py-2.5 ${locked ? "border-primary/35 bg-primary/5" : "border-border bg-card"}`}>
@@ -180,7 +183,7 @@ function RouteCard({
         <div>
           <div className="text-[13px] font-semibold leading-tight sm:text-sm">{routeTitle}</div>
           <div className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
-            {locked ? "Main route passengers can book" : "Additional bookable route"}
+            {locked ? t("driverRoute.mainBookable") : t("driverRoute.extraBookable")}
           </div>
         </div>
         {!locked && onRemove && (
@@ -197,35 +200,35 @@ function RouteCard({
       </div>
 
       <div className="grid grid-cols-2 gap-2 xl:grid-cols-[minmax(120px,1fr)_minmax(120px,1fr)_104px_104px_86px_96px_116px] xl:items-start">
-        <Field label="From" className="col-span-2 sm:col-span-1">
+        <Field label={t("driverRoute.from")} className="col-span-2 sm:col-span-1">
           {locked ? (
             <ReadOnlyValue value={segment.from} />
           ) : (
             <RoutePlaceInput districts={districts} value={segment.from} onChange={(value) => onUpdate({ from: value })} />
           )}
         </Field>
-        <Field label="To" className="col-span-2 sm:col-span-1">
+        <Field label={t("driverRoute.routeTo")} className="col-span-2 sm:col-span-1">
           {locked ? (
             <ReadOnlyValue value={segment.to} />
           ) : (
             <RoutePlaceInput districts={districts} value={segment.to} onChange={(value) => onUpdate({ to: value })} />
           )}
         </Field>
-        <Field label="Departure">
+        <Field label={t("driverRoute.departure")}>
           {locked ? (
             <ReadOnlyValue value={formatTimeLabel(segment.departureTime)} />
           ) : (
             <RouteTimeInput value={segment.departureTime} onChange={(value) => onUpdate({ departureTime: value })} />
           )}
         </Field>
-        <Field label="Arrival">
+        <Field label={t("driverRoute.arrival")}>
           {locked ? (
             <ReadOnlyValue value={formatTimeLabel(segment.arrivalTime)} />
           ) : (
             <RouteTimeInput value={segment.arrivalTime} onChange={(value) => onUpdate({ arrivalTime: value })} />
           )}
         </Field>
-        <Field label="Route vacancy">
+        <Field label={t("driverRoute.vacancy")}>
           <Input
             type="number"
             min={1}
@@ -235,10 +238,10 @@ function RouteCard({
             className="h-7 px-2 text-xs sm:h-8 sm:text-sm xl:h-7"
           />
           <p className="text-[10px] leading-tight text-muted-foreground xl:hidden">
-            Seats passengers can book on this route. Max {bookableSeats}.
+            {t("driverRoute.vacancyHelp", { seats: bookableSeats })}
           </p>
         </Field>
-        <Field label="Distance (km)">
+        <Field label={t("driverRoute.distanceKm")}>
           <Input
             type="number"
             min={0}
@@ -249,7 +252,7 @@ function RouteCard({
             className="h-7 px-2 text-xs sm:h-8 sm:text-sm xl:h-7"
           />
         </Field>
-        <Field label="Amount (MWK)">
+        <Field label={t("driverRoute.amountMwk")}>
           <Input
             type="number"
             min={1}
@@ -262,19 +265,19 @@ function RouteCard({
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <Field label="Pickup point">
+        <Field label={t("driverRoute.pickupPoint")}>
           <Input
             value={segment.pickupPoint}
             onChange={(event) => onUpdate({ pickupPoint: event.target.value })}
-            placeholder={locked ? "Origin pickup point" : "Where passengers board"}
+            placeholder={locked ? t("driverRoute.originPickup") : t("driverRoute.whereBoard")}
             className="h-7 px-2 text-xs sm:h-8 sm:text-sm xl:h-7"
           />
         </Field>
-        <Field label="Drop-off point">
+        <Field label={t("driverRoute.dropOffPoint")}>
           <Input
             value={segment.dropOffPoint}
             onChange={(event) => onUpdate({ dropOffPoint: event.target.value })}
-            placeholder={locked ? "Final drop-off point" : "Where passengers leave"}
+            placeholder={locked ? t("driverRoute.finalDropoff") : t("driverRoute.whereLeave")}
             className="h-7 px-2 text-xs sm:h-8 sm:text-sm xl:h-7"
           />
         </Field>
@@ -400,6 +403,7 @@ function RoutePlaceInput({
 }
 
 function RouteTimeInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
 
   function openPicker() {
@@ -431,7 +435,7 @@ function RouteTimeInput({ value, onChange }: { value: string; onChange: (value: 
           inputRef.current?.focus();
           openPicker();
         }}
-        aria-label="Choose time"
+        aria-label={t("driverTripForm.departureTime")}
       >
         <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
       </button>

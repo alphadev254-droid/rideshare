@@ -18,12 +18,14 @@ import {
   validateMainTrip,
   validateRouteManifest,
 } from "@/components/driver-trips/trip-create-types";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/driver/trips/$id/edit")({
   component: EditTrip,
 });
 
 function EditTrip() {
+  const { t } = useI18n();
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -74,18 +76,18 @@ function EditTrip() {
 
   const update = useMutation({
     mutationFn: () => {
-      if (!selectedVehicle) throw new Error("Choose an approved vehicle");
+      if (!selectedVehicle) throw new Error(t("driverTripForm.chooseVehicle"));
       const payload = buildTripPayload(form, selectedVehicle, segments);
       return tripService.update(id, payload);
     },
     onSuccess: (_trip: Trip) => {
-      toast.success("Trip updated");
+      toast.success(t("driverTripEdit.toastUpdated"));
       queryClient.invalidateQueries({ queryKey: ["trip", id] });
       queryClient.invalidateQueries({ queryKey: ["trips", "mine"] });
       navigate({ to: "/driver/trips/$id", params: { id } });
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Could not update trip");
+      toast.error(error.message || t("driverTripEdit.toastUpdateFailed"));
     },
   });
 
@@ -102,7 +104,7 @@ function EditTrip() {
     const nextErrors = validateMainTrip(form, selectedVehicle);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
-      toast.error("Please complete the main trip details");
+      toast.error(t("driverTripNew.toastCompleteMain"));
       return;
     }
     if (segments.length === 0) {
@@ -157,7 +159,7 @@ function EditTrip() {
     };
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
-      toast.error("Please complete the route manifest");
+      toast.error(t("driverTripEdit.toastCompleteRoutes"));
       return;
     }
     update.mutate();
@@ -167,7 +169,7 @@ function EditTrip() {
   if (!trip) {
     return (
       <div className="rounded-md border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
-        Trip not found.
+        {t("driverCommon.tripNotFound")}
       </div>
     );
   }
@@ -177,7 +179,7 @@ function EditTrip() {
       <div className="space-y-4">
         <BackLink id={id} />
         <div className="rounded-md border border-border bg-card p-5 text-sm text-muted-foreground">
-          This trip has already started or is no longer editable.
+          {t("driverTripEdit.notEditable")}
         </div>
       </div>
     );
@@ -188,22 +190,22 @@ function EditTrip() {
       <BackLink id={id} />
 
       <div>
-        <div className="label-eyebrow text-muted-foreground">My trips</div>
-        <h1 className="mt-2 text-3xl font-semibold tracking-normal">Edit trip</h1>
+        <div className="label-eyebrow text-muted-foreground">{t("driverTrips.myTrips")}</div>
+        <h1 className="mt-2 text-3xl font-semibold tracking-normal">{t("driverTripEdit.title")}</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Update the main journey, then adjust the routes passengers can book.
+          {t("driverTripEdit.description")}
         </p>
       </div>
 
       {hasBookings && (
         <div className="rounded-md border border-gold/40 bg-gold/5 p-4 text-sm">
-          This trip has passenger bookings. Route editing is blocked by the server to protect existing bookings.
+          {t("driverTripEdit.hasBookings")}
         </div>
       )}
 
       <div className="flex gap-2 text-xs">
-        <StepPill active={step === 1} label="1. Main trip" />
-        <StepPill active={step === 2} label="2. Route manifest" />
+        <StepPill active={step === 1} label={t("driverTripNew.mainStep")} />
+        <StepPill active={step === 2} label={t("driverTripNew.routeStep")} />
       </div>
 
       {step === 1 ? (
@@ -232,8 +234,8 @@ function EditTrip() {
           segments={segments}
           errors={errors}
           publishing={update.isPending}
-          publishLabel="Save changes"
-          publishingLabel="Saving..."
+          publishLabel={t("driverTripEdit.saveChanges")}
+          publishingLabel={t("driverTripEdit.saving")}
           onBack={() => setStep(1)}
           onAddRow={addRouteRow}
           onRemoveRow={removeRouteRow}
@@ -251,20 +253,21 @@ function filterDistricts(districts: string[], query: string) {
 }
 
 function BackLink({ id }: { id: string }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Link
         to="/driver/trips"
         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="h-3.5 w-3.5" /> Back to trips
+        <ArrowLeft className="h-3.5 w-3.5" /> {t("driverCommon.backToTrips")}
       </Link>
       <Link
         to="/driver/trips/$id"
         params={{ id }}
         className="text-xs text-muted-foreground hover:text-foreground"
       >
-        Trip details
+        {t("driverCommon.tripDetails")}
       </Link>
     </div>
   );

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { SecureImage } from "@/components/secure-image";
 import type { Trip } from "@/lib/api";
 import { formatDateTime, formatDistanceKm, formatMwk } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 
 type TripOfferCardProps = {
   trip: Trip;
@@ -10,17 +11,18 @@ type TripOfferCardProps = {
   onAction: (trip: Trip) => void;
 };
 
-export function TripOfferCard({ trip, actionLabel = "Book Ride", onAction }: TripOfferCardProps) {
+export function TripOfferCard({ trip, actionLabel, onAction }: TripOfferCardProps) {
+  const { t } = useI18n();
   const stops = getTimelineStops(trip);
   const selectedTo =
     trip.segmentToOrder ??
     stops.find((stop) => stop.name === (trip.dropOffPoint || trip.destinationName))?.stopOrder ??
     stops.length - 1;
-  const driverName = trip.driver?.user.fullName ?? "Verified driver";
+  const driverName = trip.driver?.user.fullName ?? t("tripCard.verifiedDriver");
   const rating = trip.driver?.user.rating ?? trip.driver?.rating;
   const vehicle = trip.vehicle
     ? `${trip.vehicle.color ? `${trip.vehicle.color} ` : ""}${trip.vehicle.make} ${trip.vehicle.model}${trip.vehicle.plateNumber ? ` - ${trip.vehicle.plateNumber}` : ""}`
-    : "Approved vehicle";
+    : t("tripCard.approvedVehicle");
   const arrivalTime = formatClock(trip.arrivalTime ?? selectedArrivalTime(trip, stops, selectedTo));
 
   return (
@@ -46,7 +48,7 @@ export function TripOfferCard({ trip, actionLabel = "Book Ride", onAction }: Tri
         </div>
         <span className="trust-chip shrink-0 px-2 py-1 text-[10px]">
           <ShieldCheck className="h-3.5 w-3.5" />
-          Verified
+          {t("tripCard.verified")}
         </span>
       </div>
 
@@ -66,11 +68,11 @@ export function TripOfferCard({ trip, actionLabel = "Book Ride", onAction }: Tri
       <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <Clock className="h-3 w-3 text-gold" />
-          Depart {formatDateTime(trip.departureTime)}
+          {t("tripCard.depart")} {formatDateTime(trip.departureTime)}
         </span>
         <span className="flex items-center gap-1.5">
           <Clock className="h-3 w-3 text-route" />
-          Arrive {arrivalTime || "Not set"}
+          {t("tripCard.arrive")} {arrivalTime || t("tripCard.notSet")}
         </span>
         <span className="flex items-center gap-1.5">
           <MapPin className="h-3 w-3 text-route" />
@@ -80,7 +82,7 @@ export function TripOfferCard({ trip, actionLabel = "Book Ride", onAction }: Tri
 
       {trip.parentOriginName && trip.parentDestinationName && (
         <div className="mt-3 truncate text-xs text-muted-foreground">
-          Part of {trip.parentOriginName} to {trip.parentDestinationName}
+          {t("tripCard.partOf")} {trip.parentOriginName} {t("tripCard.to")} {trip.parentDestinationName}
         </div>
       )}
 
@@ -90,11 +92,11 @@ export function TripOfferCard({ trip, actionLabel = "Book Ride", onAction }: Tri
             {formatMwk(trip.farePerSeatMwk)}
           </div>
           <div className="text-xs text-muted-foreground">
-            {trip.availableSeats} seat{trip.availableSeats === 1 ? "" : "s"} available
+            {trip.availableSeats} {trip.availableSeats === 1 ? t("tripCard.seatAvailable") : t("tripCard.seatsAvailable")}
           </div>
         </div>
         <Button size="sm" onClick={() => onAction(trip)} className="shrink-0">
-          {actionLabel}
+          {actionLabel ?? t("tripCard.bookRide")}
         </Button>
       </div>
     </article>

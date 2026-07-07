@@ -14,12 +14,14 @@ import {
 } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { driverService, isDriverNotOnboardedError } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/driver")({
   component: DriverShell,
 });
 
 function DriverShell() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const {
@@ -56,21 +58,21 @@ function DriverShell() {
     badge = (
       <div className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
         <ShieldCheck className="h-3 w-3" />
-        Verified
+        {t("driverStatus.verified")}
       </div>
     );
   } else if (hasProfile && !isApproved && profile?.reviewRequestedAt) {
     badge = (
       <div className="flex items-center gap-1.5 rounded-md bg-gold/10 px-2.5 py-1 text-xs font-medium text-gold">
         <ShieldAlert className="h-3 w-3" />
-        Waiting approval
+        {t("driverStatus.waitingApproval")}
       </div>
     );
   } else if (hasProfile && !isApproved) {
     badge = (
       <div className="flex items-center gap-1.5 rounded-md bg-surface-2 px-2.5 py-1 text-xs font-medium text-muted-foreground">
         <ShieldAlert className="h-3 w-3" />
-        Setup in progress
+        {t("driverStatus.setupProgress")}
       </div>
     );
   }
@@ -79,13 +81,13 @@ function DriverShell() {
     <DashboardLayout
       role="driver"
       items={[
-        { to: "/driver", label: "Dashboard", icon: LayoutDashboard, exact: true },
-        { to: "/driver/trips", label: "My trips", icon: RouteIcon },
-        { to: "/driver/vehicles", label: "Vehicles", icon: Car },
-        { to: "/driver/transactions", label: "Transactions", icon: CreditCard },
-        { to: "/driver/wallet", label: "Wallet", icon: Wallet },
-        { to: "/driver/onboarding", label: "Onboarding", icon: UserIcon },
-        { to: "/driver/profile", label: "Profile", icon: UserIcon },
+        { to: "/driver", label: t("driverNav.dashboard"), icon: LayoutDashboard, exact: true },
+        { to: "/driver/trips", label: t("driverNav.trips"), icon: RouteIcon },
+        { to: "/driver/vehicles", label: t("driverNav.vehicles"), icon: Car },
+        { to: "/driver/transactions", label: t("driverNav.transactions"), icon: CreditCard },
+        { to: "/driver/wallet", label: t("driverNav.wallet"), icon: Wallet },
+        { to: "/driver/onboarding", label: t("driverNav.onboarding"), icon: UserIcon },
+        { to: "/driver/profile", label: t("driverNav.profile"), icon: UserIcon },
       ]}
       sidebarExtra={badge}
     />

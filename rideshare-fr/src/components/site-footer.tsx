@@ -1,43 +1,45 @@
 import { Link } from "@tanstack/react-router";
 import { Logo } from "./logo";
+import { useI18n } from "@/lib/i18n";
 
 export function SiteFooter() {
+  const { t } = useI18n();
+
   return (
     <footer className="border-t border-border bg-sidebar">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-6 gap-y-7 px-6 py-8 sm:grid-cols-4 sm:py-10">
         <div>
           <Logo />
           <p className="mt-3 max-w-xs text-xs leading-5 text-muted-foreground sm:text-sm">
-            Shared rides between Malawi places. Drivers publish planned trips, passengers book
-            available seats, and everyone shares the travel cost securely.
+            {t("footer.summary")}
           </p>
         </div>
 
         <Section
-          title="Product"
+          title={t("footer.product")}
           links={[
-            { to: "/safety", label: "Safety" },
-            { to: "/app", label: "Find a ride" },
+            { to: "/safety", label: t("nav.safety") },
+            { to: "/app", label: t("footer.findRide") },
           ]}
         />
         <Section
-          title="Drivers"
+          title={t("footer.drivers")}
           links={[
-            { to: "/drivers-info", label: "Drive with us" },
-            { to: "/driver", label: "Driver dashboard" },
+            { to: "/drivers-info", label: t("footer.driveWithUs") },
+            { to: "/driver", label: t("footer.driverDashboard") },
           ]}
         />
         <Section
-          title="Company"
+          title={t("footer.company")}
           links={[
-            { to: "/about", label: "About" },
-            { to: "/contact", label: "Contact" },
+            { to: "/about", label: t("nav.about") },
+            { to: "/contact", label: t("nav.contact") },
           ]}
         />
       </div>
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-7xl flex-row flex-wrap justify-between gap-x-4 gap-y-1 px-6 py-4 text-[11px] text-muted-foreground sm:text-xs">
-          <span>© {new Date().getFullYear()} ChepetsaRide. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} ChepetsaRide. {t("footer.rights")}</span>
           <span className="font-mono">v1.0 · Lilongwe · Blantyre · Mzuzu · Zomba</span>
         </div>
       </div>

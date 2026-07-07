@@ -9,6 +9,7 @@ import { Mail, Phone, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { contactService } from "@/lib/api";
 import { extractApiError } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_public/contact")({
   head: () => ({
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/_public/contact")({
 });
 
 function Contact() {
+  const { t } = useI18n();
   const [sent, setSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
@@ -46,22 +48,22 @@ function Contact() {
       });
       setSent(true);
       setForm({ name: "", email: "", subject: "", message: "" });
-      toast.success("Thanks - we'll respond within 24 hours.");
+      toast.success(t("contact.toast.sent"));
     } catch (error) {
-      toast.error(extractApiError(error, "Could not send your message"));
+      toast.error(extractApiError(error, t("contact.toast.error")));
     } finally {
       setIsSending(false);
     }
   }
   return (
     <div className="mx-auto max-w-7xl px-6 py-16">
-      <PageHeader eyebrow="Contact" title="We're here when you need us" />
+      <PageHeader eyebrow={t("contact.eyebrow")} title={t("contact.title")} />
       <div className="mt-10 grid gap-10 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-1">
           {[
-            { icon: Mail, label: "Email", value: "info@chepetsaride.com" },
-            { icon: Phone, label: "Phone", value: "+265 99 000 0000" },
-            { icon: MapPin, label: "Address", value: "Area 13, Lilongwe" },
+            { icon: Mail, label: t("contact.email"), value: "info@chepetsaride.com" },
+            { icon: Phone, label: t("contact.phone"), value: "+265 99 000 0000" },
+            { icon: MapPin, label: t("contact.address"), value: "Area 13, Lilongwe" },
           ].map((c) => (
             <div key={c.label} className="rounded-md border border-border bg-card p-4">
               <div className="flex items-center gap-3">
@@ -84,31 +86,31 @@ function Contact() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="label-eyebrow" htmlFor="n">
-                Name
+                {t("contact.name")}
               </Label>
               <Input id="n" required value={form.name} onChange={(e) => update("name", e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label className="label-eyebrow" htmlFor="e">
-                Email
+                {t("contact.email")}
               </Label>
               <Input id="e" required type="email" value={form.email} onChange={(e) => update("email", e.target.value)} />
             </div>
           </div>
           <div className="space-y-1.5">
             <Label className="label-eyebrow" htmlFor="s">
-              Subject
+              {t("contact.subject")}
             </Label>
             <Input id="s" required value={form.subject} onChange={(e) => update("subject", e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label className="label-eyebrow" htmlFor="m">
-              Message
+              {t("contact.message")}
             </Label>
             <Textarea id="m" required rows={6} value={form.message} onChange={(e) => update("message", e.target.value)} />
           </div>
           <Button type="submit" disabled={isSending}>
-            {isSending ? "Sending..." : sent ? "Sent" : "Send message"}
+            {isSending ? t("contact.sending") : sent ? t("contact.sent") : t("contact.send")}
           </Button>
         </form>
       </div>

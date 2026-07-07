@@ -8,6 +8,7 @@ import { Clock } from "lucide-react";
 import { useRef } from "react";
 import { DistrictSearch } from "./district-search";
 import type { MainTripDraft } from "./trip-create-types";
+import { useI18n } from "@/lib/i18n";
 
 export function MainTripStep({
   form,
@@ -44,6 +45,7 @@ export function MainTripStep({
   onDestinationOpen: (open: boolean) => void;
   onNext: () => void;
 }) {
+  const { t } = useI18n();
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === form.vehicleId);
   const capacity = selectedVehicle?.seatCapacity ?? 0;
 
@@ -51,7 +53,7 @@ export function MainTripStep({
     <div className="space-y-4 rounded-md border border-border bg-card p-4 sm:p-6">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label className="label-eyebrow">Origin</Label>
+          <Label className="label-eyebrow">{t("driverTripForm.origin")}</Label>
           <DistrictSearch
             value={form.originName}
             search={originSearch}
@@ -71,13 +73,13 @@ export function MainTripStep({
             open={originOpen}
             setOpen={onOriginOpen}
             districts={districts.length ? filteredOrigin : []}
-            placeholder="Search origin"
+            placeholder={t("driverTripForm.searchOrigin")}
             invalid={!!errors.originName}
           />
           <FieldError message={errors.originName} />
         </div>
         <div className="space-y-1.5">
-          <Label className="label-eyebrow">Destination</Label>
+          <Label className="label-eyebrow">{t("driverTripForm.destination")}</Label>
           <DistrictSearch
             value={form.destinationName}
             search={destinationSearch}
@@ -97,7 +99,7 @@ export function MainTripStep({
             open={destinationOpen}
             setOpen={onDestinationOpen}
             districts={districts.length ? filteredDestination : []}
-            placeholder="Search destination"
+            placeholder={t("driverTripForm.searchDestination")}
             invalid={!!errors.destinationName}
           />
           <FieldError message={errors.destinationName} />
@@ -106,18 +108,18 @@ export function MainTripStep({
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
-          <Label className="label-eyebrow">Trip date</Label>
+          <Label className="label-eyebrow">{t("driverTripForm.tripDate")}</Label>
           <DatePickerField
             value={form.departureDate}
             onChange={(value) => onChange("departureDate", value)}
-            placeholder="Choose trip date"
+            placeholder={t("driverTripForm.chooseTripDate")}
             fromYear={new Date().getFullYear()}
             toYear={new Date().getFullYear() + 3}
           />
           <FieldError message={errors.departureDate} />
         </div>
         <div className="space-y-1.5">
-          <Label className="label-eyebrow">Departure time</Label>
+          <Label className="label-eyebrow">{t("driverTripForm.departureTime")}</Label>
           <TimePickerField
             value={form.departureTime}
             onChange={(value) => onChange("departureTime", value)}
@@ -126,7 +128,7 @@ export function MainTripStep({
           <FieldError message={errors.departureTime} />
         </div>
         <div className="space-y-1.5">
-          <Label className="label-eyebrow">Arrival time</Label>
+          <Label className="label-eyebrow">{t("driverTripForm.arrivalTime")}</Label>
           <TimePickerField
             value={form.arrivalTime}
             onChange={(value) => onChange("arrivalTime", value)}
@@ -138,10 +140,10 @@ export function MainTripStep({
 
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
         <div className="space-y-1.5">
-          <Label className="label-eyebrow">Vehicle</Label>
+          <Label className="label-eyebrow">{t("driverTripForm.vehicle")}</Label>
           <Select value={form.vehicleId} onValueChange={(value) => onChange("vehicleId", value)}>
             <SelectTrigger aria-invalid={!!errors.vehicleId}>
-              <SelectValue placeholder={vehicles.length ? "Choose vehicle" : "No approved vehicles"} />
+              <SelectValue placeholder={vehicles.length ? t("driverTripForm.chooseVehicle") : t("driverTripForm.noApprovedVehicles")} />
             </SelectTrigger>
             <SelectContent>
               {vehicles.map((vehicle) => (
@@ -154,7 +156,7 @@ export function MainTripStep({
           <FieldError message={errors.vehicleId} />
         </div>
         <div className="space-y-1.5">
-          <Label className="label-eyebrow">Seats to sell</Label>
+          <Label className="label-eyebrow">{t("driverTripForm.seatsToSell")}</Label>
           <Input
             type="number"
             min={1}
@@ -165,20 +167,20 @@ export function MainTripStep({
           />
           <FieldError message={errors.totalSeats} />
           <p className="text-xs text-muted-foreground">
-            Passenger seats you want to make available for this trip.
+            {t("driverTripForm.seatsHelp")}
           </p>
         </div>
       </div>
 
       {selectedVehicle && (
         <div className="rounded-md bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
-          Vehicle has {selectedVehicle.seatCapacity} passenger seats. Route vacancies cannot be higher than seats to sell.
+          {t("driverTripForm.vehicleCapacity", { seats: selectedVehicle.seatCapacity })}
         </div>
       )}
 
       <div className="flex justify-end">
         <Button type="button" onClick={onNext}>
-          Next: Set route prices
+          {t("driverTripForm.nextRoutePrices")}
         </Button>
       </div>
     </div>
@@ -199,6 +201,7 @@ function TimePickerField({
   onChange: (value: string) => void;
   invalid?: boolean;
 }) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
 
   function openPicker() {
@@ -231,7 +234,7 @@ function TimePickerField({
           inputRef.current?.focus();
           openPicker();
         }}
-        aria-label="Choose time"
+        aria-label={t("driverTripForm.departureTime")}
       >
         <Clock className="h-4 w-4" />
       </button>

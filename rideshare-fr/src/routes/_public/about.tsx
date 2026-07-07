@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/page-header";
+import { useI18n } from "@/lib/i18n";
 
 const aboutRouteImageUrl =
   (import.meta.env.VITE_LANDING_ROUTE_IMAGE_URL as string | undefined) ??
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/_public/about")({
 });
 
 function About() {
+  const { t } = useI18n();
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
       <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
@@ -36,26 +38,21 @@ function About() {
         </div>
 
         <div className="order-1 lg:order-2">
-          <PageHeader eyebrow="About" title="Shared travel for planned trips between places" />
+          <PageHeader eyebrow={t("about.eyebrow")} title={t("about.title")} />
           <div className="prose prose-invert mt-8 max-w-none text-muted-foreground">
             <p className="text-base leading-relaxed">
-              ChepetsaRide helps drivers who are already travelling between towns, cities and areas publish their
-              planned trips and open available seats to passengers. Instead of travelling alone, drivers
-              share the travel cost with people going the same way, while passengers get a clear route,
-              price and departure time before they book.
+              {t("about.p1")}
             </p>
             <p className="mt-4 text-base leading-relaxed">
-              The platform focuses on three things: verified drivers and vehicles, secure mobile-money
-              payments held in escrow, and boarding codes that confirm the right passenger joins the
-              right trip. The goal is simple: make shared travel across Malawi easier to plan and safer to use.
+              {t("about.p2")}
             </p>
             <div className="mt-10 grid grid-cols-2 gap-6 border-t border-border pt-8">
               <div>
-                <div className="label-eyebrow">Headquarters</div>
+                <div className="label-eyebrow">{t("about.headquarters")}</div>
                 <p className="mt-2 text-foreground">Lilongwe, Malawi</p>
               </div>
               <div>
-                <div className="label-eyebrow">Founded</div>
+                <div className="label-eyebrow">{t("about.founded")}</div>
                 <p className="mt-2 text-foreground">2026</p>
               </div>
             </div>

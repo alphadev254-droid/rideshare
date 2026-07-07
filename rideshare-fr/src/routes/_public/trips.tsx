@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { SecureImage } from "@/components/secure-image";
 import { TripOfferCard } from "@/components/trip-offer-card";
 import { Calendar, Car, Clock, MapPin, Search, ShieldCheck, Users, X, Zap } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_public/trips")({ component: PublicTripsPage, head: () => ({
   meta: [
@@ -40,6 +41,7 @@ function dateStr(y: string, m: string, d: string) { return y && m && d ? `${y}-$
 function availDays(y: string, m: string) { return y && m ? Array.from({ length: daysInMonth(y, m) }, (_, i) => String(i + 1).padStart(2, "0")) : []; }
 
 function PublicTripsPage() {
+  const { t } = useI18n();
   const { user, setUser } = useAuth();
   const { openModal } = useAuthModal();
   const [page, setPage] = useState(1);
@@ -111,20 +113,20 @@ function PublicTripsPage() {
 
   const saveEmergency = useMutation({
     mutationFn: () => userService.updateMe({ emergencyContactName: emergencyName.trim() || undefined, emergencyContactPhone: emergencyPhone.trim() || undefined }),
-    onSuccess: (u: User) => { setUser(u); toast.success("Emergency contact saved"); },
+    onSuccess: (u: User) => { setUser(u); toast.success(t("trips.toast.emergencySaved")); },
     onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : "Could not save emergency contact"),
   });
 
   const book = useMutation({
     mutationFn: (t: Trip) => paymentService.initiateRide({ tripId: t.id, segmentId: t.segmentId ?? undefined, boardingPoint: t.pickupPoint || t.originName, dropOffPoint: t.dropOffPoint || t.destinationName, phone: paymentPhone, seatsBooked, travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean) }),
     onSuccess: (p: PendingPayment & { checkoutUrl?: string | null }) => {
-      toast.success("Opening secure payment.");
+      toast.success(t("trips.toast.openingPayment"));
       setViewTrip(null);
       if (p?.checkoutUrl) { window.location.assign(p.checkoutUrl); return; }
       if (p?.txRef) { window.location.assign(`/app/payments/callback?tx_ref=${encodeURIComponent(p.txRef)}`); return; }
-      toast.error("Could not start payment confirmation");
+      toast.error(t("trips.toast.paymentStartFailed"));
     },
-    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : "Payment failed"),
+    onError: (e: Error) => toast.error(e instanceof ApiError ? e.message : t("trips.toast.paymentFailed")),
   });
 
   async function reserve() {
@@ -135,8 +137,8 @@ function PublicTripsPage() {
       openModal({ mode: "login", role: "passenger" });
       return;
     }
-    if (!paymentPhone.trim()) { toast.error("Payment phone number is required"); return; }
-    if (needsEmergency && !emergencyPhone.trim()) { toast.error("Emergency phone number is required"); return; }
+    if (!paymentPhone.trim()) { toast.error(t("trips.toast.paymentPhoneRequired")); return; }
+    if (needsEmergency && !emergencyPhone.trim()) { toast.error(t("trips.toast.emergencyPhoneRequired")); return; }
     if (needsEmergency) { try { await saveEmergency.mutateAsync(); } catch { return; } }
     book.mutate(viewTrip);
   }
@@ -151,42 +153,42 @@ function PublicTripsPage() {
     <div className="public-shell min-h-screen px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-8">
       <PageHeader
-        title="Find shared trips"
-        description="Book a seat on a driver's planned trip and share the travel cost."
+        title={t("trips.title")}
+        description={t("trips.description")}
       />
 
       <div className="public-card rounded-2xl p-3 sm:p-5">
         <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5 lg:gap-4">
-          <div className="space-y-1.5"><Label className="label-eyebrow">From</Label><SearchField val={origin} search={originSearch} onSearch={setOriginSearch} onPick={(d: string) => { setOrigin(d); setOriginSearch(""); setOriginOpen(false); setPage(1); }} onClear={() => { setOrigin(""); setOriginSearch(""); setPage(1); }} open={originOpen} setOpen={setOriginOpen} districts={filteredOrigin} placeholder="Search..." /></div>
-          <div className="space-y-1.5"><Label className="label-eyebrow">To</Label><SearchField val={destination} search={destSearch} onSearch={setDestSearch} onPick={(d: string) => { setDestination(d); setDestSearch(""); setDestOpen(false); setPage(1); }} onClear={() => { setDestination(""); setDestSearch(""); setPage(1); }} open={destOpen} setOpen={setDestOpen} districts={filteredDest} placeholder="Search..." /></div>
+          <div className="space-y-1.5"><Label className="label-eyebrow">{t("trips.from")}</Label><SearchField val={origin} search={originSearch} onSearch={setOriginSearch} onPick={(d: string) => { setOrigin(d); setOriginSearch(""); setOriginOpen(false); setPage(1); }} onClear={() => { setOrigin(""); setOriginSearch(""); setPage(1); }} open={originOpen} setOpen={setOriginOpen} districts={filteredOrigin} placeholder={t("trips.searchPlaceholder")} /></div>
+          <div className="space-y-1.5"><Label className="label-eyebrow">{t("trips.to")}</Label><SearchField val={destination} search={destSearch} onSearch={setDestSearch} onPick={(d: string) => { setDestination(d); setDestSearch(""); setDestOpen(false); setPage(1); }} onClear={() => { setDestination(""); setDestSearch(""); setPage(1); }} open={destOpen} setOpen={setDestOpen} districts={filteredDest} placeholder={t("trips.searchPlaceholder")} /></div>
           <div className="col-span-2 space-y-1.5 lg:col-span-1">
             <div className="flex items-center justify-between gap-2">
-              <Label className="label-eyebrow">Departure date</Label>
-              {(dateYear || dateMonth || dateDay) && <button type="button" onClick={() => { setDateYear(""); setDateMonth(""); setDateDay(""); setPage(1); }} className="text-xs text-primary hover:underline">Clear</button>}
+              <Label className="label-eyebrow">{t("trips.departureDate")}</Label>
+              {(dateYear || dateMonth || dateDay) && <button type="button" onClick={() => { setDateYear(""); setDateMonth(""); setDateDay(""); setPage(1); }} className="text-xs text-primary hover:underline">{t("trips.clear")}</button>}
             </div>
             <div className="grid grid-cols-[1.15fr_1.25fr_0.9fr] gap-2">
-              <Select value={dateYear} onValueChange={(v) => { setDateYear(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger><SelectContent>{years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent></Select>
-              <Select value={dateMonth} onValueChange={(v) => { setDateMonth(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger><SelectContent>{monthOptions.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select>
-              <Select value={dateDay} onValueChange={(v) => { setDateDay(v); setPage(1); }}><SelectTrigger disabled={!dateYear || !dateMonth}><SelectValue placeholder="Day" /></SelectTrigger><SelectContent>{availDays(dateYear, dateMonth).map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select>
+              <Select value={dateYear} onValueChange={(v) => { setDateYear(v); setPage(1); }}><SelectTrigger><SelectValue placeholder={t("trips.year")} /></SelectTrigger><SelectContent>{years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent></Select>
+              <Select value={dateMonth} onValueChange={(v) => { setDateMonth(v); setPage(1); }}><SelectTrigger><SelectValue placeholder={t("trips.month")} /></SelectTrigger><SelectContent>{monthOptions.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select>
+              <Select value={dateDay} onValueChange={(v) => { setDateDay(v); setPage(1); }}><SelectTrigger disabled={!dateYear || !dateMonth}><SelectValue placeholder={t("trips.day")} /></SelectTrigger><SelectContent>{availDays(dateYear, dateMonth).map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select>
             </div>
           </div>
-          <div className="space-y-1.5"><Label className="label-eyebrow">Seats</Label><Select value={seats} onValueChange={(v) => { setSeats(v); setPage(1); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="any">All</SelectItem>{[1, 2, 3, 4, 5].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-1.5"><Label className="label-eyebrow">Class</Label><Select value={comfortClass} onValueChange={(v) => { setComfortClass(v); setPage(1); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="any">Any</SelectItem><SelectItem value="economy">Economy</SelectItem><SelectItem value="standard">Standard</SelectItem><SelectItem value="comfort">Comfort</SelectItem></SelectContent></Select></div>
+          <div className="space-y-1.5"><Label className="label-eyebrow">{t("trips.seats")}</Label><Select value={seats} onValueChange={(v) => { setSeats(v); setPage(1); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="any">{t("trips.all")}</SelectItem>{[1, 2, 3, 4, 5].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1.5"><Label className="label-eyebrow">{t("trips.class")}</Label><Select value={comfortClass} onValueChange={(v) => { setComfortClass(v); setPage(1); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="any">{t("trips.any")}</SelectItem><SelectItem value="economy">{t("trips.economy")}</SelectItem><SelectItem value="standard">{t("trips.standard")}</SelectItem><SelectItem value="comfort">{t("trips.comfort")}</SelectItem></SelectContent></Select></div>
         </div>
       </div>
 
       <section className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <h2 className="font-display text-lg font-semibold">Available trips</h2>
-          {publicTrips && <div className="text-xs text-muted-foreground">Page {publicTrips.page} of {totalPages} - {publicTrips.total} trips</div>}
+          <h2 className="font-display text-lg font-semibold">{t("trips.available")}</h2>
+          {publicTrips && <div className="text-xs text-muted-foreground">{t("trips.page")} {publicTrips.page} {t("trips.of")} {totalPages} - {publicTrips.total} {t("trips.tripCount")}</div>}
         </div>
         {loading ? (
-          <div className="public-card-soft rounded-xl p-6 text-sm text-muted-foreground">Loading trips...</div>
+          <div className="public-card-soft rounded-xl p-6 text-sm text-muted-foreground">{t("trips.loading")}</div>
         ) : trips.length === 0 ? (
           <div className="rounded-xl border border-dashed border-route/35 bg-route/5 p-12 text-center">
             <Car className="mx-auto h-10 w-10 text-muted-foreground" />
-            <p className="mt-4 text-sm font-medium text-muted-foreground">No scheduled trips found.</p>
-            <p className="mt-1 text-xs text-muted-foreground">Try adjusting your filters or check back later.</p>
+            <p className="mt-4 text-sm font-medium text-muted-foreground">{t("trips.none")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("trips.noneHint")}</p>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -196,9 +198,9 @@ function PublicTripsPage() {
           </div>
         )}
         <div className="flex items-center justify-between">
-          <Button variant="outline" disabled={page <= 1 || loading} onClick={() => setPage((c) => Math.max(1, c - 1))}>Previous</Button>
-          <span className="text-xs text-muted-foreground">{publicTrips ? `${publicTrips.items.length} shown` : "0 shown"}</span>
-          <Button variant="outline" disabled={page >= totalPages || loading} onClick={() => setPage((c) => c + 1)}>Next</Button>
+          <Button variant="outline" disabled={page <= 1 || loading} onClick={() => setPage((c) => Math.max(1, c - 1))}>{t("trips.previous")}</Button>
+          <span className="text-xs text-muted-foreground">{publicTrips ? `${publicTrips.items.length} ${t("trips.shown")}` : `0 ${t("trips.shown")}`}</span>
+          <Button variant="outline" disabled={page >= totalPages || loading} onClick={() => setPage((c) => c + 1)}>{t("trips.next")}</Button>
         </div>
       </section>
       </div>
@@ -234,6 +236,7 @@ function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentPho
   onSeatsBookedChange: (v: number) => void; onTravelerNamesChange: (v: string[]) => void;
   onClose: () => void; onReserve: () => void;
 }) {
+  const { t } = useI18n();
   if (!trip) return null;
   const fullyBooked = trip.availableSeats <= 0;
   const totalFareMwk = Number(trip.farePerSeatMwk) * seatsBooked;
@@ -261,46 +264,50 @@ function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentPho
             <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">A</div>
-                <div><div className="text-sm font-medium">Boarding point</div><div className="text-xs text-muted-foreground">{trip.pickupPoint || trip.originName}</div></div>
+                <div><div className="text-sm font-medium">{t("trips.boardingPoint")}</div><div className="text-xs text-muted-foreground">{trip.pickupPoint || trip.originName}</div></div>
               </div>
               <div className="ml-2.5 border-l-2 border-dashed border-border pl-3.5 h-6" />
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">B</div>
-                <div><div className="text-sm font-medium">Drop-off point</div><div className="text-xs text-muted-foreground">{trip.dropOffPoint || trip.destinationName}</div></div>
+                <div><div className="text-sm font-medium">{t("trips.dropOffPoint")}</div><div className="text-xs text-muted-foreground">{trip.dropOffPoint || trip.destinationName}</div></div>
               </div>
             </div>
           </div>
           {needsEmergency && (
             <div className="rounded-md border border-gold/40 bg-gold/5 p-4">
-              <div className="label-eyebrow text-gold">Emergency contact required</div>
+              <div className="label-eyebrow text-gold">{t("trips.emergencyRequired")}</div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5"><Label className="label-eyebrow">Contact name</Label><Input value={emergencyName} onChange={(e) => onEmergencyNameChange(e.target.value)} /></div>
-                <div className="space-y-1.5"><Label className="label-eyebrow">Contact phone</Label><Input value={emergencyPhone} onChange={(e) => onEmergencyPhoneChange(e.target.value)} placeholder="+265..." /></div>
+                <div className="space-y-1.5"><Label className="label-eyebrow">{t("trips.contactName")}</Label><Input value={emergencyName} onChange={(e) => onEmergencyNameChange(e.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="label-eyebrow">{t("trips.contactPhone")}</Label><Input value={emergencyPhone} onChange={(e) => onEmergencyPhoneChange(e.target.value)} placeholder="+265..." /></div>
               </div>
             </div>
           )}
           {isAuthenticated ? (
             <>
               <div className="rounded-md border border-border bg-card p-4">
-                <div className="label-eyebrow">Payment</div>
-                <p className="mt-1 text-xs text-muted-foreground">Your booking is created only after payment is confirmed.</p>
+                <div className="label-eyebrow">{t("trips.payment")}</div>
+                <p className="mt-1 text-xs text-muted-foreground">{t("trips.paymentHelp")}</p>
                 <div className="mt-3 space-y-3">
                   <BookingSeatsFields availableSeats={trip.availableSeats} seatsBooked={seatsBooked} onSeatsBookedChange={onSeatsBookedChange} travelerNames={travelerNames} onTravelerNamesChange={onTravelerNamesChange} primaryName={primaryName} />
-                  <div className="space-y-1.5"><Label className="label-eyebrow">Payment phone</Label><Input value={paymentPhone} onChange={(e) => onPaymentPhoneChange(e.target.value)} /></div>
+                  <div className="space-y-1.5"><Label className="label-eyebrow">{t("trips.paymentPhone")}</Label><Input value={paymentPhone} onChange={(e) => onPaymentPhoneChange(e.target.value)} /></div>
                 </div>
               </div>
               <Button className="h-11 w-full" disabled={fullyBooked || isBooking || isSavingEmergency || !paymentPhone.trim()} onClick={onReserve}>
-                {fullyBooked ? "Fully booked" : isBooking || isSavingEmergency ? "Processing payment..." : `Pay ${formatMwk(totalFareMwk)} - Book ${seatsBooked} seat${seatsBooked === 1 ? "" : "s"}`}
+                {fullyBooked
+                  ? t("trips.fullyBooked")
+                  : isBooking || isSavingEmergency
+                    ? t("trips.processingPayment")
+                    : t("trips.payBook", { amount: formatMwk(totalFareMwk), seats: seatsBooked, plural: seatsBooked === 1 ? "" : "s" })}
               </Button>
             </>
           ) : (
             <Button className="h-11 w-full" disabled={fullyBooked} onClick={onReserve}>
-              {fullyBooked ? "Fully booked" : "Sign in to book"}
+              {fullyBooked ? t("trips.fullyBooked") : t("trips.signInToBook")}
             </Button>
           )}
           {(trip.vehicle?.imageUrls?.length ?? 0) > 0 && (
             <div className="space-y-2">
-              <div className="label-eyebrow">Vehicle photos</div>
+              <div className="label-eyebrow">{t("trips.vehiclePhotos")}</div>
               <div className="grid grid-cols-2 gap-2">
                 {(trip.vehicle?.imageUrls ?? []).slice(0, 4).map((url: string) => (
                   <SecureImage key={url} src={url} alt={`${trip.vehicle?.make ?? "Vehicle"} photo`} className="aspect-[4/3] w-full rounded-md border border-border object-cover" />

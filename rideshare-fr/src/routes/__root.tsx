@@ -6,6 +6,7 @@ import { AuthModalProvider } from "@/lib/auth-modal-context";
 import { AuthModal } from "@/components/auth-modal";
 import { PwaInstallBanner } from "@/components/pwa-install";
 import { PwaInstallProvider } from "@/lib/pwa-install-context";
+import { LanguageProvider } from "@/lib/i18n";
 
 import appCss from "../styles.css?url";
 
@@ -118,16 +119,18 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <PwaInstallProvider>
-        <AuthProvider>
-          <AuthModalProvider>
-            <Outlet />
-            <AuthModal />
-            <PwaInstallBanner />
-            <Toaster />
-          </AuthModalProvider>
-        </AuthProvider>
-      </PwaInstallProvider>
+      <LanguageProvider>
+        <PwaInstallProvider>
+          <AuthProvider>
+            <AuthModalProvider>
+              <Outlet />
+              <AuthModal />
+              <PwaInstallBanner />
+              <Toaster />
+            </AuthModalProvider>
+          </AuthProvider>
+        </PwaInstallProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }

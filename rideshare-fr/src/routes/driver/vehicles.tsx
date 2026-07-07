@@ -25,6 +25,7 @@ import { SecureImage, SecureFileLink } from "@/components/secure-image";
 import { DatePickerField, isPastIsoDate } from "@/components/date-picker-field";
 import { driverService, type ComfortClass, type InsuranceCategory, type Vehicle } from "@/lib/api";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/driver/vehicles")({
   component: VehiclesPage,
@@ -71,6 +72,7 @@ function vehicleStatusCopy(vehicle: Vehicle) {
   return { label: "Suspended — contact support", className: "border-destructive/30 bg-destructive/10 text-destructive" };
 }
 function VehiclesPage() {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const { data: vehicles, isLoading } = useQuery({
     queryKey: ["driver", "vehicles"],
@@ -80,22 +82,22 @@ function VehiclesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Driver"
-        title="Vehicles"
-        description="Manage your vehicles, upload photos, insurance documents, COF details, and more."
+        eyebrow={t("driverVehicles.eyebrow")}
+        title={t("driverVehicles.title")}
+        description={t("driverVehicles.description")}
         actions={<AddVehicleButton />}
       />
 
       {isLoading ? (
         <div className="rounded-md border border-border bg-card p-6 text-sm text-muted-foreground">
-          Loading vehicles...
+          {t("driverVehicles.loading")}
         </div>
       ) : (vehicles ?? []).length === 0 ? (
         <div className="rounded-md border border-dashed border-border p-12 text-center">
           <Car className="mx-auto h-10 w-10 text-muted-foreground" />
-          <p className="mt-4 text-sm font-medium text-muted-foreground">No vehicles yet.</p>
+          <p className="mt-4 text-sm font-medium text-muted-foreground">{t("driverVehicles.none")}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Add your first vehicle to start publishing trips.
+            {t("driverVehicles.noneHint")}
           </p>
         </div>
       ) : (
@@ -112,6 +114,7 @@ function VehiclesPage() {
 // ─── Vehicle Card (read-only summary) ──────────────────────────────────────
 
 function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const status = vehicleStatusCopy(vehicle);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -119,10 +122,10 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
   const deleteVehicle = useMutation({
     mutationFn: (id: string) => driverService.deleteVehicle(id),
     onSuccess: () => {
-      toast.success("Vehicle deleted");
+      toast.success(t("driverVehicles.toastDeleted"));
       queryClient.invalidateQueries({ queryKey: ["driver", "vehicles"] });
     },
-    onError: (error: Error) => toast.error(error.message || "Could not delete vehicle"),
+    onError: (error: Error) => toast.error(error.message || t("driverVehicles.toastDeleteFailed")),
   });
 
   return (
@@ -150,7 +153,7 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
           <EditVehicleDialog vehicle={vehicle}>
             <Button variant="outline" size="sm" className="gap-1 text-xs h-7 px-2">
               <Pencil className="h-3 w-3" />
-              Edit
+              {t("driverCommon.edit")}
             </Button>
           </EditVehicleDialog>
           <Button
@@ -161,7 +164,7 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
             disabled={deleteVehicle.isPending}
           >
             <Trash2 className="h-3 w-3" />
-            Delete
+            {t("driverVehicles.delete")}
           </Button>
         </div>
       </div>
@@ -172,14 +175,14 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 text-xs">
               <ShieldAlert className="h-3 w-3 text-muted-foreground" />
-              <span className="text-muted-foreground">Insurance</span>
-              <span className="text-[10px] text-primary"><BadgeCheck className="inline h-2.5 w-2.5" /> Uploaded</span>
+              <span className="text-muted-foreground">{t("driverVehicles.insurance")}</span>
+              <span className="text-[10px] text-primary"><BadgeCheck className="inline h-2.5 w-2.5" /> {t("driverVehicles.uploaded")}</span>
             </div>
             <div>
               {/\.pdf($|\?)/i.test(vehicle.insuranceDocUrl) ? (
                 <SecureFileLink href={vehicle.insuranceDocUrl} className="text-[10px] text-primary hover:underline">PDF</SecureFileLink>
               ) : (
-                <a href={vehicle.insuranceDocUrl} target="_blank" rel="noreferrer" className="text-[10px] text-primary hover:underline">View</a>
+                <a href={vehicle.insuranceDocUrl} target="_blank" rel="noreferrer" className="text-[10px] text-primary hover:underline">{t("driverCommon.view")}</a>
               )}
             </div>
           </div>
@@ -230,11 +233,12 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
 // ─── Add Vehicle Button ────────────────────────────────────────────────────
 
 function AddVehicleButton() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
 
   return (
     <EditVehicleDialog open={open} onOpenChange={setOpen}>
-      <Button onClick={() => setOpen(true)}>Add vehicle</Button>
+      <Button onClick={() => setOpen(true)}>{t("driverVehicles.add")}</Button>
     </EditVehicleDialog>
   );
 }
@@ -252,6 +256,7 @@ function EditVehicleDialog({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const isNew = !vehicle;
   const [internalOpen, setInternalOpen] = useState(false);
@@ -310,18 +315,18 @@ function EditVehicleDialog({
       return result;
     },
     onSuccess: () => {
-      toast.success(isNew ? "Vehicle added" : "Vehicle saved");
+      toast.success(isNew ? t("driverVehicles.toastAdded") : t("driverVehicles.toastSaved"));
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: ["driver", "vehicles"] });
     },
-    onError: (error: Error) => toast.error(error.message || "Could not save vehicle"),
+    onError: (error: Error) => toast.error(error.message || t("driverVehicles.toastSaveFailed")),
   });
 
   const removeImage = useMutation({
     mutationFn: ({ id, url }: { id: string; url: string }) =>
       driverService.removeVehicleImage(id, url),
     onSuccess: () => {
-      toast.success("Image removed");
+      toast.success(t("driverVehicles.toastImageRemoved"));
       queryClient.invalidateQueries({ queryKey: ["driver", "vehicles"] });
     },
   });
@@ -330,19 +335,19 @@ function EditVehicleDialog({
     mutationFn: ({ id, file }: { id: string; file: File }) =>
       driverService.uploadVehicleInsuranceDocument(id, file),
     onSuccess: () => {
-      toast.success("Insurance document uploaded");
+      toast.success(t("driverVehicles.toastInsuranceUploaded"));
       queryClient.invalidateQueries({ queryKey: ["driver", "vehicles"] });
     },
-    onError: (error: Error) => toast.error(error.message || "Could not upload insurance document"),
+    onError: (error: Error) => toast.error(error.message || t("driverVehicles.toastInsuranceUploadFailed")),
   });
 
   const removeInsuranceDoc = useMutation({
     mutationFn: (id: string) => driverService.removeVehicleInsuranceDocument(id),
     onSuccess: () => {
-      toast.success("Insurance document removed");
+      toast.success(t("driverVehicles.toastInsuranceRemoved"));
       queryClient.invalidateQueries({ queryKey: ["driver", "vehicles"] });
     },
-    onError: (error: Error) => toast.error(error.message || "Could not remove insurance document"),
+    onError: (error: Error) => toast.error(error.message || t("driverVehicles.toastInsuranceRemoveFailed")),
   });
 
   function handleNewImages(event: ChangeEvent<HTMLInputElement>) {
@@ -353,11 +358,11 @@ function EditVehicleDialog({
     setNewImages((current) => {
       const remaining = Math.max(0, 4 - existingCount - current.length);
       if (remaining === 0) {
-        toast.error("A vehicle can have a maximum of 4 images");
+        toast.error(t("driverVehicles.maxImages"));
         return current;
       }
       if (files.length > remaining) {
-        toast.error(`Only ${remaining} more image${remaining === 1 ? "" : "s"} can be added`);
+        toast.error(t("driverVehicles.onlyMoreImages", { count: remaining, plural: remaining === 1 ? "" : "s" }));
       }
       return current.concat(
         files.slice(0, remaining).map((file) => ({
@@ -403,49 +408,49 @@ function EditVehicleDialog({
       <DialogContent className="max-h-[92svh] overflow-y-auto p-4 sm:max-w-xl sm:p-6">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
-            {isNew ? "Add vehicle" : `Edit ${vehicle.make} ${vehicle.model}`}
+            {isNew ? t("driverVehicles.add") : t("driverVehicles.editVehicle", { vehicle: `${vehicle.make} ${vehicle.model}` })}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Fill in vehicle details, upload photos and insurance document."
-              : "Update vehicle information, manage photos and insurance."}
+              ? t("driverVehicles.addDescription")
+              : t("driverVehicles.editDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
           {/* Basic Info */}
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Make" required value={form.make} onChange={(v) => setForm({ ...form, make: v })} />
-            <Field label="Model" required value={form.model} onChange={(v) => setForm({ ...form, model: v })} />
-            <Field label="Year" required type="number" value={form.year} onChange={(v) => setForm({ ...form, year: v })} />
-            <Field label="Plate number" required value={form.plateNumber} onChange={(v) => setForm({ ...form, plateNumber: v })} />
-            <Field label="Color" value={form.color} onChange={(v) => setForm({ ...form, color: v })} />
-            <Field label="Seat capacity" required type="number" value={form.seatCapacity} onChange={(v) => setForm({ ...form, seatCapacity: v })} />
+            <Field label={t("driverVehicles.make")} required value={form.make} onChange={(v) => setForm({ ...form, make: v })} />
+            <Field label={t("driverVehicles.model")} required value={form.model} onChange={(v) => setForm({ ...form, model: v })} />
+            <Field label={t("driverVehicles.year")} required type="number" value={form.year} onChange={(v) => setForm({ ...form, year: v })} />
+            <Field label={t("driverVehicles.plateNumber")} required value={form.plateNumber} onChange={(v) => setForm({ ...form, plateNumber: v })} />
+            <Field label={t("driverVehicles.color")} value={form.color} onChange={(v) => setForm({ ...form, color: v })} />
+            <Field label={t("driverVehicles.seatCapacity")} required type="number" value={form.seatCapacity} onChange={(v) => setForm({ ...form, seatCapacity: v })} />
           </div>
 
           {/* COF */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="label-eyebrow">COF number <Required /></Label>
+              <Label className="label-eyebrow">{t("driverVehicles.cofNumber")} <Required /></Label>
               <Input
                 required
                 value={form.cofNumber}
                 onChange={(e) => setForm({ ...form, cofNumber: e.target.value })}
-                placeholder="Certificate of Fitness number"
+                placeholder={t("driverVehicles.cofPlaceholder")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="label-eyebrow">COF expiry date <Required /></Label>
+              <Label className="label-eyebrow">{t("driverVehicles.cofExpiry")} <Required /></Label>
               <DatePickerField
                 required
                 value={form.cofExpiry}
                 onChange={(v) => setForm({ ...form, cofExpiry: v })}
-                placeholder="Select COF expiry date"
+                placeholder={t("driverVehicles.selectCofExpiry")}
                 fromYear={new Date().getFullYear() - 5}
                 toYear={new Date().getFullYear() + 10}
               />
               {form.cofExpiry && isPastIsoDate(form.cofExpiry) && (
-                <p className="text-xs text-destructive">The COF has expired.</p>
+                <p className="text-xs text-destructive">{t("driverVehicles.cofExpired")}</p>
               )}
             </div>
           </div>
@@ -453,7 +458,7 @@ function EditVehicleDialog({
           {/* Insurance */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="label-eyebrow">Insurance category <Required /></Label>
+              <Label className="label-eyebrow">{t("driverVehicles.insuranceCategory")} <Required /></Label>
               <Select
                 required
                 value={form.insuranceCategory}
@@ -463,30 +468,30 @@ function EditVehicleDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="third_party">Third party</SelectItem>
-                  <SelectItem value="comprehensive">Comprehensive</SelectItem>
+                  <SelectItem value="third_party">{t("driverVehicles.thirdParty")}</SelectItem>
+                  <SelectItem value="comprehensive">{t("driverVehicles.comprehensive")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="label-eyebrow">Insurance expiry date <Required /></Label>
+              <Label className="label-eyebrow">{t("driverVehicles.insuranceExpiry")} <Required /></Label>
               <DatePickerField
                 required
                 value={form.insuranceExpiry}
                 onChange={(v) => setForm({ ...form, insuranceExpiry: v })}
-                placeholder="Select insurance expiry date"
+                placeholder={t("driverVehicles.selectInsuranceExpiry")}
                 fromYear={new Date().getFullYear() - 5}
                 toYear={new Date().getFullYear() + 10}
               />
               {form.insuranceExpiry && isPastIsoDate(form.insuranceExpiry) && (
-                <p className="text-xs text-destructive">The insurance has expired.</p>
+                <p className="text-xs text-destructive">{t("driverVehicles.insuranceExpired")}</p>
               )}
             </div>
           </div>
 
           {/* Comfort Class */}
           <div className="space-y-1.5 sm:w-64">
-            <Label className="label-eyebrow">Comfort class</Label>
+            <Label className="label-eyebrow">{t("driverVehicles.comfortClass")}</Label>
             <Select
               value={form.comfortClass}
               onValueChange={(v) => setForm({ ...form, comfortClass: v as ComfortClass })}
@@ -495,9 +500,9 @@ function EditVehicleDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="economy">Economy</SelectItem>
-                <SelectItem value="standard">Standard</SelectItem>
-                <SelectItem value="comfort">Comfort</SelectItem>
+                  <SelectItem value="economy">{t("trips.economy")}</SelectItem>
+                  <SelectItem value="standard">{t("trips.standard")}</SelectItem>
+                  <SelectItem value="comfort">{t("trips.comfort")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -507,10 +512,10 @@ function EditVehicleDialog({
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm">
                 <ShieldAlert className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Insurance document</span>
+                <span className="font-medium">{t("driverVehicles.insuranceDocument")}</span>
                 {vehicle?.insuranceDocUrl && !pendingInsuranceDoc && (
                   <span className="text-xs text-primary">
-                    <BadgeCheck className="inline h-3 w-3" /> Uploaded
+                    <BadgeCheck className="inline h-3 w-3" /> {t("driverVehicles.uploaded")}
                   </span>
                 )}
               </div>
@@ -521,7 +526,7 @@ function EditVehicleDialog({
                   onClick={() => removeInsuranceDoc.mutate(vehicle.id)}
                   disabled={removeInsuranceDoc.isPending}
                 >
-                  Remove
+                  {t("driverVehicles.remove")}
                 </button>
               )}
             </div>
@@ -533,7 +538,7 @@ function EditVehicleDialog({
                     href={vehicle.insuranceDocUrl}
                     className="text-xs text-primary hover:underline"
                   >
-                    View current document (PDF)
+                    {t("driverVehicles.viewCurrentPdf")}
                   </SecureFileLink>
                 ) : (
                   <a
@@ -542,7 +547,7 @@ function EditVehicleDialog({
                     rel="noreferrer"
                     className="text-xs text-primary hover:underline"
                   >
-                    View current document
+                    {t("driverVehicles.viewCurrentDocument")}
                   </a>
                 )}
               </div>
@@ -568,7 +573,7 @@ function EditVehicleDialog({
                     ) : (
                       <Upload className="mr-1 h-3 w-3" />
                     )}
-                    Upload
+                    {t("driverVehicles.upload")}
                   </Button>
                   <button
                     type="button"
@@ -580,13 +585,13 @@ function EditVehicleDialog({
                       });
                     }}
                   >
-                    Cancel
+                    {t("driverCommon.cancel")}
                   </button>
                 </div>
               ) : (
                 <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-primary hover:underline">
                   <Upload className="h-3 w-3" />
-                  {vehicle?.insuranceDocUrl ? "Replace document" : "Upload document"}
+                  {vehicle?.insuranceDocUrl ? t("driverVehicles.replaceDocument") : t("driverVehicles.uploadDocument")}
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp,application/pdf"
@@ -597,7 +602,7 @@ function EditVehicleDialog({
               )}
               {isNew && pendingInsuranceDoc && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Insurance document will upload when you save the vehicle.
+                  {t("driverVehicles.insuranceQueued")}
                 </p>
               )}
             </div>
@@ -606,7 +611,7 @@ function EditVehicleDialog({
           {/* Vehicle Images */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <Label className="label-eyebrow">Vehicle photos</Label>
+              <Label className="label-eyebrow">{t("driverVehicles.vehiclePhotos")}</Label>
               <span className="text-xs text-muted-foreground">{totalImageCount}/4</span>
             </div>
 
@@ -627,7 +632,7 @@ function EditVehicleDialog({
                         type="button"
                         className="absolute right-1 top-1 rounded-md bg-background/90 p-1 text-destructive opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100"
                         onClick={() => removeImage.mutate({ id: vehicle!.id, url })}
-                        aria-label="Remove image"
+                        aria-label={t("driverVehicles.removeImage")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -643,7 +648,7 @@ function EditVehicleDialog({
                       type="button"
                       className="absolute right-1 top-1 rounded-md bg-background/90 p-1 text-destructive opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100"
                       onClick={() => removeNewImage(img.previewUrl)}
-                      aria-label="Remove selected image"
+                      aria-label={t("driverVehicles.removeSelectedImage")}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -652,7 +657,7 @@ function EditVehicleDialog({
                 {totalImageCount < 4 && (
                   <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-border bg-surface-2 text-xs text-muted-foreground">
                     <Camera className="mb-1 h-4 w-4" />
-                    Add photo
+                    {t("driverVehicles.addPhoto")}
                     <input
                       type="file"
                       accept="image/*"
@@ -666,7 +671,7 @@ function EditVehicleDialog({
             ) : (
               <label className="flex aspect-[4/3] w-32 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-border bg-surface-2 text-xs text-muted-foreground">
                 <Camera className="mb-1 h-5 w-5" />
-                Add photos
+                {t("driverVehicles.addPhotos")}
                 <input
                   type="file"
                   accept="image/*"
@@ -678,7 +683,7 @@ function EditVehicleDialog({
             )}
             {isNew && newImages.length > 0 && (
               <p className="text-xs text-muted-foreground">
-                Photos will upload when you save the vehicle.
+                {t("driverVehicles.photosQueued")}
               </p>
             )}
           </div>
@@ -689,7 +694,7 @@ function EditVehicleDialog({
             disabled={save.isPending}
           >
             {save.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-            {save.isPending ? "Saving..." : isNew ? "Add vehicle" : "Save changes"}
+            {save.isPending ? t("driverVehicles.saving") : isNew ? t("driverVehicles.add") : t("driverVehicles.saveChanges")}
           </Button>
         </div>
       </DialogContent>
@@ -726,4 +731,3 @@ function Field({
 function Required() {
   return <span className="text-destructive ml-0.5">*</span>;
 }
-

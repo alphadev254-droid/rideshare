@@ -10,16 +10,17 @@ import { formatDateTime, formatMwk, formatDistanceKm } from "@/lib/format";
 import { Eye, KeyRound, MapPin, Pencil, Play, Plus, Route as RouteIcon, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
 
 type StatusFilter = TripStatus | "all";
 
-const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "scheduled", label: "Scheduled" },
-  { value: "boarding", label: "Boarding" },
-  { value: "in_transit", label: "In transit" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
+const STATUS_FILTERS: Array<{ value: StatusFilter; labelKey: string }> = [
+  { value: "all", labelKey: "driverTrips.all" },
+  { value: "scheduled", labelKey: "driverTrips.scheduled" },
+  { value: "boarding", labelKey: "driverTrips.boarding" },
+  { value: "in_transit", labelKey: "driverTrips.inTransit" },
+  { value: "completed", labelKey: "driverTrips.completed" },
+  { value: "cancelled", labelKey: "driverTrips.cancelled" },
 ];
 
 export const Route = createFileRoute("/driver/trips/")({
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/driver/trips/")({
 });
 
 function TripsList() {
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const { data, isLoading } = useQuery({
@@ -58,32 +60,32 @@ function TripsList() {
   const notifyBoarding = useMutation({
     mutationFn: (id: string) => tripService.setStatus(id, "boarding"),
     onSuccess: () => {
-      toast.success("Passengers notified that you've arrived");
+      toast.success(t("driverTrips.toastArrived"));
       qc.invalidateQueries({ queryKey: ["trips", "mine"] });
     },
-    onError: (error: Error) => toast.error(error.message || "Could not update trip"),
+    onError: (error: Error) => toast.error(error.message || t("driverTrips.toastUpdateFailed")),
   });
 
   const startTrip = useMutation({
     mutationFn: (id: string) => tripService.start(id),
     onSuccess: () => {
-      toast.success("Trip started. GPS sharing is active.");
+      toast.success(t("driverTrips.toastStarted"));
       qc.invalidateQueries({ queryKey: ["trips", "mine"] });
     },
-    onError: (error: Error) => toast.error(error.message || "Could not start trip"),
+    onError: (error: Error) => toast.error(error.message || t("driverTrips.toastStartFailed")),
   });
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="My trips"
-        title="All published trips"
+        eyebrow={t("driverTrips.myTrips")}
+        title={t("driverTrips.allPublished")}
         className="flex-row items-end justify-between gap-3 pb-4"
         actions={
           <Link to="/driver/trips/new">
             <Button size="sm" className="shrink-0 gap-2 sm:h-10 sm:px-4 sm:py-2">
               <Plus className="h-4 w-4" />
-              New trip
+              {t("driverDashboard.newTrip")}
             </Button>
           </Link>
         }
@@ -92,11 +94,11 @@ function TripsList() {
       {data && data.length === 0 && (
         <EmptyState
           icon={<RouteIcon className="h-5 w-5" />}
-          title="No trips yet"
-          description="Publish your first trip and start accepting passengers."
+          title={t("driverTrips.noTrips")}
+          description={t("driverTrips.noTripsDescription")}
           action={
             <Link to="/driver/trips/new">
-              <Button>Publish trip</Button>
+              <Button>{t("driverTrips.publishTrip")}</Button>
             </Link>
           }
         />
@@ -117,7 +119,7 @@ function TripsList() {
                       : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
                   }`}
                 >
-                  <span>{filter.label}</span>
+                  <span>{t(filter.labelKey)}</span>
                   <span className="rounded-full bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] tabular-nums">
                     {statusCounts[filter.value]}
                   </span>
@@ -128,33 +130,33 @@ function TripsList() {
 
           {filteredTrips.length === 0 ? (
             <div className="rounded-md border border-border bg-card p-6 text-sm text-muted-foreground">
-              No{" "}
-              {STATUS_FILTERS.find((filter) => filter.value === statusFilter)?.label.toLowerCase()}{" "}
-              trips found.
+              {t("driverTrips.noFilteredTrips", {
+                status: t(STATUS_FILTERS.find((filter) => filter.value === statusFilter)?.labelKey ?? "driverTrips.all").toLowerCase(),
+              })}
             </div>
           ) : (
             <ul className="space-y-2">
-              {filteredTrips.map((t) => {
+              {filteredTrips.map((trip) => {
                 const isUpdatingBoarding =
-                  notifyBoarding.isPending && notifyBoarding.variables === t.id;
-                const isStarting = startTrip.isPending && startTrip.variables === t.id;
+                  notifyBoarding.isPending && notifyBoarding.variables === trip.id;
+                const isStarting = startTrip.isPending && startTrip.variables === trip.id;
 
                 return (
-                  <li key={t.id}>
+                  <li key={trip.id}>
                     <div className="rounded-md border border-border bg-card p-3 transition-colors hover:border-border-strong sm:p-4">
                       <div className="flex min-w-0 items-center justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-2">
-                          <StatusPill status={t.status} />
+                          <StatusPill status={trip.status} />
                           <span className="truncate text-xs text-muted-foreground">
-                            {formatDateTime(t.departureTime)}
+                            {formatDateTime(trip.departureTime)}
                           </span>
                         </div>
                         <div className="shrink-0 text-right">
                           <div className="text-sm font-semibold tabular-nums sm:text-base">
-                            {formatMwk(t.farePerSeatMwk)}
+                            {formatMwk(trip.farePerSeatMwk)}
                           </div>
                           <div className="text-[11px] text-muted-foreground sm:text-xs">
-                            {t.availableSeats} available
+                            {trip.availableSeats} {t("driverTrips.available")}
                           </div>
                         </div>
                       </div>
@@ -162,64 +164,64 @@ function TripsList() {
                       <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
                         <div className="min-w-0">
                           <div className="truncate font-display text-base font-semibold sm:text-lg">
-                            {t.originName} &rarr; {t.destinationName}
+                            {trip.originName} &rarr; {trip.destinationName}
                           </div>
                           <div className="mt-1 text-xs text-muted-foreground">
-                            {formatDistanceKm(t.distanceKm)} &middot; {t.comfortClass}
+                            {formatDistanceKm(trip.distanceKm)} &middot; {trip.comfortClass}
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2 sm:justify-end">
-                          {t.status === "scheduled" && (
+                          {trip.status === "scheduled" && (
                             <Button
                               size="sm"
                               className="gap-1.5 animate-pulse"
-                              onClick={() => notifyBoarding.mutate(t.id)}
+                              onClick={() => notifyBoarding.mutate(trip.id)}
                               disabled={isUpdatingBoarding}
                             >
                               <KeyRound className="h-3.5 w-3.5" />
-                              <span>Notify passengers you've arrived</span>
+                              <span>{t("driverTrips.notifyArrived")}</span>
                             </Button>
                           )}
-                          {t.status === "boarding" && (
+                          {trip.status === "boarding" && (
                             <Button
                               size="sm"
                               className="gap-1.5 animate-pulse"
-                              onClick={() => startTrip.mutate(t.id)}
+                              onClick={() => startTrip.mutate(trip.id)}
                               disabled={isStarting}
                             >
                               <Play className="h-3.5 w-3.5" />
-                              <span className="sm:hidden">Start trip</span>
-                              <span className="hidden sm:inline">Start trip and share GPS</span>
+                              <span className="sm:hidden">{t("driverTrips.startTrip")}</span>
+                              <span className="hidden sm:inline">{t("driverTrips.startTripGps")}</span>
                             </Button>
                           )}
-                          {t.status === "in_transit" && (
+                          {trip.status === "in_transit" && (
                             <Button asChild size="sm" variant="outline" className="gap-2">
-                              <Link to="/trips/$id/location" params={{ id: t.id }}>
+                              <Link to="/trips/$id/location" params={{ id: trip.id }}>
                                 <MapPin className="h-4 w-4" />
-                                <span className="sm:hidden">Location</span>
-                                <span className="hidden sm:inline">View driver location</span>
+                                <span className="sm:hidden">{t("driverTrips.location")}</span>
+                                <span className="hidden sm:inline">{t("driverTrips.viewDriverLocation")}</span>
                               </Link>
                             </Button>
                           )}
-                          {(t.status === "scheduled" || t.status === "boarding") &&
-                            !t.startedAt && (
+                          {(trip.status === "scheduled" || trip.status === "boarding") &&
+                            !trip.startedAt && (
                               <Button asChild size="sm" variant="outline" className="gap-1.5">
-                                <Link to="/driver/trips/$id/edit" params={{ id: t.id }}>
+                                <Link to="/driver/trips/$id/edit" params={{ id: trip.id }}>
                                   <Pencil className="h-3.5 w-3.5" />
-                                  Edit
+                                  {t("driverCommon.edit")}
                                 </Link>
                               </Button>
                             )}
                           <Button asChild size="sm" variant="outline" className="gap-1.5">
-                            <Link to="/driver/trips/$id/passengers" params={{ id: t.id }}>
+                            <Link to="/driver/trips/$id/passengers" params={{ id: trip.id }}>
                               <Users className="h-3.5 w-3.5" />
-                              View passengers who booked
+                              {t("driverTrips.viewPassengersBooked")}
                             </Link>
                           </Button>
                           <Button asChild size="sm" variant="ghost" className="gap-1.5">
-                            <Link to="/driver/trips/$id" params={{ id: t.id }}>
+                            <Link to="/driver/trips/$id" params={{ id: trip.id }}>
                               <Eye className="h-3.5 w-3.5" />
-                              View
+                              {t("driverCommon.view")}
                             </Link>
                           </Button>
                         </div>
