@@ -19,6 +19,7 @@ import {
   extractPaychanguMobilePaymentDetails,
   initiatePaychanguMobileMoneyRefund,
   normalizedPayoutMobileOrNull,
+  resolveMobileMoneyOperatorRef,
 } from "../../lib/paychangu.js";
 import {
   enqueueNotification,
@@ -636,12 +637,6 @@ async function createPaychanguCheckout(params: {
   }
 }
 
-function operatorRefForDirectCharge(method: PaymentMethod) {
-  if (method === "airtel_money") return env.PAYCHANGU_AIRTEL_MONEY_OPERATOR_REF_ID;
-  if (method === "tnm_mpamba") return env.PAYCHANGU_TNM_MPAMBA_OPERATOR_REF_ID;
-  return "";
-}
-
 function normalizeMobileForDirectCharge(phone: string | null | undefined) {
   if (!phone || !phone.trim()) {
     throw new AppError(400, "Payment phone number is required");
@@ -653,10 +648,17 @@ function normalizeMobileForDirectCharge(phone: string | null | undefined) {
   return phone.trim();
 }
 
-function inferMobileMoneyMethod(method: PaymentMethod, phone: string | null | undefined): PaymentMethod {
+function validateDirectChargeMethod(method: PaymentMethod, phone: string | null | undefined): PaymentMethod {
+  if (method !== "airtel_money" && method !== "tnm_mpamba") {
+    throw new AppError(400, "Direct mobile money payment requires Airtel Money or TNM Mpamba");
+  }
   const local = normalizeMobileForDirectCharge(phone);
-  if (/^0?8[89]/.test(local)) return "tnm_mpamba";
-  if (/^0?9[789]/.test(local)) return "airtel_money";
+  if (/^0?8[89]/.test(local) && method !== "tnm_mpamba") {
+    throw new AppError(400, "This looks like a TNM Mpamba number. Choose TNM Mpamba or correct the phone number.");
+  }
+  if (/^0?9[789]/.test(local) && method !== "airtel_money") {
+    throw new AppError(400, "This looks like an Airtel Money number. Choose Airtel Money or correct the phone number.");
+  }
   return method;
 }
 
@@ -669,7 +671,10 @@ async function createPaychanguMobileMoneyCharge(params: {
   firstName: string;
   lastName: string;
 }) {
-  const operatorRef = operatorRefForDirectCharge(params.method);
+  const operatorRef = await resolveMobileMoneyOperatorRef({
+    paymentMethod: params.method,
+    operatorName: params.method === "airtel_money" ? "Airtel Money" : "TNM Mpamba",
+  });
   if (!operatorRef) {
     throw new AppError(
       400,
@@ -869,7 +874,7 @@ export async function initiatePayment(
   input: InitiatePaymentInput & { callbackUrl?: string; returnUrl?: string },
 ) {
   const { bookingId } = input;
-  const method = inferMobileMoneyMethod(input.method, input.phone);
+  const method = validateDirectChargeMethod(input.method, input.phone);
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, passengerId },
     include: {
@@ -1016,7 +1021,7 @@ export async function initiateRidePayment(
     returnUrl?: string;
   },
 ) {
-  const method = inferMobileMoneyMethod(input.method, input.phone);
+  const method = validateDirectChargeMethod(input.method, input.phone);
   const user = await prisma.user.findUnique({
     where: { id: passengerId },
     select: {

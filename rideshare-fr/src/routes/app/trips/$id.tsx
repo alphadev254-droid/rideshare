@@ -6,6 +6,7 @@ import {
   tripService,
   userService,
   ApiError,
+  type PaymentMethod,
   type PendingPayment,
   type User as ApiUser,
 } from "@/lib/api";
@@ -13,6 +14,7 @@ import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
 import { StatusPill } from "@/components/status-pill";
 import { BookingSeatsFields } from "@/components/booking-seats-fields";
+import { PaymentMethodFields } from "@/components/payment-method-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +33,7 @@ function TripDetail() {
   const { id } = Route.useParams();
   const { user, setUser } = useAuth();
   const [payPhone, setPayPhone] = useState(user?.phone ?? "");
+  const [payMethod, setPayMethod] = useState<PaymentMethod>("airtel_money");
   const [emergencyName, setEmergencyName] = useState(user?.emergencyContactName ?? "");
   const [emergencyPhone, setEmergencyPhone] = useState(user?.emergencyContactPhone ?? "");
   const [seatsBooked, setSeatsBooked] = useState(1);
@@ -79,6 +82,7 @@ function TripDetail() {
         seatsBooked,
         travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean),
         phone: payPhone,
+        method: payMethod,
       });
     },
     onSuccess: (payment: PendingPayment & { checkoutUrl?: string | null }) => {
@@ -226,10 +230,13 @@ function TripDetail() {
                 onTravelerNamesChange={setTravelerNames}
                 primaryName={user?.fullName ?? "You"}
               />
-              <div className="space-y-1.5">
-                <Label className="label-eyebrow">{t("trips.paymentPhone")}</Label>
-                <Input value={payPhone} onChange={(e) => setPayPhone(e.target.value)} />
-              </div>
+              <PaymentMethodFields
+                method={payMethod}
+                phone={payPhone}
+                onMethodChange={setPayMethod}
+                onPhoneChange={setPayPhone}
+                disabled={book.isPending || saveEmergencyContact.isPending}
+              />
               <Button
                 type="button"
                 className="w-full"

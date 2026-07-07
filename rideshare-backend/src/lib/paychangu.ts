@@ -98,7 +98,7 @@ function operatorRefForMethod(method: PaymentMethod) {
   return "";
 }
 
-async function resolveMobileMoneyOperatorRef(input: {
+export async function resolveMobileMoneyOperatorRef(input: {
   paymentMethod?: PaymentMethod | null;
   operatorRefId?: string | null;
   operatorName?: string | null;
@@ -109,33 +109,34 @@ async function resolveMobileMoneyOperatorRef(input: {
   if (normalizedName.includes("airtel")) {
     return (
       getOperatorRefFromCache("airtel") ||
-      env.PAYCHANGU_AIRTEL_MONEY_OPERATOR_REF_ID ||
       (await fetchMobileMoneyOperators()).find((op) =>
         op.name.toLowerCase().includes("airtel"),
       )?.refId ||
+      env.PAYCHANGU_AIRTEL_MONEY_OPERATOR_REF_ID ||
       ""
     );
   }
   if (normalizedName.includes("tnm") || normalizedName.includes("mpamba")) {
     return (
       getOperatorRefFromCache("tnm") ||
-      env.PAYCHANGU_TNM_MPAMBA_OPERATOR_REF_ID ||
       (await fetchMobileMoneyOperators()).find((op) =>
         op.name.toLowerCase().includes("tnm"),
       )?.refId ||
+      env.PAYCHANGU_TNM_MPAMBA_OPERATOR_REF_ID ||
       ""
     );
   }
 
   if (input.paymentMethod) {
-    const fromEnv = operatorRefForMethod(input.paymentMethod);
-    if (fromEnv) return fromEnv;
-
     if (input.paymentMethod === "airtel_money" || input.paymentMethod === "tnm_mpamba") {
       const operators = await fetchMobileMoneyOperators();
       const needle = input.paymentMethod === "airtel_money" ? "airtel" : "tnm";
-      return operators.find((op) => op.name.toLowerCase().includes(needle))?.refId ?? "";
+      const fromLive = operators.find((op) => op.name.toLowerCase().includes(needle))?.refId;
+      if (fromLive) return fromLive;
     }
+
+    const fromEnv = operatorRefForMethod(input.paymentMethod);
+    if (fromEnv) return fromEnv;
   }
 
   return "";

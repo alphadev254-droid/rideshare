@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { BookingSeatsFields } from "@/components/booking-seats-fields";
+import { PaymentMethodFields } from "@/components/payment-method-fields";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ApiError,
   type PendingPayment,
+  type PaymentMethod,
   paymentService,
   tripService,
   userService,
@@ -113,6 +115,7 @@ function PassengerHome() {
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [paymentPhone, setPaymentPhone] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("airtel_money");
   const [seatsBooked, setSeatsBooked] = useState(1);
   const [travelerNames, setTravelerNames] = useState<string[]>([]);
   const date = dateValue(dateYear, dateMonth, dateDay);
@@ -193,6 +196,7 @@ function PassengerHome() {
         seatsBooked,
         travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean),
         phone: paymentPhone,
+        method: paymentMethod,
       });
     },
     onSuccess: (payment: PendingPayment & { checkoutUrl?: string | null }) => {
@@ -446,6 +450,7 @@ function PassengerHome() {
         emergencyName={emergencyName}
         emergencyPhone={emergencyPhone}
         paymentPhone={paymentPhone}
+        paymentMethod={paymentMethod}
         seatsBooked={seatsBooked}
         travelerNames={travelerNames}
         primaryName={user?.fullName ?? "You"}
@@ -454,6 +459,7 @@ function PassengerHome() {
         onEmergencyNameChange={setEmergencyName}
         onEmergencyPhoneChange={setEmergencyPhone}
         onPaymentPhoneChange={setPaymentPhone}
+        onPaymentMethodChange={setPaymentMethod}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedTrip(null);
@@ -477,6 +483,7 @@ function RideDetailsDialog({
   emergencyName,
   emergencyPhone,
   paymentPhone,
+  paymentMethod,
   seatsBooked,
   travelerNames,
   primaryName,
@@ -485,6 +492,7 @@ function RideDetailsDialog({
   onEmergencyNameChange,
   onEmergencyPhoneChange,
   onPaymentPhoneChange,
+  onPaymentMethodChange,
   onOpenChange,
   onReserve,
 }: {
@@ -497,6 +505,7 @@ function RideDetailsDialog({
   emergencyName: string;
   emergencyPhone: string;
   paymentPhone: string;
+  paymentMethod: PaymentMethod;
   seatsBooked: number;
   travelerNames: string[];
   primaryName: string;
@@ -505,6 +514,7 @@ function RideDetailsDialog({
   onEmergencyNameChange: (value: string) => void;
   onEmergencyPhoneChange: (value: string) => void;
   onPaymentPhoneChange: (value: string) => void;
+  onPaymentMethodChange: (value: PaymentMethod) => void;
   onOpenChange: (open: boolean) => void;
   onReserve: () => Promise<void> | void;
 }) {
@@ -598,10 +608,13 @@ function RideDetailsDialog({
                 onTravelerNamesChange={onTravelerNamesChange}
                 primaryName={primaryName}
               />
-              <div className="space-y-1.5">
-                <Label className="label-eyebrow">{t("trips.paymentPhone")}</Label>
-                <Input value={paymentPhone} onChange={(e) => onPaymentPhoneChange(e.target.value)} />
-              </div>
+              <PaymentMethodFields
+                method={paymentMethod}
+                phone={paymentPhone}
+                onMethodChange={onPaymentMethodChange}
+                onPhoneChange={onPaymentPhoneChange}
+                disabled={isBooking || isSavingEmergency}
+              />
             </div>
           </div>
 

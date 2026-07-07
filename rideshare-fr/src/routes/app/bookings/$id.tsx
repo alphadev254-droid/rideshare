@@ -7,6 +7,7 @@ import {
   ApiError,
   reviewService,
   userService,
+  type PaymentMethod,
   type PendingPayment,
   type PaymentRefund,
   type User,
@@ -15,6 +16,7 @@ import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
 import { StatusPill } from "@/components/status-pill";
 import { SecureImage } from "@/components/secure-image";
+import { PaymentMethodFields } from "@/components/payment-method-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +50,7 @@ function BookingDetail() {
   });
 
   const [payPhone, setPayPhone] = useState(user?.phone ?? "");
+  const [payMethod, setPayMethod] = useState<PaymentMethod>("airtel_money");
   const [emergencyName, setEmergencyName] = useState(user?.emergencyContactName ?? "");
   const [emergencyPhone, setEmergencyPhone] = useState(user?.emergencyContactPhone ?? "");
   const [rating, setRating] = useState(5);
@@ -87,11 +90,12 @@ function BookingDetail() {
 
   const pay = useMutation({
     mutationFn: async () => {
+      if (!payPhone.trim()) throw new Error(t("trips.toast.paymentPhoneRequired"));
       if (needsEmergencyContact) {
         if (!emergencyPhone.trim()) throw new Error(t("passengerBookingDetail.emergencyPhoneRequired"));
         await saveEmergencyContact.mutateAsync();
       }
-      return paymentService.initiate({ bookingId: id, phone: payPhone });
+      return paymentService.initiate({ bookingId: id, phone: payPhone, method: payMethod });
     },
     onSuccess: (res: PendingPayment & { checkoutUrl?: string | null }) => {
       toast.success(t("passengerBookingDetail.paymentInitiated"));
@@ -455,14 +459,17 @@ function BookingDetail() {
                     </div>
                   </div>
                 )}
-                <div className="space-y-1.5">
-                  <Label className="label-eyebrow">{t("driverProfile.phone")}</Label>
-                  <Input value={payPhone} onChange={(e) => setPayPhone(e.target.value)} />
-                </div>
+                <PaymentMethodFields
+                  method={payMethod}
+                  phone={payPhone}
+                  onMethodChange={setPayMethod}
+                  onPhoneChange={setPayPhone}
+                  disabled={pay.isPending || saveEmergencyContact.isPending}
+                />
                 <Button
                   className="w-full"
                   onClick={() => pay.mutate()}
-                  disabled={pay.isPending || saveEmergencyContact.isPending}
+                  disabled={pay.isPending || saveEmergencyContact.isPending || !payPhone.trim()}
                 >
                   {pay.isPending || saveEmergencyContact.isPending
                     ? t("passengerBookingDetail.initiating")

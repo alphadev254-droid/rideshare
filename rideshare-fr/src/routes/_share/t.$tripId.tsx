@@ -6,6 +6,7 @@ import {
   paymentService,
   userService,
   type Trip,
+  type PaymentMethod,
   type PendingPayment,
   type User,
   ApiError,
@@ -19,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusPill, ComfortBadge } from "@/components/status-pill";
 import { BookingSeatsFields } from "@/components/booking-seats-fields";
+import { PaymentMethodFields } from "@/components/payment-method-fields";
 import { SecureImage } from "@/components/secure-image";
 import { toast } from "sonner";
 import {
@@ -61,6 +63,7 @@ function TripSharePage() {
 
   // Payment state
   const [paymentPhone, setPaymentPhone] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("airtel_money");
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [seatsBooked, setSeatsBooked] = useState(1);
@@ -102,6 +105,7 @@ function TripSharePage() {
         boardingPoint: t.pickupPoint || t.originName,
         dropOffPoint: t.dropOffPoint || t.destinationName,
         phone: paymentPhone,
+        method: paymentMethod,
         seatsBooked,
         travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean),
       });
@@ -419,14 +423,13 @@ function TripSharePage() {
                       </div>
                     )}
                     <BookingSeatsFields availableSeats={trip.availableSeats} seatsBooked={seatsBooked} onSeatsBookedChange={setSeatsBooked} travelerNames={travelerNames} onTravelerNamesChange={setTravelerNames} primaryName={user.fullName ?? "You"} />
-                    <div className="space-y-1">
-                      <Label className="label-eyebrow">Mobile money number</Label>
-                      <Input
-                        value={paymentPhone}
-                        onChange={(e) => setPaymentPhone(e.target.value)}
-                        placeholder="+265..."
-                      />
-                    </div>
+                    <PaymentMethodFields
+                      method={paymentMethod}
+                      phone={paymentPhone}
+                      onMethodChange={setPaymentMethod}
+                      onPhoneChange={setPaymentPhone}
+                      disabled={book.isPending || saveEmergency.isPending}
+                    />
                     <div className="rounded-lg border border-border bg-surface-2 p-3 text-xs text-muted-foreground">
                       You will pay{" "}
                       <span className="font-semibold text-foreground">

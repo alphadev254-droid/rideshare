@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ApiError, paymentService, tripService, userService, locationService, type ComfortClass, type PendingPayment, type Trip, type User } from "@/lib/api";
+import { ApiError, paymentService, tripService, userService, locationService, type ComfortClass, type PaymentMethod, type PendingPayment, type Trip, type User } from "@/lib/api";
 import { formatMwk, formatDateTime, formatDistanceKm } from "@/lib/format";
 import { BookingSeatsFields } from "@/components/booking-seats-fields";
+import { PaymentMethodFields } from "@/components/payment-method-fields";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModal } from "@/lib/auth-modal-context";
 import { setPendingTripId } from "@/lib/pending-trip";
@@ -62,6 +63,7 @@ function PublicTripsPage() {
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [paymentPhone, setPaymentPhone] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("airtel_money");
   const [seatsBooked, setSeatsBooked] = useState(1);
   const [travelerNames, setTravelerNames] = useState<string[]>([]);
   const date = dateStr(dateYear, dateMonth, dateDay);
@@ -118,7 +120,7 @@ function PublicTripsPage() {
   });
 
   const book = useMutation({
-    mutationFn: (t: Trip) => paymentService.initiateRide({ tripId: t.id, segmentId: t.segmentId ?? undefined, boardingPoint: t.pickupPoint || t.originName, dropOffPoint: t.dropOffPoint || t.destinationName, phone: paymentPhone, seatsBooked, travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean) }),
+    mutationFn: (t: Trip) => paymentService.initiateRide({ tripId: t.id, segmentId: t.segmentId ?? undefined, boardingPoint: t.pickupPoint || t.originName, dropOffPoint: t.dropOffPoint || t.destinationName, phone: paymentPhone, method: paymentMethod, seatsBooked, travelerNames: travelerNames.map((name) => name.trim()).filter(Boolean) }),
     onSuccess: (p: PendingPayment & { checkoutUrl?: string | null }) => {
       toast.success(t("trips.toast.openingPayment"));
       setViewTrip(null);
@@ -210,6 +212,7 @@ function PublicTripsPage() {
         open={!!viewTrip}
         emergencyName={emergencyName} emergencyPhone={emergencyPhone}
         paymentPhone={paymentPhone}
+        paymentMethod={paymentMethod}
         seatsBooked={seatsBooked}
         travelerNames={travelerNames}
         primaryName={user?.fullName ?? "You"}
@@ -218,6 +221,7 @@ function PublicTripsPage() {
         isBooking={book.isPending} isSavingEmergency={saveEmergency.isPending}
         onEmergencyNameChange={setEmergencyName} onEmergencyPhoneChange={setEmergencyPhone}
         onPaymentPhoneChange={setPaymentPhone}
+        onPaymentMethodChange={setPaymentMethod}
         onSeatsBookedChange={setSeatsBooked}
         onTravelerNamesChange={setTravelerNames}
         onClose={() => setViewTrip(null)}
@@ -227,12 +231,14 @@ function PublicTripsPage() {
   );
 }
 
-function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentPhone, seatsBooked, travelerNames, primaryName, needsEmergency, isAuthenticated, isBooking, isSavingEmergency, onEmergencyNameChange, onEmergencyPhoneChange, onPaymentPhoneChange, onSeatsBookedChange, onTravelerNamesChange, onClose, onReserve }: {
+function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentPhone, paymentMethod, seatsBooked, travelerNames, primaryName, needsEmergency, isAuthenticated, isBooking, isSavingEmergency, onEmergencyNameChange, onEmergencyPhoneChange, onPaymentPhoneChange, onPaymentMethodChange, onSeatsBookedChange, onTravelerNamesChange, onClose, onReserve }: {
   trip: Trip | null; open: boolean; emergencyName: string; emergencyPhone: string; paymentPhone: string;
+  paymentMethod: PaymentMethod;
   seatsBooked: number; travelerNames: string[]; primaryName: string;
   needsEmergency: boolean; isAuthenticated: boolean; isBooking: boolean; isSavingEmergency: boolean;
   onEmergencyNameChange: (v: string) => void; onEmergencyPhoneChange: (v: string) => void;
  onPaymentPhoneChange: (v: string) => void;
+  onPaymentMethodChange: (v: PaymentMethod) => void;
   onSeatsBookedChange: (v: number) => void; onTravelerNamesChange: (v: string[]) => void;
   onClose: () => void; onReserve: () => void;
 }) {
@@ -289,7 +295,13 @@ function TripDetailModal({ trip, open, emergencyName, emergencyPhone, paymentPho
                 <p className="mt-1 text-xs text-muted-foreground">{t("trips.paymentHelp")}</p>
                 <div className="mt-3 space-y-3">
                   <BookingSeatsFields availableSeats={trip.availableSeats} seatsBooked={seatsBooked} onSeatsBookedChange={onSeatsBookedChange} travelerNames={travelerNames} onTravelerNamesChange={onTravelerNamesChange} primaryName={primaryName} />
-                  <div className="space-y-1.5"><Label className="label-eyebrow">{t("trips.paymentPhone")}</Label><Input value={paymentPhone} onChange={(e) => onPaymentPhoneChange(e.target.value)} /></div>
+                  <PaymentMethodFields
+                    method={paymentMethod}
+                    phone={paymentPhone}
+                    onMethodChange={onPaymentMethodChange}
+                    onPhoneChange={onPaymentPhoneChange}
+                    disabled={isBooking || isSavingEmergency}
+                  />
                 </div>
               </div>
               <Button className="h-11 w-full" disabled={fullyBooked || isBooking || isSavingEmergency || !paymentPhone.trim()} onClick={onReserve}>
