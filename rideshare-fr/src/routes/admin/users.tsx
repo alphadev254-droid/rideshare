@@ -19,7 +19,7 @@ import {
 } from "@/components/admin-users/edit-user-dialog";
 import { SendEmailDialog } from "@/components/admin-users/send-email-dialog";
 import { Button } from "@/components/ui/button";
-import { adminService, extractApiError, type AdminUser } from "@/lib/api";
+import { adminService, extractApiError, type AdminUser, type PaginatedResponse } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/users")({
   component: AdminUsers,
@@ -57,10 +57,32 @@ function AdminUsers() {
     qc.invalidateQueries({ queryKey: ["admin", "drivers"] });
   };
 
+  const updateUserInCachedLists = (updatedUser: AdminUser) => {
+    qc.setQueriesData<PaginatedResponse<AdminUser>>(
+      { queryKey: ["admin", "users"] },
+      (current) => {
+        if (!current?.items) return current;
+        return {
+          ...current,
+          items: current.items.map((user) =>
+            user.id === updatedUser.id ? { ...user, ...updatedUser } : user,
+          ),
+        };
+      },
+    );
+  };
+
   const updateUser = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: AdminUserUpdate }) =>
       adminService.updateUser(id, payload),
-    onSuccess: () => {
+    onSuccess: (user, { payload }) => {
+      updateUserInCachedLists({
+        ...user,
+        ...payload,
+        fullName: payload.fullName ?? user.fullName,
+        phone: payload.phone ?? user.phone,
+        role: payload.role ?? user.role,
+      });
       toast.success("User updated");
       setEditingUser(null);
       invalidateUsers();

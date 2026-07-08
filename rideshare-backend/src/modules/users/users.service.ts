@@ -77,6 +77,9 @@ async function attachAdminVehicleImages<T extends { id: string; photoUrl?: strin
 
 async function formatAdminUser<T extends {
   rating?: unknown;
+  isVerified?: boolean;
+  isActive?: boolean;
+  termsAccepted?: boolean;
   driverProfile?: { totalEarningsMwk?: bigint | null; vehicles?: Array<{ id: string; photoUrl?: string | null }> } | null;
 }>(
   user: T,
@@ -87,6 +90,9 @@ async function formatAdminUser<T extends {
 
   return {
     ...user,
+    isVerified: user.isVerified ?? false,
+    isActive: user.isActive ?? false,
+    termsAccepted: user.termsAccepted ?? false,
     rating: user.rating?.toString() ?? null,
     driverProfile: user.driverProfile
       ? {
