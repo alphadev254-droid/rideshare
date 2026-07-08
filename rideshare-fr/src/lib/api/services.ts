@@ -410,6 +410,8 @@ export const adminService = {
         | "emergencyContactName"
         | "emergencyContactPhone"
         | "isActive"
+        | "isVerified"
+        | "termsAccepted"
       >
     >,
   ) => api.patch<AdminUser>(`/users/${id}`, body),

@@ -75,36 +75,13 @@ export function UsersTable({
                   </span>
                 </TableCell>
                 <TableCell>
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium ${
-                      user.isActive
-                        ? "bg-primary/10 text-primary"
-                        : "bg-destructive/10 text-destructive"
-                    }`}
-                  >
-                    {user.isActive ? (
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                    ) : (
-                      <XCircle className="h-3.5 w-3.5" />
-                    )}
-                    {user.isActive ? "Active" : "Inactive"}
-                  </span>
+                  <div className="flex min-w-32 flex-col gap-1.5">
+                    <StatusBadge active={!!user.isActive} activeLabel="Active" inactiveLabel="Inactive" />
+                    <StatusBadge active={!!user.isVerified} activeLabel="Verified" inactiveLabel="Unverified" />
+                  </div>
                 </TableCell>
                 <TableCell className="min-w-32">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium ${
-                      user.termsAccepted
-                        ? "bg-primary/10 text-primary"
-                        : "bg-destructive/10 text-destructive"
-                    }`}
-                  >
-                    {user.termsAccepted ? (
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                    ) : (
-                      <XCircle className="h-3.5 w-3.5" />
-                    )}
-                    {user.termsAccepted ? "Accepted" : "Missing"}
-                  </span>
+                  <StatusBadge active={!!user.termsAccepted} activeLabel="Accepted" inactiveLabel="Missing" />
                   {user.termsAcceptedAt && (
                     <div className="mt-1 text-[11px] text-muted-foreground">
                       {formatDate(user.termsAcceptedAt)}
@@ -197,5 +174,26 @@ export function UsersTable({
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+function StatusBadge({
+  active,
+  activeLabel,
+  inactiveLabel,
+}: {
+  active: boolean;
+  activeLabel: string;
+  inactiveLabel: string;
+}) {
+  return (
+    <span
+      className={`inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium ${
+        active ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
+      }`}
+    >
+      {active ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+      {active ? activeLabel : inactiveLabel}
+    </span>
   );
 }

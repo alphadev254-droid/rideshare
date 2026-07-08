@@ -15,6 +15,8 @@ export const updateUserSchema = z.object({
   emergencyContactName: z.string().min(2).max(255).nullable().optional(),
   emergencyContactPhone: z.string().min(7).max(20).nullable().optional(),
   isActive: z.boolean().optional(),
+  isVerified: z.boolean().optional(),
+  termsAccepted: z.boolean().optional(),
 });
 
 export const sendUserEmailSchema = z.object({

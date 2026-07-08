@@ -34,6 +34,7 @@ export interface User {
   emergencyContactPhone?: string | null;
   termsAccepted?: boolean;
   termsAcceptedAt?: string | null;
+  isVerified?: boolean;
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;

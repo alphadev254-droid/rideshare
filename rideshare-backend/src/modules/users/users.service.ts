@@ -10,7 +10,7 @@ const userPublicSelect = {
   profilePhotoUrl: true, rating: true,
   emergencyContactName: true, emergencyContactPhone: true,
   termsAccepted: true, termsAcceptedAt: true,
-  isActive: true, createdAt: true,
+  isVerified: true, isActive: true, createdAt: true,
 } as const;
 
 const adminUserSelect = {
@@ -71,6 +71,9 @@ async function attachAdminVehicleImages<T extends { id: string; photoUrl?: strin
       .concat(vehicle.photoUrl ? [vehicle.photoUrl] : []),
   }));
 }
+
+
+
 
 async function formatAdminUser<T extends {
   rating?: unknown;
@@ -196,6 +199,11 @@ export async function updateUser(id: string, input: UpdateUserInput) {
   if (input.emergencyContactName !== undefined) data.emergencyContactName = input.emergencyContactName;
   if (input.emergencyContactPhone !== undefined) data.emergencyContactPhone = input.emergencyContactPhone;
   if (input.isActive !== undefined) data.isActive = input.isActive;
+  if (input.isVerified !== undefined) data.isVerified = input.isVerified;
+  if (input.termsAccepted !== undefined) {
+    data.termsAccepted = input.termsAccepted;
+    data.termsAcceptedAt = input.termsAccepted ? new Date() : null;
+  }
   if (Object.keys(data).length === 0) throw new AppError(400, "No fields to update");
 
   try {

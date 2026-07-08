@@ -30,6 +30,8 @@ export type AdminUserUpdate = Partial<
     | "emergencyContactName"
     | "emergencyContactPhone"
     | "isActive"
+    | "isVerified"
+    | "termsAccepted"
   >
 >;
 
@@ -56,6 +58,8 @@ export function EditUserDialog({
     emergencyContactName: "",
     emergencyContactPhone: "",
     isActive: true,
+    isVerified: false,
+    termsAccepted: false,
   });
 
   useEffect(() => {
@@ -68,6 +72,8 @@ export function EditUserDialog({
       emergencyContactName: user.emergencyContactName ?? "",
       emergencyContactPhone: user.emergencyContactPhone ?? "",
       isActive: user.isActive ?? true,
+      isVerified: user.isVerified ?? false,
+      termsAccepted: user.termsAccepted ?? false,
     });
   }, [user]);
 
@@ -90,6 +96,8 @@ export function EditUserDialog({
         ? form.emergencyContactPhone.trim()
         : null,
       isActive: form.isActive,
+      isVerified: form.isVerified,
+      termsAccepted: form.termsAccepted,
     });
   }
 
@@ -98,7 +106,7 @@ export function EditUserDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Edit user</DialogTitle>
-          <DialogDescription>Update account, role, contact details and active status.</DialogDescription>
+          <DialogDescription>Update account, role, contact details, verification and terms status.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-5">
@@ -145,11 +153,21 @@ export function EditUserDialog({
             </Field>
           </div>
 
-          <div className="rounded-md border border-border bg-surface p-4">
+          <div className="grid gap-3 rounded-md border border-border bg-surface p-4 sm:grid-cols-3">
             <Toggle
               label="Active"
               checked={form.isActive}
               onCheckedChange={(checked) => update("isActive", checked)}
+            />
+            <Toggle
+              label="Verified"
+              checked={form.isVerified}
+              onCheckedChange={(checked) => update("isVerified", checked)}
+            />
+            <Toggle
+              label="Terms accepted"
+              checked={form.termsAccepted}
+              onCheckedChange={(checked) => update("termsAccepted", checked)}
             />
           </div>
 
