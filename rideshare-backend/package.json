@@ -16,6 +16,7 @@
     "admin:create": "tsx src/scripts/create-admin.ts",
     "media:upload-landing": "tsx src/scripts/upload-landing-media.ts",
     "media:upload-home-hero": "tsx src/scripts/upload-home-hero-image.ts",
+    "terms:accept-existing": "tsx src/scripts/accept-existing-user-terms.ts",
     "lint": "eslint src --ext .ts",
     "vehicles:migrate-status": "tsx src/scripts/migrate-vehicle-is-active-to-review-status.ts"
   },
