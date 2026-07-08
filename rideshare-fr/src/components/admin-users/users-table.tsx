@@ -49,6 +49,7 @@ export function UsersTable({
             <TableHead>Contact</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Terms</TableHead>
             <TableHead>Driver profile</TableHead>
             <TableHead>Joined</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -88,6 +89,27 @@ export function UsersTable({
                     )}
                     {user.isActive ? "Active" : "Inactive"}
                   </span>
+                </TableCell>
+                <TableCell className="min-w-32">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium ${
+                      user.termsAccepted
+                        ? "bg-primary/10 text-primary"
+                        : "bg-destructive/10 text-destructive"
+                    }`}
+                  >
+                    {user.termsAccepted ? (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5" />
+                    )}
+                    {user.termsAccepted ? "Accepted" : "Missing"}
+                  </span>
+                  {user.termsAcceptedAt && (
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      {formatDate(user.termsAcceptedAt)}
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className="min-w-44">
                   {user.role === "driver" ? (

@@ -34,6 +34,7 @@ export function SiteFooter() {
           links={[
             { to: "/about", label: t("nav.about") },
             { to: "/contact", label: t("nav.contact") },
+            { to: "/terms", label: t("footer.terms") },
           ]}
         />
       </div>

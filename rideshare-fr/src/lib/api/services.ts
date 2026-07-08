@@ -64,6 +64,7 @@ export const authService = {
     fullName: string;
     password: string;
     role: "passenger" | "driver";
+    acceptedTerms: true;
   }) => api.post<{ userId: string; message: string }>("/auth/register", body, { auth: false }),
 
   verifyOtp: (body: { phone: string; otp: string }) =>

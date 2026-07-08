@@ -32,6 +32,8 @@ export interface User {
   rating?: string | null;
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
+  termsAccepted?: boolean;
+  termsAcceptedAt?: string | null;
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;

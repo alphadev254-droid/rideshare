@@ -36,6 +36,7 @@ const translations: Record<AppLanguage, TranslationMap> = {
     "footer.driveWithUs": "Drive with us",
     "footer.driverDashboard": "Driver dashboard",
     "footer.company": "Company",
+    "footer.terms": "Terms and Conditions",
     "footer.rights": "All rights reserved.",
 
     "auth.login.title": "Welcome back",
@@ -79,6 +80,10 @@ const translations: Record<AppLanguage, TranslationMap> = {
     "auth.error.reset": "Unable to reset password",
     "auth.error.register": "Unable to register",
     "auth.error.otp": "Invalid OTP",
+    "auth.error.termsRequired": "You must accept the Terms and Conditions to continue",
+    "auth.signInTerms.prefix": "By signing in, you agree to the",
+    "auth.terms.prefix": "I have read and agree to the",
+    "auth.terms.link": "Terms and Conditions",
 
     "home.route.shared": "Shared routes",
     "home.route.verified": "Verified drivers",

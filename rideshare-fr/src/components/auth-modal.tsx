@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuthModal } from "@/lib/auth-modal-context";
 import { useAuth } from "@/lib/auth-context";
 import { authService, extractApiError } from "@/lib/api";
@@ -25,7 +26,7 @@ export function AuthModal() {
 
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? null : closeModal())}>
-      <DialogContent className="max-w-md border-border bg-card">
+      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto border-border bg-card">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
             {mode === "login" && t("auth.login.title")}
@@ -159,6 +160,7 @@ function LoginForm({
           {t("auth.forgotPassword")}
         </button>
       </div>
+      <TermsNotice />
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" className="w-full" disabled={loading}>
         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {t("auth.signIn")}
@@ -174,6 +176,24 @@ function LoginForm({
         </button>
       </p>
     </form>
+  );
+}
+
+function TermsNotice() {
+  const { t } = useI18n();
+  return (
+    <p className="text-center text-xs leading-5 text-muted-foreground">
+      {t("auth.signInTerms.prefix")}{" "}
+      <Link
+        to="/terms"
+        target="_blank"
+        rel="noreferrer"
+        className="font-medium text-primary underline-offset-4 hover:underline"
+      >
+        {t("auth.terms.link")}
+      </Link>
+      .
+    </p>
   );
 }
 
@@ -311,13 +331,18 @@ function RegisterForm({
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"passenger" | "driver">(defaultRole);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (!acceptedTerms) {
+      setError(t("auth.error.termsRequired"));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      await authService.register({ phone, email, fullName, password, role });
+      await authService.register({ phone, email, fullName, password, role, acceptedTerms: true });
       toast.success(t("auth.toast.otpSent"));
       onSent(phone);
     } catch (e) {
@@ -388,8 +413,9 @@ function RegisterForm({
         onChange={setPassword}
         placeholder="At least 8 characters"
       />
+      <TermsAgreement checked={acceptedTerms} onCheckedChange={setAcceptedTerms} />
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" className="w-full" disabled={loading}>
+      <Button type="submit" className="w-full" disabled={loading || !acceptedTerms}>
         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {t("auth.sendOtp")}
       </Button>
       <div className="space-y-2 text-center text-sm text-muted-foreground">
@@ -412,6 +438,39 @@ function RegisterForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function TermsAgreement({
+  checked,
+  onCheckedChange,
+}: {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="flex items-start gap-3 rounded-md border border-border bg-surface-2 p-3">
+      <Checkbox
+        id="auth-terms"
+        checked={checked}
+        onCheckedChange={(value) => onCheckedChange(value === true)}
+        className="mt-0.5"
+      />
+      <Label htmlFor="auth-terms" className="cursor-pointer text-xs leading-5 text-muted-foreground">
+        {t("auth.terms.prefix")}{" "}
+        <Link
+          to="/terms"
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-primary underline-offset-4 hover:underline"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {t("auth.terms.link")}
+        </Link>
+        .
+      </Label>
+    </div>
   );
 }
 
