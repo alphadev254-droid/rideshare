@@ -29,7 +29,15 @@ export async function register(input: RegisterInput) {
   const passwordHash = await bcrypt.hash(password, 12);
 
   const user = await prisma.user.create({
-    data: { phone, email, fullName, passwordHash, role },
+    data: {
+      phone,
+      email,
+      fullName,
+      passwordHash,
+      role,
+      termsAccepted: true,
+      termsAcceptedAt: new Date(),
+    },
     select: { id: true, phone: true, email: true, fullName: true, role: true },
   });
 
@@ -49,9 +57,23 @@ export async function verifyOtp(input: VerifyOtpInput) {
 
   const user = await prisma.user.findUnique({
     where: { phone },
-    select: { id: true, role: true, fullName: true, phone: true, email: true, isVerified: true, isActive: true, createdAt: true },
+    select: {
+      id: true,
+      role: true,
+      fullName: true,
+      phone: true,
+      email: true,
+      isVerified: true,
+      isActive: true,
+      termsAccepted: true,
+      termsAcceptedAt: true,
+      createdAt: true,
+    },
   });
   if (!user) throw new AppError(400, "Invalid or expired OTP");
+  if (!user.termsAccepted) {
+    throw new AppError(403, "You must accept the Terms and Conditions before signing in");
+  }
 
   const refreshToken = signRefreshToken({ sub: user.id, role: user.role });
   const refreshTokenExpiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000);
@@ -65,7 +87,18 @@ export async function verifyOtp(input: VerifyOtpInput) {
         refreshToken,
         refreshTokenExpiresAt,
       },
-      select: { id: true, role: true, fullName: true, phone: true, email: true, isVerified: true, isActive: true, createdAt: true },
+      select: {
+        id: true,
+        role: true,
+        fullName: true,
+        phone: true,
+        email: true,
+        isVerified: true,
+        isActive: true,
+        termsAccepted: true,
+        termsAcceptedAt: true,
+        createdAt: true,
+      },
     });
   });
 
@@ -83,6 +116,9 @@ export async function login(input: LoginInput) {
 
   if (!user) throw new AppError(401, "Invalid credentials");
   if (!user.isActive) throw new AppError(403, "Account is deactivated");
+  if (!user.termsAccepted) {
+    throw new AppError(403, "You must accept the Terms and Conditions before signing in");
+  }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw new AppError(401, "Invalid credentials");
@@ -111,6 +147,8 @@ export async function login(input: LoginInput) {
   const userPayload = {
     id: user.id, phone: user.phone, email: user.email, fullName: user.fullName,
     role: user.role, isVerified: user.isVerified, isActive: user.isActive,
+    termsAccepted: user.termsAccepted,
+    termsAcceptedAt: user.termsAcceptedAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
   };
   return { accessToken, refreshToken, user: userPayload };
@@ -167,8 +205,11 @@ export async function refresh(input: RefreshInput) {
 
   const user = await prisma.user.findUnique({
     where: { id: payload.sub },
-    select: { refreshToken: true, refreshTokenExpiresAt: true },
+    select: { refreshToken: true, refreshTokenExpiresAt: true, termsAccepted: true },
   });
+  if (user && !user.termsAccepted) {
+    throw new AppError(403, "You must accept the Terms and Conditions before continuing");
+  }
   if (
     !user?.refreshToken ||
     user.refreshToken !== input.refreshToken ||

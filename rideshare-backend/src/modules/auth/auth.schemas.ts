@@ -6,6 +6,9 @@ export const registerSchema = z.object({
   fullName: z.string().min(2).max(255),
   password: z.string().min(8),
   role: z.enum(["passenger", "driver"]).default("passenger"),
+  acceptedTerms: z.boolean().refine((value) => value === true, {
+    message: "You must accept the Terms and Conditions",
+  }),
 });
 
 export const verifyOtpSchema = z.object({

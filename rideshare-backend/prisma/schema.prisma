@@ -143,6 +143,8 @@ model User {
   rating                Decimal?  @db.Decimal(3, 2)
   emergencyContactName  String?   @map("emergency_contact_name") @db.VarChar(255)
   emergencyContactPhone String?   @map("emergency_contact_phone") @db.VarChar(20)
+  termsAccepted         Boolean   @default(false) @map("terms_accepted")
+  termsAcceptedAt       DateTime? @map("terms_accepted_at") @db.Timestamptz()
   fcmToken              String?   @map("fcm_token")
   isActive              Boolean   @default(true) @map("is_active")
   refreshToken          String?   @map("refresh_token")

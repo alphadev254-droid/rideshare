@@ -9,6 +9,7 @@ const userPublicSelect = {
   id: true, phone: true, email: true, fullName: true, role: true,
   profilePhotoUrl: true, rating: true,
   emergencyContactName: true, emergencyContactPhone: true,
+  termsAccepted: true, termsAcceptedAt: true,
   isActive: true, createdAt: true,
 } as const;
 
