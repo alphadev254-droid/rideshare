@@ -50,7 +50,7 @@ const termsContent: Record<AppLanguage, TermsContent> = {
       "These terms govern passenger, driver, booking, payment, cancellation, refund, and platform use on ChepetsaRide.",
     updated: "Last updated: July 8, 2026.",
     legalNote:
-      "This page is provided for platform protection and user clarity. It should be reviewed by a qualified legal professional before relying on it as final legal advice.",
+      "These Terms explain the rules for using ChepetsaRide and help protect passengers, drivers, and the platform.",
     sections: [
       {
         title: "1. Acceptance of these Terms",
@@ -143,7 +143,7 @@ const termsContent: Record<AppLanguage, TermsContent> = {
       "Malamulowa amayang'anira kugwiritsa ntchito ChepetsaRide kwa okwera, madalaivala, kusungitsa, kulipira, kuletsa ndi kubweza ndalama.",
     updated: "Zasinthidwa komaliza: July 8, 2026.",
     legalNote:
-      "Tsambali laperekedwa kuti liteteze nsanja ndi kufotokoza bwino kwa ogwiritsa ntchito. Liyenera kuunikidwa ndi katswiri wa malamulo musanaligwiritse ntchito ngati upangiri womaliza wa malamulo.",
+      "Malamulowa amafotokoza momwe mungagwiritsire ntchito ChepetsaRide ndipo amathandiza kuteteza okwera, madalaivala ndi nsanja.",
     sections: [
       {
         title: "1. Kuvomereza malamulo awa",
@@ -236,7 +236,7 @@ const termsContent: Record<AppLanguage, TermsContent> = {
       "Malango agha ghakulongosora umo wakwera, madalaivala, booking, malipiro, cancellation, refund na ChepetsaRide vikugwilira ntchito.",
     updated: "Vyasinthika kaumaliro: July 8, 2026.",
     legalNote:
-      "Peji iyi yapelekeka kuti yivikilire nsanja na kovwira ŵanthu kupulikiska. Yikwenera kuwunikika na munthu wakumanya malango pambere muyigwiliskire ntchito nga ni ulongozgi wakumalizga wa malango.",
+      "Malango agha ghakulongosora umo mungagwiliskira ntchito ChepetsaRide ndipo ghakovwira kuvikilira wakwera, madalaivala na nsanja.",
     sections: [
       {
         title: "1. Kuzomera malango agha",
