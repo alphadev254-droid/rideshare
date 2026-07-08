@@ -38,6 +38,7 @@ import { Route as PublicSafetyRouteImport } from './routes/_public/safety'
 import { Route as PublicDriversInfoRouteImport } from './routes/_public/drivers-info'
 import { Route as PublicContactRouteImport } from './routes/_public/contact'
 import { Route as PublicAboutRouteImport } from './routes/_public/about'
+import { Route as PublicTermsRouteImport } from './routes/_public/terms'
 import { Route as DriverTripsIndexRouteImport } from './routes/driver/trips/index'
 import { Route as AppBookingsIndexRouteImport } from './routes/app/bookings/index'
 import { Route as TripsIdLocationRouteImport } from './routes/trips.$id.location'
@@ -198,6 +199,11 @@ const PublicAboutRoute = PublicAboutRouteImport.update({
   path: '/about',
   getParentRoute: () => PublicRoute,
 } as any)
+const PublicTermsRoute = PublicTermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => PublicRoute,
+} as any)
 const DriverTripsIndexRoute = DriverTripsIndexRouteImport.update({
   id: '/trips/',
   path: '/trips/',
@@ -289,6 +295,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof PublicContactRoute
   '/drivers-info': typeof PublicDriversInfoRoute
   '/safety': typeof PublicSafetyRoute
+  '/terms': typeof PublicTermsRoute
   '/trips': typeof PublicTripsRoute
   '/admin/bookings': typeof AdminBookingsRoute
   '/admin/drivers': typeof AdminDriversRoute
@@ -331,6 +338,7 @@ export interface FileRoutesByTo {
   '/contact': typeof PublicContactRoute
   '/drivers-info': typeof PublicDriversInfoRoute
   '/safety': typeof PublicSafetyRoute
+  '/terms': typeof PublicTermsRoute
   '/trips': typeof PublicTripsRoute
   '/admin/bookings': typeof AdminBookingsRoute
   '/admin/drivers': typeof AdminDriversRoute
@@ -378,6 +386,7 @@ export interface FileRoutesById {
   '/_public/contact': typeof PublicContactRoute
   '/_public/drivers-info': typeof PublicDriversInfoRoute
   '/_public/safety': typeof PublicSafetyRoute
+  '/_public/terms': typeof PublicTermsRoute
   '/_public/trips': typeof PublicTripsRoute
   '/admin/bookings': typeof AdminBookingsRoute
   '/admin/drivers': typeof AdminDriversRoute
@@ -426,6 +435,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/drivers-info'
     | '/safety'
+    | '/terms'
     | '/trips'
     | '/admin/bookings'
     | '/admin/drivers'
@@ -468,6 +478,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/drivers-info'
     | '/safety'
+    | '/terms'
     | '/trips'
     | '/admin/bookings'
     | '/admin/drivers'
@@ -514,6 +525,7 @@ export interface FileRouteTypes {
     | '/_public/contact'
     | '/_public/drivers-info'
     | '/_public/safety'
+    | '/_public/terms'
     | '/_public/trips'
     | '/admin/bookings'
     | '/admin/drivers'
@@ -766,6 +778,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicAboutRouteImport
       parentRoute: typeof PublicRoute
     }
+    '/_public/terms': {
+      id: '/_public/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof PublicTermsRouteImport
+      parentRoute: typeof PublicRoute
+    }
     '/driver/trips/': {
       id: '/driver/trips/'
       path: '/trips'
@@ -886,6 +905,7 @@ interface PublicRouteChildren {
   PublicContactRoute: typeof PublicContactRoute
   PublicDriversInfoRoute: typeof PublicDriversInfoRoute
   PublicSafetyRoute: typeof PublicSafetyRoute
+  PublicTermsRoute: typeof PublicTermsRoute
   PublicTripsRoute: typeof PublicTripsRoute
   PublicIndexRoute: typeof PublicIndexRoute
 }
@@ -895,6 +915,7 @@ const PublicRouteChildren: PublicRouteChildren = {
   PublicContactRoute: PublicContactRoute,
   PublicDriversInfoRoute: PublicDriversInfoRoute,
   PublicSafetyRoute: PublicSafetyRoute,
+  PublicTermsRoute: PublicTermsRoute,
   PublicTripsRoute: PublicTripsRoute,
   PublicIndexRoute: PublicIndexRoute,
 }

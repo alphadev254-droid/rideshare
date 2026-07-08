@@ -1,5 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/page-header";
+import { useI18n, type AppLanguage } from "@/lib/i18n";
+
+type TermsSection = {
+  title: string;
+  body: string[];
+};
+
+type TermsContent = {
+  metaTitle: string;
+  metaDescription: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  updated: string;
+  legalNote: string;
+  sections: TermsSection[];
+};
 
 export const Route = createFileRoute("/_public/terms")({
   head: () => ({
@@ -22,148 +39,309 @@ export const Route = createFileRoute("/_public/terms")({
   component: TermsPage,
 });
 
-const sections = [
-  {
-    title: "1. Acceptance of these Terms",
-    body: [
-      "By creating an account, signing in, publishing a trip, booking a seat, making a payment, requesting a refund, or otherwise using ChepetsaRide, you agree to these Terms and Conditions, our operational rules, and any policies shown in the app.",
-      "If you do not agree, you must not use the platform. We may update these Terms when needed for legal, safety, payment, or product reasons. Continued use after changes means you accept the updated Terms.",
+const termsContent: Record<AppLanguage, TermsContent> = {
+  en: {
+    metaTitle: "Terms and Conditions - ChepetsaRide",
+    metaDescription:
+      "Terms for passengers, drivers, bookings, payments, cancellations, refunds, safety, account use, and platform responsibilities.",
+    eyebrow: "Legal",
+    title: "Terms and Conditions",
+    description:
+      "These terms govern passenger, driver, booking, payment, cancellation, refund, and platform use on ChepetsaRide.",
+    updated: "Last updated: July 8, 2026.",
+    legalNote:
+      "This page is provided for platform protection and user clarity. It should be reviewed by a qualified legal professional before relying on it as final legal advice.",
+    sections: [
+      {
+        title: "1. Acceptance of these Terms",
+        body: [
+          "By creating an account, signing in, publishing a trip, booking a seat, making a payment, requesting a refund, or otherwise using ChepetsaRide, you agree to these Terms and any rules shown in the app.",
+          "If you do not agree, you must not use the platform. We may update these Terms for legal, safety, payment, or product reasons. Continued use after changes means you accept the updated Terms.",
+        ],
+      },
+      {
+        title: "2. What ChepetsaRide is",
+        body: [
+          "ChepetsaRide is a technology platform that helps drivers publish planned trips and passengers book available seats. ChepetsaRide is not a transport operator, taxi company, bus company, insurer, employer, or agent of users.",
+          "Drivers and passengers are independent users. Drivers remain responsible for their trips, vehicles, documents, route decisions, conduct, and compliance with the law.",
+        ],
+      },
+      {
+        title: "3. Accounts and information",
+        body: [
+          "You must provide accurate and current information, including your name, phone, email, emergency contact, driver details, vehicle details, traveler details, and payment information where required.",
+          "You are responsible for keeping your password, OTP, boarding code, and account secure. We may suspend, restrict, or close accounts with false, incomplete, unsafe, suspicious, or unlawful information.",
+        ],
+      },
+      {
+        title: "4. Driver responsibilities",
+        body: [
+          "Drivers must only publish trips they genuinely intend to operate and must provide accurate route, stop, time, seat, fare, vehicle, pickup, and drop-off information.",
+          "Drivers are responsible for roadworthy vehicles, valid documents, lawful insurance where applicable, safe driving, legal seat limits, passenger handling, and compliance with traffic and transport laws.",
+          "Drivers must not demand unauthorized payments, bypass platform payments, misuse passenger information, overload vehicles, harass users, or allow unverified passengers to board.",
+        ],
+      },
+      {
+        title: "5. Passenger responsibilities",
+        body: [
+          "Passengers must provide accurate booking, traveler, emergency contact, pickup, drop-off, and payment information. If booking for others, you confirm you are authorized to provide their details.",
+          "Passengers must arrive on time, follow reasonable safety instructions, protect their boarding code, and share the code only with the correct driver at boarding.",
+          "Passengers must not avoid payment, create false disputes, damage vehicles, harass users, carry illegal or dangerous items, or use another person's account or payment details without authority.",
+        ],
+      },
+      {
+        title: "6. Bookings, routes, seats, and schedules",
+        body: [
+          "A booking depends on seat availability, payment confirmation, route availability, driver approval where applicable, and platform checks. A listed trip does not guarantee a confirmed seat until the booking flow is completed.",
+          "Routes, stops, times, fares, vehicles, and seats may change because of driver updates, road conditions, weather, police checks, delays, breakdowns, safety issues, cancellations, or operational reasons.",
+          "ChepetsaRide may temporarily reserve seats during payment processing. Reservations may expire or be released if payment is not completed or verification fails.",
+        ],
+      },
+      {
+        title: "7. Payments, fees, payouts, and refunds",
+        body: [
+          "Payments are processed through supported third-party providers. You authorize ChepetsaRide and its providers to process payments, fees, refunds, reversals, settlements, and payout checks connected to your use of the platform.",
+          "Amounts may include fare, platform fees, provider charges, convenience fees, payout costs, taxes, or other applicable charges. Drivers receive payouts only after required checks such as payment confirmation, boarding verification, trip status, dispute status, refund status, and fraud review.",
+          "Cancellation and refund eligibility depends on booking status, payment status, trip status, boarding verification, timing, driver action, passenger action, provider confirmation, and platform rules. Refunds may be reduced by applicable fees and costs.",
+          "A refund is not complete only because a request is submitted or a webhook is received. We may verify payout status with the payment provider before marking refunds complete, cancelling bookings, returning seats, or updating wallet/payment records.",
+        ],
+      },
+      {
+        title: "8. Safety, conduct, and prohibited use",
+        body: [
+          "You must use ChepetsaRide lawfully and respectfully. You must not use it for fraud, money laundering, illegal transport, harassment, threats, discrimination, impersonation, false documents, spam, security attacks, or bypassing platform fees.",
+          "Driver verification, vehicle review, ratings, boarding codes, payment checks, and account checks reduce risk but do not guarantee that a user, vehicle, route, trip, or transaction is risk-free.",
+          "Emergency situations should be reported to emergency services or local authorities first. ChepetsaRide is not an emergency response service.",
+        ],
+      },
+      {
+        title: "9. Data, content, disputes, and enforcement",
+        body: [
+          "We collect and use account, trip, booking, payment, device, verification, support, and communication data to operate the platform, process transactions, prevent fraud, support users, enforce rules, and comply with legal obligations.",
+          "You are responsible for content you submit, including documents, photos, listings, messages, ratings, and comments. We may store, display, moderate, remove, or share content where needed for platform operations, safety, support, disputes, law, or enforcement.",
+          "For disputes, we may review booking records, payment records, refund records, payout records, boarding code activity, messages, reports, and provider responses. We may make operational decisions based on available information.",
+        ],
+      },
+      {
+        title: "10. Liability, suspension, and governing law",
+        body: [
+          "To the maximum extent permitted by law, ChepetsaRide is not liable for indirect or consequential losses, missed trips, delays, breakdowns, road incidents, user conduct, third-party payment issues, or data loss.",
+          "ChepetsaRide is not responsible for the acts, omissions, driving, vehicle condition, route choices, delays, cancellations, communications, or conduct of drivers, passengers, or third parties.",
+          "We may suspend, restrict, or terminate access where a user breaches these Terms, creates risk, provides false information, abuses payments/refunds, harms users, or exposes the platform to legal, financial, or reputational risk.",
+          "These Terms are intended to be governed by the applicable laws of Malawi, unless mandatory law says otherwise. Questions or disputes should first be raised through ChepetsaRide support.",
+        ],
+      },
     ],
   },
-  {
-    title: "2. What ChepetsaRide is",
-    body: [
-      "ChepetsaRide is a technology platform that helps drivers publish planned trips and allows passengers to book available seats. ChepetsaRide is not a transport operator, bus company, taxi company, insurer, employer, agent of drivers, or agent of passengers.",
-      "Drivers are independent users responsible for their own trips, vehicles, permits, conduct, route decisions, road compliance, and passenger handling. Passengers are independent users responsible for choosing trips, arriving on time, and following boarding instructions.",
+  ny: {
+    metaTitle: "Malamulo ndi Zoyenera Kutsatira - ChepetsaRide",
+    metaDescription:
+      "Malamulo a okwera, madalaivala, kusungitsa, kulipira, kuletsa, kubweza ndalama, chitetezo, akaunti ndi ntchito ya ChepetsaRide.",
+    eyebrow: "Zalamulo",
+    title: "Malamulo ndi Zoyenera Kutsatira",
+    description:
+      "Malamulowa amayang'anira kugwiritsa ntchito ChepetsaRide kwa okwera, madalaivala, kusungitsa, kulipira, kuletsa ndi kubweza ndalama.",
+    updated: "Zasinthidwa komaliza: July 8, 2026.",
+    legalNote:
+      "Tsambali laperekedwa kuti liteteze nsanja ndi kufotokoza bwino kwa ogwiritsa ntchito. Liyenera kuunikidwa ndi katswiri wa malamulo musanaligwiritse ntchito ngati upangiri womaliza wa malamulo.",
+    sections: [
+      {
+        title: "1. Kuvomereza malamulo awa",
+        body: [
+          "Mukapanga akaunti, kulowa, kusindikiza ulendo, kusungitsa mpando, kulipira, kupempha kubweza ndalama, kapena kugwiritsa ntchito ChepetsaRide, mukuvomereza Malamulowa ndi malamulo ena omwe amaoneka mu app.",
+          "Ngati simukuvomereza, musagwiritse ntchito nsanjayi. Titha kusintha Malamulowa pazifukwa za malamulo, chitetezo, malipiro kapena ntchito. Kupitiriza kugwiritsa ntchito kumatanthauza kuti mwavomereza zosinthazo.",
+        ],
+      },
+      {
+        title: "2. ChepetsaRide ndi chiyani",
+        body: [
+          "ChepetsaRide ndi nsanja yaukadaulo yomwe imathandiza madalaivala kusindikiza maulendo omwe akonzekera ndipo okwera kusungitsa mipando yomwe ilipo. ChepetsaRide si kampani yoyendetsa anthu, taxi, basi, inshuwaransi, bwana wa ogwiritsa ntchito, kapena nthumwi yawo.",
+          "Madalaivala ndi okwera ndi ogwiritsa ntchito odziyimira pawokha. Driver ali ndi udindo pa ulendo wake, galimoto, zikalata, njira, khalidwe ndi kutsatira malamulo.",
+        ],
+      },
+      {
+        title: "3. Akaunti ndi zambiri",
+        body: [
+          "Muyenera kupereka zambiri zolondola komanso zaposachedwa monga dzina, foni, email, munthu wa emergency, zambiri za driver, galimoto, okwera, ndi malipiro ngati zikufunika.",
+          "Muli ndi udindo woteteza password, OTP, boarding code ndi akaunti yanu. Titha kuyimitsa kapena kutseka akaunti yomwe ili ndi zambiri zabodza, zosakwanira, zokayikitsa, zosatetezeka kapena zosaloledwa.",
+        ],
+      },
+      {
+        title: "4. Udindo wa madalaivala",
+        body: [
+          "Madalaivala ayenera kusindikiza maulendo omwe akufuna kuchitadi ndipo ayenera kupereka route, ma stop, nthawi, mipando, mtengo, galimoto, pickup ndi drop-off zolondola.",
+          "Driver ali ndi udindo wa galimoto yabwino, zikalata zovomerezeka, inshuwaransi ngati ikufunika, kuyendetsa motetezeka, malire a mipando, kusamalira okwera ndi kutsatira malamulo a msewu ndi transport.",
+          "Driver sayenera kufuna ndalama zosavomerezeka, kudutsa malipiro a nsanja, kugwiritsa ntchito molakwika zambiri za okwera, kudzaza galimoto mopitirira, kuvutitsa ogwiritsa ntchito, kapena kulola wokwera wosatsimikizidwa kukwera.",
+        ],
+      },
+      {
+        title: "5. Udindo wa okwera",
+        body: [
+          "Okweza ayenera kupereka zambiri zolondola za booking, okwera ena, emergency contact, pickup, drop-off ndi malipiro. Mukasungitsa kwa ena, mumatsimikizira kuti muli ndi chilolezo chopereka zambiri zawo.",
+          "Okweza ayenera kufika pa nthawi yake, kutsatira malangizo a chitetezo, kusunga boarding code mwachinsinsi, ndi kuipereka kwa driver wolondola pa nthawi yokwera.",
+          "Okweza sayenera kuthawa kulipira, kupanga madandaulo abodza, kuwononga galimoto, kuvutitsa anthu, kunyamula zinthu zosaloledwa kapena zoopsa, kapena kugwiritsa ntchito akaunti kapena malipiro a munthu wina popanda chilolezo.",
+        ],
+      },
+      {
+        title: "6. Kusungitsa, route, mipando ndi nthawi",
+        body: [
+          "Booking imadalira mipando yomwe ilipo, kutsimikizika kwa malipiro, route yomwe ilipo, kuvomerezedwa kwa driver ngati kukufunika, ndi macheke a nsanja. Ulendo kuoneka pa list sikutanthauza kuti mpando watsimikizika mpaka booking itamalizidwa.",
+          "Routes, ma stop, nthawi, mitengo, magalimoto ndi mipando zingasinthe chifukwa cha driver, misewu, nyengo, ma check a apolisi, kuchedwa, kuwonongeka, chitetezo, kuletsa kapena zifukwa za ntchito.",
+          "ChepetsaRide ikhoza kusunga mpando kwakanthawi pamene malipiro akukonzedwa. Kusungaku kungathe ngati malipiro sanamalizidwe kapena kutsimikiza kwalephela.",
+        ],
+      },
+      {
+        title: "7. Malipiro, ma fee, payouts ndi kubweza ndalama",
+        body: [
+          "Malipiro amakonzedwa ndi ma payment provider ovomerezeka. Mumalola ChepetsaRide ndi ma provider ake kukonza malipiro, ma fee, refunds, reversals, settlements ndi payout checks zokhudzana ndi ntchito yanu.",
+          "Ndalama zingaphatikize fare, platform fees, provider charges, convenience fees, payout costs, tax kapena ndalama zina. Madalaivala amalandira payout pokhapokha macheke ofunika atachitika monga kutsimikiza malipiro, boarding, status ya ulendo, mikangano, refund ndi fraud review.",
+          "Kuyenera kwa cancellation ndi refund kumadalira status ya booking, malipiro, ulendo, boarding, nthawi, zochita za driver kapena passenger, kutsimikiza kwa provider ndi malamulo a nsanja. Refund ikhoza kuchepetsedwa ndi ma fee ndi costs.",
+          "Refund siyimalizidwa chifukwa choti request yatumizidwa kapena webhook yafika. Titha kutsimikiza payout status ndi payment provider tisanamalize refund, kuletsa booking, kubweza mipando kapena kusintha wallet/payment records.",
+        ],
+      },
+      {
+        title: "8. Chitetezo, khalidwe ndi zoletsedwa",
+        body: [
+          "Muyenera kugwiritsa ntchito ChepetsaRide mwalamulo ndi mwaulemu. Simuyenera kugwiritsa ntchito pa fraud, money laundering, transport yosaloledwa, kuvutitsa, kuopseza, tsankho, kudzitcha munthu wina, zikalata zabodza, spam, security attacks kapena kudutsa ma fee a nsanja.",
+          "Driver verification, vehicle review, ratings, boarding codes, payment checks ndi account checks zimachepetsa chiopsezo koma sizitsimikizira kuti user, galimoto, route, ulendo kapena transaction ndi opanda chiopsezo.",
+          "Pa emergency, muyenera kuyimbira ma emergency services kapena akuluakulu a boma kaye. ChepetsaRide si emergency response service.",
+        ],
+      },
+      {
+        title: "9. Data, content, mikangano ndi enforcement",
+        body: [
+          "Timasonkhanitsa ndi kugwiritsa ntchito data ya akaunti, ulendo, booking, malipiro, device, verification, support ndi communication kuti nsanja igwire ntchito, kukonza transactions, kuletsa fraud, kuthandiza users, kutsatira malamulo ndi kulimbikitsa rules.",
+          "Muli ndi udindo pa zomwe mumatumiza monga zikalata, zithunzi, listings, messages, ratings ndi comments. Titha kusunga, kuonetsa, kuchotsa kapena kugawana content ngati zikufunika pa ntchito, chitetezo, support, mikangano, malamulo kapena enforcement.",
+          "Pa mikangano, titha kuona booking records, payment records, refund records, payout records, boarding code activity, messages, reports ndi mayankho a provider. Titha kupanga chisankho potengera zomwe zilipo.",
+        ],
+      },
+      {
+        title: "10. Liability, kuyimitsidwa ndi malamulo",
+        body: [
+          "Malinga ndi zomwe malamulo amalola, ChepetsaRide siyikhala ndi udindo pa zotayika zosalunjika, maulendo ophonya, kuchedwa, kuwonongeka, ngozi za msewu, khalidwe la users, mavuto a third-party payment kapena kutayika kwa data.",
+          "ChepetsaRide siyili ndi udindo pa zochita, zolakwa, kuyendetsa, condition ya galimoto, route choices, kuchedwa, cancellations, ma communication kapena khalidwe la madalaivala, okwera kapena anthu ena.",
+          "Titha kuyimitsa, kuchepetsa kapena kutseka access ngati user waphwanya Malamulowa, wapanga chiopsezo, wapereka zabodza, wagwiritsa ntchito molakwika malipiro/refunds, wavulaza users kapena waika nsanja pa chiopsezo.",
+          "Malamulowa akuyenera kutsatiridwa ndi malamulo a Malawi, pokhapokha ngati malamulo ena okakamiza akunena zina. Mafunso kapena mikangano ayenera kuyamba kuperekedwa ku support ya ChepetsaRide.",
+        ],
+      },
     ],
   },
-  {
-    title: "3. Account eligibility and accuracy",
-    body: [
-      "You must provide accurate, current, and complete information, including your name, phone number, email address, emergency contact, driver details, vehicle details, and payment information where required.",
-      "You are responsible for keeping your login credentials, OTPs, boarding codes, and account access secure. Any action taken from your account may be treated as authorized unless we determine otherwise.",
-      "We may refuse registration, request additional verification, suspend an account, restrict features, or close an account where information is false, incomplete, suspicious, unsafe, unlawful, or inconsistent with these Terms.",
+  tum: {
+    metaTitle: "Malango na Vyakwenera Kulondezga - ChepetsaRide",
+    metaDescription:
+      "Malango gha wakwera, madalaivala, booking, malipiro, cancellation, refund, chivikiliro, akaunti na ntchito ya ChepetsaRide.",
+    eyebrow: "Vyamalango",
+    title: "Malango na Vyakwenera Kulondezga",
+    description:
+      "Malango agha ghakulongosora umo wakwera, madalaivala, booking, malipiro, cancellation, refund na ChepetsaRide vikugwilira ntchito.",
+    updated: "Vyasinthika kaumaliro: July 8, 2026.",
+    legalNote:
+      "Peji iyi yapelekeka kuti yivikilire nsanja na kovwira ŵanthu kupulikiska. Yikwenera kuwunikika na munthu wakumanya malango pambere muyigwiliskire ntchito nga ni ulongozgi wakumalizga wa malango.",
+    sections: [
+      {
+        title: "1. Kuzomera malango agha",
+        body: [
+          "Para mwapanga akaunti, kunjira, kusindikiza ulendo, kusunga mpando, kulipira, kupempha refund, panji kugwiliskira ntchito ChepetsaRide, mukuzomera Malango agha na rules zinyake izo zikuwoneka mu app.",
+          "Usange mukuzomera yayi, mungagwiliskiranga ntchito yayi nsanja iyi. Tingasintha Malango agha pa vifukwa vya malango, chivikiliro, malipiro panji product. Kulutilira kugwiliskira ntchito chikung'anamura kuti mwazomera kusintha.",
+        ],
+      },
+      {
+        title: "2. ChepetsaRide ni vichi",
+        body: [
+          "ChepetsaRide ni nsanja ya technology iyo yikovwira madalaivala kusindikiza maulendo agho ŵanozga ndipo wakwera kusunga mipando iyo yilipo. ChepetsaRide ni transport operator yayi, taxi yayi, basi company yayi, insurer yayi, employer yayi, panji agent wa users yayi.",
+          "Madalaivala na wakwera mba independent users. Driver wakukhalabe na udindo pa ulendo, galimoto, documents, route, khalidwe na kulondezga malango.",
+        ],
+      },
+      {
+        title: "3. Akaunti na uthenga",
+        body: [
+          "Mukwenera kupeleka uthenga wakuneneska na watsopano, nga ni zina, foni, email, emergency contact, driver details, vehicle details, traveler details na payment information para vikukhumbikwa.",
+          "Muli na udindo wakusunga password, OTP, boarding code na akaunti mwakuvikilirika. Tingayimika panji kujala akaunti iyo yili na uthenga wautesi, wambura kukwana, wakukayikiska, wambura chivikiliro panji wambura kuzomerezgeka.",
+        ],
+      },
+      {
+        title: "4. Udindo wa madalaivala",
+        body: [
+          "Madalaivala ŵakwenera kusindikiza maulendo agho ŵakukhumba kuchita nadi ndipo ŵakwenera kupeleka route, stops, nyengo, mipando, fare, vehicle, pickup na drop-off vyaunenesko.",
+          "Driver wali na udindo wa galimoto yiwemi, documents zakuzomerezgeka, insurance para yikukhumbikwa, driving yakuvikilirika, seat limits, kusamalira wakwera na kulondezga traffic na transport laws.",
+          "Driver wangapemphanga ndalama zambura kuzomerezgeka yayi, wangajumphanga platform payment yayi, wangagwiliskiranga ntchito viheni uthenga wa wakwera yayi, wangazuzanga galimoto yayi, wangasuzganga users yayi, panji kuzomerezga wakwera wambura verification kukwera.",
+        ],
+      },
+      {
+        title: "5. Udindo wa wakwera",
+        body: [
+          "Wakwera ŵakwenera kupeleka booking, traveler, emergency contact, pickup, drop-off na payment information yaunenesko. Usange mukusungira ŵanyinu, mukusimikizga kuti muli na mazaza ghakupeleka uthenga wawo.",
+          "Wakwera ŵakwenera kufika pa nyengo, kulondezga ulongozgi wa chivikiliro, kusunga boarding code, na kupeleka code kwa driver wakwenelera pa nyengo yakukwera.",
+          "Wakwera ŵangachimbiranga malipiro yayi, kupanga disputes zautesi yayi, kunanga galimoto yayi, kusuzga ŵanthu yayi, kunyamura vinthu vyambura kuzomerezgeka panji vyakofya yayi, panji kugwiliskira ntchito akaunti/payment ya munthu munyake kwambura mazaza.",
+        ],
+      },
+      {
+        title: "6. Booking, routes, mipando na nyengo",
+        body: [
+          "Booking yikuthemba mipando iyo yilipo, payment confirmation, route availability, driver approval para yikukhumbikwa, na platform checks. Trip iyo yawoneka pa list yikung'anamura seat confirmed yayi mpaka booking flow yamalizgika.",
+          "Routes, stops, times, fares, vehicles na seats vingasintha chifukwa cha driver updates, misewu, weather, police checks, delays, breakdowns, safety issues, cancellations panji operational reasons.",
+          "ChepetsaRide yingasunga mpando kwa kanyengo apo payment yikuchitika. Reservation yingamara panji kufumiskika usange payment yindamale panji verification yatondeka.",
+        ],
+      },
+      {
+        title: "7. Malipiro, fees, payouts na refunds",
+        body: [
+          "Malipiro ghakuchitika kwizira mu third-party providers ŵakuzomerezgeka. Mukuzomerezga ChepetsaRide na providers ŵake kuchita payments, fees, refunds, reversals, settlements na payout checks zakukhwaskana na ntchito yinu.",
+          "Ndalama zingasazgapo fare, platform fees, provider charges, convenience fees, payout costs, taxes panji charges zinyake. Drivers ŵakulandira payout pekha para checks zakukhumbikwa zachitika nga payment confirmation, boarding verification, trip status, dispute status, refund status na fraud review.",
+          "Cancellation na refund eligibility vikuthemba booking status, payment status, trip status, boarding verification, timing, driver action, passenger action, provider confirmation na platform rules. Refund yingachepeskeka na fees na costs zakukhumbikwa.",
+          "Refund yikumalizgika chifukwa cha request panji webhook pera yayi. Tingasimikizga payout status na payment provider pambere tindamarke refund complete, cancel booking, kuwezga seats panji kusintha wallet/payment records.",
+        ],
+      },
+      {
+        title: "8. Chivikiliro, khalidwe na vinthu vyakukanizgika",
+        body: [
+          "Mukwenera kugwiliskira ntchito ChepetsaRide mwamalango na mwauchindami. Mungayigwiliskiranga ntchito pa fraud, money laundering, illegal transport, harassment, threats, discrimination, impersonation, false documents, spam, security attacks panji bypassing platform fees yayi.",
+          "Driver verification, vehicle review, ratings, boarding codes, payment checks na account checks vikuchepeska risk kweni vikupanga guarantee yayi kuti user, vehicle, route, trip panji transaction vilije risk.",
+          "Pa emergency, mukwenera kuphalira emergency services panji local authorities dankha. ChepetsaRide ni emergency response service yayi.",
+        ],
+      },
+      {
+        title: "9. Data, content, disputes na enforcement",
+        body: [
+          "Tikusonkhaniska na kugwiliskira ntchito account, trip, booking, payment, device, verification, support na communication data kuti nsanja yigwire ntchito, transactions zichitike, fraud yikanizgike, users ŵawovwirike, rules zilondezgeke na legal obligations zikwaniliskike.",
+          "Muli na udindo pa content iyo mukutumiza nga documents, photos, listings, messages, ratings na comments. Tingasunga, kuwonetsa, kusintha, kuchotsa panji kugawana content para yikukhumbikwa pa operations, safety, support, disputes, law panji enforcement.",
+          "Pa disputes, tingawona booking records, payment records, refund records, payout records, boarding code activity, messages, reports na provider responses. Tingapanga decisions potengera uthenga uwo ulipo.",
+        ],
+      },
+      {
+        title: "10. Liability, suspension na governing law",
+        body: [
+          "Malinga na umo malango ghakuzomerezgera, ChepetsaRide yilije udindo pa indirect losses, missed trips, delays, breakdowns, road incidents, user conduct, third-party payment issues panji data loss.",
+          "ChepetsaRide yilije udindo pa vyakuchita, kuleka kuchita, driving, vehicle condition, route choices, delays, cancellations, communications panji conduct ya drivers, passengers panji third parties.",
+          "Tingayimika, kuchepeska panji kujala access para user waswa Malango agha, wapanga risk, wapeleka uthenga wautesi, wagwiliskira ntchito viheni payments/refunds, wapweteka users panji waika platform pa legal, financial panji reputational risk.",
+          "Malango agha ghakulondezga laws za Malawi para mandatory law yinyake yindayowoye vinyake. Mafumbo panji disputes ghakwenera kwamba na ChepetsaRide support.",
+        ],
+      },
     ],
   },
-  {
-    title: "4. Driver responsibilities",
-    body: [
-      "Drivers must only publish trips they genuinely intend to operate and must provide accurate route, stop, time, seat, fare, vehicle, pickup, and drop-off information.",
-      "Drivers are responsible for having a roadworthy vehicle, valid documents, valid driving authority, lawful insurance where applicable, and compliance with all road, traffic, tax, licensing, passenger, and safety laws.",
-      "Drivers must not overload vehicles, carry passengers outside legal limits, demand unauthorized extra payments, misuse passenger information, bypass the platform payment process, harass passengers, or allow unverified passengers to board.",
-      "A driver must verify boarding codes through the platform where required. Failure to verify passengers correctly may affect payment release, disputes, refund handling, account standing, and platform access.",
-    ],
-  },
-  {
-    title: "5. Passenger responsibilities",
-    body: [
-      "Passengers must provide accurate traveler details, emergency contact details, pickup and drop-off information, and payment information. If booking for other travelers, you confirm you are authorized to provide their details and accept these Terms on their behalf for that booking.",
-      "Passengers must arrive at the boarding point on time, carry any required identification, follow reasonable safety instructions, and give the boarding code only to the correct driver at boarding time.",
-      "Passengers must not harass drivers or other passengers, carry illegal or dangerous items, damage vehicles, avoid payment, create false disputes, or use another person's account or payment details without authority.",
-    ],
-  },
-  {
-    title: "6. Bookings, seats, routes, and schedules",
-    body: [
-      "A booking is subject to seat availability, payment confirmation, route availability, driver approval where applicable, and platform checks. A displayed trip does not guarantee that a seat is available until the booking and payment flow is completed.",
-      "Routes, stops, departure times, arrival times, fares, vehicles, and seats may change due to driver updates, road conditions, safety issues, weather, police checks, delays, breakdowns, cancellations, or operational reasons.",
-      "ChepetsaRide may reserve seats temporarily during payment processing to reduce double-booking risk. A reservation can expire or be released if payment is not completed, verification fails, or the transaction is abandoned.",
-    ],
-  },
-  {
-    title: "7. Payments, fees, and payouts",
-    body: [
-      "Payments are processed through supported third-party payment providers. You authorize ChepetsaRide and its payment providers to process payments, fees, refunds, reversals, settlements, and payout-related checks connected to your use of the platform.",
-      "The amount shown at checkout may include fare, platform fees, provider charges, convenience fees, payout charges, taxes, or other applicable amounts. Fees may vary by route, payment method, provider, timing, refund status, and operational rules.",
-      "Drivers receive payouts only according to the platform's payout rules and after required checks, including payment confirmation, boarding verification, trip status, dispute status, refund status, and fraud review. We may delay, withhold, reverse, or adjust payouts where required for safety, fraud, chargebacks, refunds, legal compliance, or error correction.",
-    ],
-  },
-  {
-    title: "8. Cancellations and refunds",
-    body: [
-      "Cancellation and refund eligibility depends on booking status, payment status, trip status, boarding verification, timing, driver action, passenger action, provider confirmation, and platform rules shown at the time of cancellation.",
-      "Refund amounts may be reduced by convenience fees, payment provider charges, payout costs, administrative costs, driver fee shares, penalties, or non-refundable amounts where applicable. The app may show a refund preview before you confirm cancellation.",
-      "A refund is not completed merely because a request is submitted or a webhook is received. We may verify payout status with the payment provider before marking a refund complete, cancelling the booking, returning seats, or updating wallet/payment records.",
-      "We may reject, delay, review, or manually process refunds where fraud, duplicate claims, incorrect phone numbers, incomplete provider information, chargebacks, suspicious activity, or operational disputes are detected.",
-    ],
-  },
-  {
-    title: "9. Safety, conduct, and prohibited use",
-    body: [
-      "You must use ChepetsaRide lawfully and respectfully. You must not use the platform for fraud, money laundering, illegal transport, trafficking, harassment, threats, abuse, discrimination, impersonation, false documents, spam, platform scraping, security attacks, or bypassing platform fees.",
-      "ChepetsaRide may monitor, review, remove, restrict, or report activity that appears unsafe, unlawful, fraudulent, abusive, or harmful to the platform, users, payment providers, or the public.",
-      "Emergency situations should be reported to the relevant emergency services or local authorities first. ChepetsaRide may provide support information but is not an emergency response service.",
-    ],
-  },
-  {
-    title: "10. Verification and trust features",
-    body: [
-      "Driver verification, vehicle review, ratings, boarding codes, payment checks, location tools, and account checks are risk-reduction features. They do not guarantee that a user, vehicle, route, trip, or transaction is risk-free.",
-      "Users must still exercise judgment, confirm trip details, protect personal information, and report suspicious or unsafe conduct.",
-    ],
-  },
-  {
-    title: "11. User content, ratings, and communications",
-    body: [
-      "You are responsible for information, photos, documents, trip listings, reviews, comments, messages, and other content you submit. You must have the right to submit it and it must not be false, misleading, abusive, unlawful, or infringing.",
-      "We may use, store, display, moderate, remove, or share user content as needed to operate the platform, process bookings, support disputes, enforce these Terms, improve safety, comply with law, and protect our rights.",
-    ],
-  },
-  {
-    title: "12. Privacy and data use",
-    body: [
-      "We collect and use account, trip, booking, payment, device, verification, support, and communication data to operate ChepetsaRide, process transactions, prevent fraud, support users, enforce rules, and comply with legal obligations.",
-      "Driver and passenger details may be shared with each other where necessary for a booking, trip, safety, payment, support, or dispute purpose. Payment information may be shared with payment providers and relevant service providers.",
-    ],
-  },
-  {
-    title: "13. Disputes and investigations",
-    body: [
-      "If there is a dispute, we may review booking records, payment records, payout records, refund records, boarding code activity, messages, trip details, user reports, and provider responses.",
-      "You agree to cooperate with reasonable requests for information. We may make operational decisions about refunds, payouts, account restrictions, or trip records based on the information available to us.",
-    ],
-  },
-  {
-    title: "14. Limitation of liability",
-    body: [
-      "To the maximum extent permitted by law, ChepetsaRide is not liable for indirect, incidental, special, consequential, punitive, or exemplary losses, including loss of profit, lost opportunity, missed trips, delays, breakdowns, road incidents, user conduct, third-party payment issues, or data loss.",
-      "ChepetsaRide is not responsible for the acts, omissions, driving, vehicle condition, route choices, delays, cancellations, communications, or conduct of drivers, passengers, or third parties. Nothing in these Terms excludes liability that cannot be excluded by law.",
-    ],
-  },
-  {
-    title: "15. Suspension and termination",
-    body: [
-      "We may suspend, restrict, or terminate access to ChepetsaRide at any time where we reasonably believe a user has breached these Terms, created risk, provided false information, abused payments or refunds, harmed another user, or exposed the platform to legal, financial, or reputational risk.",
-      "Account closure does not remove obligations connected to completed trips, pending payments, refunds, disputes, investigations, fees, chargebacks, or legal compliance.",
-    ],
-  },
-  {
-    title: "16. Governing law and contact",
-    body: [
-      "These Terms are intended to be governed by the applicable laws of Malawi, unless another mandatory law applies. Any dispute should first be raised with ChepetsaRide support so we can attempt to resolve it fairly and promptly.",
-      "For questions about these Terms, contact ChepetsaRide support through the contact page or official support channels shown in the app.",
-    ],
-  },
-];
+};
 
 function TermsPage() {
+  const { language } = useI18n();
+  const content = termsContent[language] ?? termsContent.en;
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:py-16">
       <PageHeader
-        eyebrow="Legal"
-        title="Terms and Conditions"
-        description="These terms govern passenger, driver, booking, payment, cancellation, refund, and platform use on ChepetsaRide."
+        eyebrow={content.eyebrow}
+        title={content.title}
+        description={content.description}
       />
 
       <div className="mt-6 rounded-md border border-border bg-card p-4 text-sm text-muted-foreground sm:p-5">
         <p>
-          Last updated: July 8, 2026. This page is provided for platform protection and user clarity. It should be
-          reviewed by a qualified legal professional before relying on it as final legal advice.
+          <span className="font-medium text-foreground">{content.updated}</span>{" "}
+          {content.legalNote}
         </p>
       </div>
 
       <div className="mt-8 space-y-5">
-        {sections.map((section) => (
+        {content.sections.map((section) => (
           <section key={section.title} className="border-b border-border pb-5 last:border-b-0">
             <h2 className="font-display text-xl font-semibold text-foreground">
               {section.title}
